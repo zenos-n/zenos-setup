@@ -94,7 +94,6 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
 
         is_welcome = "welcome" in view_name or "boot" in view_name
 
-        # native adwaita call instead of manual child iteration
         page_count = self.carousel.get_n_pages()
 
         self.carousel_indicator_dots.set_visible(not is_welcome and page_count >= 3)
@@ -144,12 +143,13 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
             self.history.append(self.current_step_id)
 
         # prune branches we didn't take ONLY when moving forward.
-        # if we nuke the current page on a back-nav, scroll_to snaps and breaks the anim.
+        # we keep the history views in the carousel so the dots indicator works.
         if not is_back:
             valid_path = self.history + [step_id]
             valid_views = [FLOWS[self.active_flow_id]["steps"][s]["view"] for s in valid_path]
 
             for k, p in list(self.loaded_pages.items()):
+                # if it's in the carousel but NOT in our current valid history path, nuke it
                 if p.get_parent() == self.carousel and k not in valid_views:
                     self.carousel.remove(p)
 
