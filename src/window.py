@@ -3,10 +3,13 @@ from gi.repository import Adw, Gtk, GObject, GLib
 
 FLOW_MAP = {
     "oobe_welcome": {
-        "next": "welcome"
+        "start": "language"
+    },
+    "language": {
+        "next": "timezone"
     },
     "installer_welcome": {
-        "install": "timezone",
+        "install": "language",
         "recovery": "recovery_mode"
     },
     "timezone": {

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <template class="ZenOSDefaultOOBEWelcome" parent="AdwBin">
+    <property name="halign">0</property>
+    <property name="valign">0</property>
+    <property name="hexpand">true</property>
+    <child>
+      <object class="AdwStatusPage" id="status_page">
+        <property name="title" translatable="yes">Welcome to ZenOS</property>
+        <property name="description" translatable="yes">Let's set your computer up</property>
+        <property name="icon-name">zenos</property>
+        <child>
+          <object class="GtkButton" id="next_btn">
+            <property name="halign">3</property>
+            <property name="valign">3</property>
+            <style>
+              <class name="pill"/>
+              <class name="suggested-action"/>
+              <class name="small-button"/>
+            </style>
+            <child>
+              <object class="GtkBox">
+                <property name="spacing">16</property>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="label" translatable="yes">Let's begin</property>
+                    <property name="margin-start">12</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkImage">
+                    <property name="icon-name">go-next-symbolic</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <requires lib="gtk" version="4.0"/>
-  <template class="ZenOSDefaultWelcome" parent="AdwBin">
+  <template class="ZenOSDefaultInstallerWelcome" parent="AdwBin">
     <property name="halign">0</property>
     <property name="valign">0</property>
     <property name="hexpand">true</property>
