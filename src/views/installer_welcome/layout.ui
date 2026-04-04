@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <template class="ZenOSDefaultWelcome" parent="AdwBin">
+    <property name="halign">0</property>
+    <property name="valign">0</property>
+    <property name="hexpand">true</property>
+    <child>
+      <object class="AdwStatusPage" id="status_page">
+        <property name="title" translatable="yes">Welcome to ZenOS</property>
+        <property name="description" translatable="yes">Select an option to get started or close the window to power off</property>
+        <property name="icon-name">zenos</property>
+        <child>
+          <object class="AdwPreferencesPage">
+            <child>
+              <object class="AdwPreferencesGroup">
+                <child>
+                  <object class="AdwActionRow" id="row_install">
+                    <property name="title" translatable="yes">Install ZenOS</property>
+                    <property name="icon-name">folder-download-symbolic</property>
+                    <property name="activatable">true</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="icon-name">go-next-symbolic</property>
+                        <property name="halign">3</property>
+                        <property name="valign">3</property>
+                        <style>
+                          <class name="flat"/>
+                        </style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="row_recovery">
+                    <property name="title" translatable="yes">Recovery</property>
+                    <property name="icon-name">help-browser-symbolic</property>
+                    <property name="activatable">true</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="icon-name">go-next-symbolic</property>
+                        <property name="halign">3</property>
+                        <property name="valign">3</property>
+                        <style>
+                          <class name="flat"/>
+                        </style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

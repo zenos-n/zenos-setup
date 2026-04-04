@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=com.negzero.zenos.setup
+Exec=/home/doromiert/Projects/ZenOS-Setup/install_root/bin/zenos-setup --gapplication-service

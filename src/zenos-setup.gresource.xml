@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/com/negzero/zenos/setup">
+    <file preprocess="xml-stripblanks">window.ui</file>
+    <file preprocess="xml-stripblanks">views/installer_welcome/layout.ui</file>
+    <file preprocess="xml-stripblanks">views/recovery_mode/layout.ui</file>
+    <file>assets/welcome.mp4</file>
+  </gresource>
+</gresources>

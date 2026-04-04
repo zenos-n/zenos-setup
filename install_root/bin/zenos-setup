@@ -1,0 +1,29 @@
+#!/nix/store/pzdalg368npikvpq4ncz2saxnz19v53k-python3-3.13.12/bin/python3
+
+
+import os
+import sys
+import signal
+import locale
+import gettext
+
+VERSION = '0.1.0'
+pkgdatadir = '/home/doromiert/Projects/ZenOS-Setup/install_root/share/zenos-setup'
+localedir = '/home/doromiert/Projects/ZenOS-Setup/install_root/share/locale'
+
+sys.path.insert(1, pkgdatadir)
+signal.signal(signal.SIGINT, signal.SIG_DFL)
+locale.bindtextdomain('zenos-setup', localedir)
+locale.textdomain('zenos-setup')
+gettext.bindtextdomain('zenos-setup', localedir)
+gettext.textdomain('zenos-setup')
+
+if __name__ == '__main__':
+    import gi
+
+    from gi.repository import Gio
+    resource = Gio.Resource.load(os.path.join(pkgdatadir, 'zenos-setup.gresource'))
+    resource._register()
+
+    from zenos_setup import main
+    sys.exit(main.main(VERSION))

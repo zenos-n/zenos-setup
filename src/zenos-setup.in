@@ -1,0 +1,29 @@
+#!@PYTHON@
+
+
+import os
+import sys
+import signal
+import locale
+import gettext
+
+VERSION = '@VERSION@'
+pkgdatadir = '@pkgdatadir@'
+localedir = '@localedir@'
+
+sys.path.insert(1, pkgdatadir)
+signal.signal(signal.SIGINT, signal.SIG_DFL)
+locale.bindtextdomain('zenos-setup', localedir)
+locale.textdomain('zenos-setup')
+gettext.bindtextdomain('zenos-setup', localedir)
+gettext.textdomain('zenos-setup')
+
+if __name__ == '__main__':
+    import gi
+
+    from gi.repository import Gio
+    resource = Gio.Resource.load(os.path.join(pkgdatadir, 'zenos-setup.gresource'))
+    resource._register()
+
+    from zenos_setup import main
+    sys.exit(main.main(VERSION))

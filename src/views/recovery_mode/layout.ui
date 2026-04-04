@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <template class="ZenOSDefaultRecovery" parent="AdwBin">
+    <property name="halign">0</property>
+    <property name="valign">0</property>
+    <property name="hexpand">true</property>
+    <child>
+      <object class="AdwStatusPage" id="status_page">
+        <property name="title" translatable="yes">Recovery tools</property>
+        <property name="icon-name">help-browser-symbolic</property>
+        <child>
+          <object class="AdwPreferencesPage">
+            <child>
+              <object class="AdwPreferencesGroup">
+                <child>
+                  <object class="AdwActionRow" id="row_terminal">
+                    <property name="title" translatable="yes">Terminal</property>
+                    <property name="icon-name">utilities-terminal-symbolic</property>
+                    <property name="activatable">true</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="icon-name">go-next-symbolic</property>
+                        <property name="halign">3</property>
+                        <property name="valign">3</property>
+                        <style>
+                          <class name="flat"/>
+                        </style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="row_disk">
+                    <property name="title" translatable="yes">Disk Utility</property>
+                    <property name="subtitle" translatable="yes">Gparted</property>
+                    <property name="icon-name">drive-harddisk-symbolic</property>
+                    <property name="activatable">true</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="icon-name">go-next-symbolic</property>
+                        <property name="halign">3</property>
+                        <property name="valign">3</property>
+                        <style>
+                          <class name="flat"/>
+                        </style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="row_browser">
+                    <property name="title" translatable="yes">Web Browser</property>
+                    <property name="subtitle" translatable="yes">Firefox</property>
+                    <property name="icon-name">web-browser-symbolic</property>
+                    <property name="activatable">true</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="icon-name">go-next-symbolic</property>
+                        <property name="halign">3</property>
+                        <property name="valign">3</property>
+                        <style>
+                          <class name="flat"/>
+                        </style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>
+
