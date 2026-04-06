@@ -34,6 +34,7 @@
     libadwaita
     python3
     python3Packages.pygobject3
+    python3Packages.babel
   ];
 
   # This ensures the final binary in /bin finds its python deps

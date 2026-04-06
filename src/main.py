@@ -67,7 +67,6 @@ class ZenosSetupApplication(Adw.Application):
 def main(version):
     """The application's entry point."""
 
-    # check for oobe flag and yank it out so gtk doesn't throw a fit
     start_in_oobe = False
     if '--oobe' in sys.argv:
         start_in_oobe = True
