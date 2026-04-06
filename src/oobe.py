@@ -43,6 +43,7 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
 
         # Load from GResource
         self.media_file = Gtk.MediaFile.new_for_resource("/com/negzero/zenos/setup/assets/welcome.mp4")
+        self.media_file.connect("notify::ended", self.on_media_finished)
         self.picture.set_paintable(self.media_file)
 
         self.overlay.set_child(self.picture)
@@ -68,6 +69,11 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
         self.media_file.play()
         self.is_playing = True
         self.fullscreen()
+        
+    def on_media_finished(self, media_file, pspec):
+        if media_file.get_ended():
+            # reuse your skip logic to clean up and emit signal
+            self.on_skip_clicked(None)
 
     def setup_input_tracking(self):
         key_controller = Gtk.EventControllerKey()
