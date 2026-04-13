@@ -73,9 +73,12 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
         # jump right in
         start_step = FLOWS[self.active_flow_id]["start"]
         self.navigate_to_step(start_step)
+        
+    def set_next_enabled(self, enabled: bool):
+        """api for logic.py to call manually"""
+        self.btn_next.set_sensitive(enabled)
 
     def preload_all_views(self):
-        """cranks through the flow map and loads every view into memory"""
         flow_steps = FLOWS[self.active_flow_id]["steps"]
         unique_views = {step_config["view"] for step_config in flow_steps.values()}
 
@@ -89,52 +92,34 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
                     print(f"[-] failed to preload '{view_name}': {e}")
 
     def _apply_navigation_effects(self, view_name):
-        """animates the UI widgets when changing pages"""
         self.carousel.scroll_to(self.loaded_pages[view_name], True)
 
         is_welcome = "welcome" in view_name or "boot" in view_name
-
         page_count = self.carousel.get_n_pages()
-
         self.carousel_indicator_dots.set_visible(not is_welcome and page_count >= 3)
 
-        should_show_back = not is_welcome and len(self.history) > 0
+        # check if page should be gated (disabled by default)
+        target_page = self.loaded_pages[view_name]
+        manifest = getattr(target_page, "MANIFEST", {})
+        is_gated = manifest.get("gated", False)
+        
+        # if gated, we disable. if not, we enable.
+        self.set_next_enabled(not is_gated)
 
-        if should_show_back:
-            if not self.btn_back.get_visible():
-                self.btn_back.set_visible(True)
-                self.animate_spring(self.btn_back)
-        else:
-            self.btn_back.set_visible(False)
+        # handle button visibility
+        should_show_back = not is_welcome and len(self.history) > 0
+        self.btn_back.set_visible(should_show_back)
 
         current_node = FLOWS[self.active_flow_id]["steps"].get(self.current_step_id, {})
         has_next = "next" in current_node.get("routes", {})
-
-        if has_next:
-            if not self.btn_next.get_visible():
-                self.btn_next.set_visible(True)
-                self.animate_spring(self.btn_next)
-        else:
-            self.btn_next.set_visible(False)
-
-    def animate_spring(self, widget):
-        """bouncy opacity flex"""
-        target = Adw.CallbackAnimationTarget.new(
-            lambda value, _: widget.set_opacity(max(0.0, min(1.0, value))),
-            None
-        )
-        params = Adw.SpringParams.new(0.50, 1.0, 100.0)
-        animation = Adw.SpringAnimation.new(widget, 0.0, 1.0, params, target)
-        animation.play()
+        self.btn_next.set_visible(has_next)
 
     def navigate_to_step(self, step_id, is_back=False):
-        """the big brain router logic"""
         if step_id == self.current_step_id:
             return
 
         step_config = FLOWS[self.active_flow_id]["steps"].get(step_id)
         if not step_config:
-            print(f"[-] router dead end: step '{step_id}' doesn't exist in flow '{self.active_flow_id}'")
             return
 
         view_name = step_config["view"]
@@ -142,45 +127,20 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
         if not is_back and self.current_step_id:
             self.history.append(self.current_step_id)
 
-        # prune branches we didn't take ONLY when moving forward.
-        # we keep the history views in the carousel so the dots indicator works.
-        if not is_back:
-            valid_path = self.history + [step_id]
-            valid_views = [FLOWS[self.active_flow_id]["steps"][s]["view"] for s in valid_path]
-
-            for k, p in list(self.loaded_pages.items()):
-                # if it's in the carousel but NOT in our current valid history path, nuke it
-                if p.get_parent() == self.carousel and k not in valid_views:
-                    self.carousel.remove(p)
-
         target_view = self.loaded_pages[view_name]
-        just_mounted = False
-
         if target_view.get_parent() != self.carousel:
             self.carousel.append(target_view)
-            just_mounted = True
 
         self.current_step_id = step_id
-
-        if just_mounted:
-            GLib.timeout_add(50, self._apply_navigation_effects, view_name)
-        else:
-            self._apply_navigation_effects(view_name)
+        GLib.timeout_add(50, self._apply_navigation_effects, view_name)
 
     def navigate_next(self, route_key="next"):
-        """looks up what the next step is based on the current step and the route picked"""
         current_step_config = FLOWS[self.active_flow_id]["steps"].get(self.current_step_id, {})
         next_step_id = current_step_config.get("routes", {}).get(route_key)
-
         if next_step_id:
             self.navigate_to_step(next_step_id)
-        else:
-            print(f"[-] router dead end: nowhere to go from '{self.current_step_id}' via route '{route_key}'")
 
     def navigate_back(self):
-        if not self.history:
-            return
-
-        prev_step_id = self.history.pop()
-        # pass is_back=True so we don't accidentally push the current page onto the history stack we just popped
-        self.navigate_to_step(prev_step_id, is_back=True)
+        if self.history:
+            prev_step_id = self.history.pop()
+            self.navigate_to_step(prev_step_id, is_back=True)

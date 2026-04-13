@@ -6,5 +6,8 @@
     <file preprocess="xml-stripblanks">views/recovery_mode/layout.ui</file>
     <file preprocess="xml-stripblanks">views/oobe_welcome/layout.ui</file>
     <file preprocess="xml-stripblanks">views/language/layout.ui</file>
+    <file preprocess="xml-stripblanks">views/timezone/layout.ui</file>
+    <file preprocess="xml-stripblanks">views/timezone/widget-timezone.ui</file>
+    <file preprocess="xml-stripblanks">views/keyboard/layout.ui</file>
   </gresource>
 </gresources>

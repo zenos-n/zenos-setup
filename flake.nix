@@ -41,6 +41,7 @@
           appstream
           libxml2
           glib
+          libgweather
           python3
         ];
 
@@ -49,6 +50,7 @@
           libadwaita
           python3
           python3Packages.pygobject3
+          python3Packages.requests
           python3Packages.babel
         ];
 

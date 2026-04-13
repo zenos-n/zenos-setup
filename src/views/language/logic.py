@@ -1,4 +1,4 @@
-from gi.repository import Adw, Gtk, GnomeDesktop
+from gi.repository import Adw, Gtk
 from babel import Locale
 import re
 
