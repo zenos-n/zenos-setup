@@ -12,6 +12,12 @@
     <file preprocess="xml-stripblanks">views/internet/wireless-row.ui</file>
     <file preprocess="xml-stripblanks">views/internet/layout.ui</file>
     <file preprocess="xml-stripblanks">views/internet/advanced-dialogs.ui</file>
+    <file preprocess="xml-stripblanks">views/disks/layout.ui</file>
+    <file preprocess="xml-stripblanks">views/disks/widget-disk.ui</file>
+    <file preprocess="xml-stripblanks">views/disks/dialog-disk.ui</file>
+    <file preprocess="xml-stripblanks">views/disks/dialog-disk-confirm.ui</file>
+    <file preprocess="xml-stripblanks">views/disks/widget-partition.ui</file>
+    <file preprocess="xml-stripblanks">views/disks/widget-partition-row.ui</file>
   </gresource>
 
   <!-- we point the prefix to the root of the "theme" -->

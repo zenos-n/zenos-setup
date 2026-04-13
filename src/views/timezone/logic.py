@@ -30,37 +30,52 @@ class Locale:
 
 # --- timezones.py dump ---
 
-regions: dict[str, dict[str, dict[str, str]]] = {}
-world = GWeather.Location.get_world()
-parents = []
-base = world
-child = None
+all_timezones = {}
+expanders_list = []
+_tz_initialized = False
 
-while True:
-    child = base.next_child(child)
-    if child is not None:
-        if child.get_level() == GWeather.LocationLevel.REGION:
-            regions[child.get_name()] = {}
-            current_region = child.get_name()
-        elif child.get_level() == GWeather.LocationLevel.COUNTRY:
-            regions[current_region][child.get_name()] = {}
-            current_country = child.get_name()
-        elif child.get_level() == GWeather.LocationLevel.CITY:
-            regions[current_region][current_country][child.get_city_name()] = (
-                child.get_timezone_str()
-            )
+def _init_timezones():
+    global all_timezones, expanders_list, _tz_initialized
+    if _tz_initialized:
+        return
 
-        if child.next_child(None) is not None:
-            parents.append(child)
-            base = child
-            child = None
-    else:
-        base = base.get_parent()
-        if base is None:
-            break
-        child = parents.pop()
+    regions: dict[str, dict[str, dict[str, str]]] = {}
+    world = GWeather.Location.get_world()
+    parents = []
+    base = world
+    child = None
 
-all_timezones = dict(sorted(regions.items()))
+    while True:
+        child = base.next_child(child)
+        if child is not None:
+            if child.get_level() == GWeather.LocationLevel.REGION:
+                regions[child.get_name()] = {}
+                current_region = child.get_name()
+            elif child.get_level() == GWeather.LocationLevel.COUNTRY:
+                regions[current_region][child.get_name()] = {}
+                current_country = child.get_name()
+            elif child.get_level() == GWeather.LocationLevel.CITY:
+                regions[current_region][current_country][child.get_city_name()] = (
+                    child.get_timezone_str()
+                )
+
+            if child.next_child(None) is not None:
+                parents.append(child)
+                base = child
+                child = None
+        else:
+            base = base.get_parent()
+            if base is None:
+                break
+            child = parents.pop()
+
+    all_timezones.update(dict(sorted(regions.items())))
+
+    for region, countries in all_timezones.items():
+        for country in countries.keys():
+            expanders_list.append((country, region))
+    expanders_list.sort()
+    _tz_initialized = True
 
 def get_location(callback=None):
     logger.info("trying to retrieve timezone automatically")
@@ -68,6 +83,7 @@ def get_location(callback=None):
         res = requests.get("http://ip-api.com/json?fields=49344", timeout=3).json()
         if res["status"] != "success":
             raise Exception(f"get_location: request failed with message '{res['message']}'")
+        world = GWeather.Location.get_world()
         nearest = world.find_nearest_city(res["lat"], res["lon"])
     except Exception as e:
         logger.error(f"failed to retrieve timezone: {e}")
@@ -95,7 +111,7 @@ def get_timezone_preview(tzname):
             return ("--:--", "Unknown Date")
 
 
-# --- timezone.py dump (adapted for the new router) ---
+# --- timezone.py dump ---
 
 @Gtk.Template(resource_path="/com/negzero/zenos/setup/views/timezone/widget-timezone.ui")
 class TimezoneRow(Adw.ActionRow):
@@ -131,6 +147,7 @@ class Page(Adw.Bin):
         "gated": True
     }
 
+    state_stack = Gtk.Template.Child()
     entry_search_timezone = Gtk.Template.Child()
     all_timezones_group = Gtk.Template.Child()
     current_tz_label = Gtk.Template.Child()
@@ -138,16 +155,6 @@ class Page(Adw.Bin):
     loading_spinner = Gtk.Template.Child()
 
     selected_timezone = {"region": None, "zone": None}
-
-    expanders_list = dict(
-        sorted(
-            {
-                country: region
-                for region, countries in all_timezones.items()
-                for country in countries.keys()
-            }.items()
-        )
-    )
 
     def __init__(self, router, **kwargs):
         super().__init__(**kwargs)
@@ -157,6 +164,8 @@ class Page(Adw.Bin):
         self._deltas_generated = False
         self.__expanders = []
         self.__tz_entries = []
+        self._cancel_load = False
+        self._populate_iter = None
 
         self.entry_search_timezone.connect("changed", self.__on_search)
         self.router.set_next_enabled(False, caller=self)
@@ -170,21 +179,13 @@ class Page(Adw.Bin):
 
     def gen_deltas(self):
         self.del_deltas()
-        self._cancel_load = False
         
-        self.loading_spinner.set_visible(True)
+        self.state_stack.set_visible_child_name("loading")
         self.loading_spinner.start()
-        self.entry_search_timezone.set_sensitive(False)
-        self.all_timezones_group.set_visible(False)
 
-        GLib.timeout_add(400, self._start_generator)
-
-    def _start_generator(self):
-        if getattr(self, '_cancel_load', False):
-            return False
-        self._tz_generator = iter(self.expanders_list.items())
-        GLib.idle_add(self._populate_chunk)
-        return False
+        # offload pure python parsing to background
+        thread = threading.Thread(target=self._background_populate, daemon=True)
+        thread.start()
 
     def del_deltas(self):
         self._cancel_load = True
@@ -193,43 +194,65 @@ class Page(Adw.Bin):
             self.all_timezones_group.remove(i)
         self.__expanders = []
 
-    def _populate_chunk(self):
-        if getattr(self, '_cancel_load', False):
-            return False 
+    def _background_populate(self):
+        self._cancel_load = False
+        _init_timezones()
+
+        items = []
+        for country, region in expanders_list:
+            if self._cancel_load:
+                return
+            cities = all_timezones[region].get(country, {})
+            if cities:
+                items.append((country, region, cities))
+
+        # hand off to main thread using an iterator so we don't freeze the ui
+        self._populate_iter = iter(items)
+        GLib.idle_add(self._add_expander_step)
+
+    def _add_expander_step(self):
+        if self._cancel_load:
+            return False
 
         try:
-            country, region = next(self._tz_generator)
-
-            if len(all_timezones[region][country]) > 0:
-                self._block_signals = True
-                expander = Adw.ExpanderRow.new()
-                expander.set_title(country)
-                expander.set_subtitle(region)
-                self.all_timezones_group.add(expander)
-                self.__expanders.append(expander)
-
-                for city, tzname in all_timezones[region][country].items():
-                    timezone_row = TimezoneRow(city, country, tzname, self.__on_row_toggle, expander)
-                    self.__tz_entries.append(timezone_row)
-                    
-                    if len(self.__tz_entries) > 1:
-                        timezone_row.select_button.set_group(self.__tz_entries[0].select_button)
-                    
-                    if self.detected_tz and tzname == self.detected_tz:
-                        timezone_row.select_button.set_active(True)
-                        self._update_selection_labels(timezone_row)
-                        self.router.set_next_enabled(True, caller=self)
-                    
-                    expander.add_row(timezone_row)
-                self._block_signals = False
+            # chunking this so the compositor has time to render page transitions
+            for _ in range(4):
+                country, region, cities = next(self._populate_iter)
+                self._build_expander(country, region, cities)
             return True
         except StopIteration:
-            self.loading_spinner.stop()
-            self.loading_spinner.set_visible(False)
-            self.entry_search_timezone.set_sensitive(True)
-            self.all_timezones_group.set_visible(True)
-            self._block_signals = False
+            self._on_populate_finished()
             return False
+
+    def _build_expander(self, country, region, cities):
+        self._block_signals = True
+
+        expander = Adw.ExpanderRow.new()
+        expander.set_title(country)
+        expander.set_subtitle(region)
+        self.all_timezones_group.add(expander)
+        self.__expanders.append(expander)
+
+        for city, tzname in cities.items():
+            timezone_row = TimezoneRow(city, country, tzname, self.__on_row_toggle, expander)
+            self.__tz_entries.append(timezone_row)
+
+            if len(self.__tz_entries) > 1:
+                timezone_row.select_button.set_group(self.__tz_entries[0].select_button)
+
+            if self.detected_tz and tzname == self.detected_tz:
+                timezone_row.select_button.set_active(True)
+                self._update_selection_labels(timezone_row)
+                self.router.set_next_enabled(True, caller=self)
+
+            expander.add_row(timezone_row)
+
+        self._block_signals = False
+
+    def _on_populate_finished(self):
+        self.loading_spinner.stop()
+        self.state_stack.set_visible_child_name("content")
+        return False
 
     def timezone_verify(self, carousel=None, idx=None):
         if self.router.current_step_id != "timezone":
@@ -284,11 +307,11 @@ class Page(Adw.Bin):
             self._block_signals = False
             return
 
-        current_expander_idx = 0
         if not self.__tz_entries:
             self._block_signals = False
             return
             
+        current_expander_idx = 0
         current_country = self.__tz_entries[0].subtitle
         visible_entries_in_current = 0
         
@@ -298,9 +321,10 @@ class Page(Adw.Bin):
             entry.set_visible(match)
             
             if entry.subtitle != current_country:
-                exp = self.__expanders[current_expander_idx]
-                exp.set_visible(visible_entries_in_current > 0)
-                exp.set_expanded(visible_entries_in_current > 0)
+                if current_expander_idx < len(self.__expanders):
+                    exp = self.__expanders[current_expander_idx]
+                    exp.set_visible(visible_entries_in_current > 0)
+                    exp.set_expanded(visible_entries_in_current > 0)
                 
                 visible_entries_in_current = 0
                 current_country = entry.subtitle
@@ -309,6 +333,7 @@ class Page(Adw.Bin):
             if match:
                 visible_entries_in_current += 1
         
+        # Check last one
         if current_expander_idx < len(self.__expanders):
             exp = self.__expanders[current_expander_idx]
             exp.set_visible(visible_entries_in_current > 0)
