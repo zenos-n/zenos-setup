@@ -1,0 +1,508 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <template class="DesktopPicker" parent="AdwBin">
+    <property name="hexpand">true</property>
+    <property name="vexpand">true</property>
+    <child>
+      <object class="GtkOverlay">
+        <property name="valign">3</property>
+        <child>
+          <object class="AdwStatusPage">
+            <property name="title" translatable="yes">Desktop Environment</property>
+            <property name="description" translatable="yes">Choose your preferred desktop experience</property>
+            <child>
+              <object class="AdwClamp">
+                <property name="maximum-size">600</property>
+                <property name="tightening-threshold">500</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">1</property>
+                    <property name="spacing">24</property>
+                    <child>
+                      <object class="AdwPreferencesGroup">
+                        <child>
+                          <object class="AdwSwitchRow" id="switch_install_de">
+                            <property name="title" translatable="yes">Install Desktop Environment</property>
+                            <property name="subtitle" translatable="yes">Turn off to use the system as a server</property>
+                            <property name="active">true</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkBox" id="group_desktops">
+                        <property name="orientation">1</property>
+                        <property name="spacing">24</property>
+                        <property name="visible" bind-source="switch_install_de" bind-property="active" bind-flags="sync-create"/>
+                        <child>
+                          <object class="AdwPreferencesGroup">
+                            <child>
+                              <object class="AdwExpanderRow" id="row_gnome">
+                                <property name="title">GNOME</property>
+                                <property name="subtitle" translatable="yes">Recommended modern experience</property>
+                                <property name="activatable">false</property>
+                                <child type="prefix">
+                                  <object class="GtkCheckButton" id="radio_gnome">
+                                    <property name="active">true</property>
+                                    <property name="valign">3</property>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="AdwActionRow">
+                                    <property name="activatable">false</property>
+                                    <property name="focusable">false</property>
+                                    <property name="can-target">false</property>
+                                    <property name="child">
+                                      <object class="GtkBox">
+                                        <property name="orientation">0</property>
+                                        <property name="spacing">16</property>
+                                        <property name="margin-top">6</property>
+                                        <property name="margin-bottom">6</property>
+                                        <property name="margin-start">6</property>
+                                        <property name="margin-end">6</property>
+                                        <child>
+                                          <object class="GtkAspectFrame">
+                                            <property name="ratio">1.8</property>
+                                            <property name="obey-child">false</property>
+                                            <property name="width-request">180</property>
+                                            <property name="height-request">100</property>
+                                            <child>
+                                              <object class="GtkPicture">
+                                                <property name="can-shrink">true</property>
+                                                <property name="content-fit">2</property>
+                                                <property name="file">resource:///org/zenos/FirstSetup/assets/gnome.jpg</property>
+                                                <style>
+                                                  <class name="desktop-thumbnail-flat"/>
+                                                </style>
+                                              </object>
+                                            </child>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkLabel">
+                                            <property name="label" translatable="yes">A modern, distraction-free desktop environment. Polished and intuitive.</property>
+                                            <property name="wrap">true</property>
+                                            <property name="halign">1</property>
+                                            <property name="valign">3</property>
+                                            <property name="hexpand">true</property>
+                                            <style>
+                                              <class name="dim-label"/>
+                                            </style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </property>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="AdwSwitchRow">
+                                    <property name="title" translatable="yes">Firefox Customization</property>
+                                    <property name="subtitle" translatable="yes">Apply consistent branding and privacy tweaks</property>
+                                    <property name="active">true</property>
+                                    <property name="sensitive" bind-source="radio_gnome" bind-property="active" bind-flags="sync-create"/>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="AdwSwitchRow">
+                                    <property name="title" translatable="yes">Recommended Extensions</property>
+                                    <property name="subtitle" translatable="yes">Dash-to-Dock, AppIndicator, and Blur-my-Shell</property>
+                                    <property name="active">true</property>
+                                    <property name="sensitive" bind-source="radio_gnome" bind-property="active" bind-flags="sync-create"/>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwPreferencesGroup">
+                            <property name="title" translatable="yes">Other Options</property>
+                            <child>
+                              <object class="AdwExpanderRow" id="row_kde">
+                                <property name="title">KDE Plasma</property>
+                                <property name="subtitle" translatable="yes">Highly customizable and feature-rich</property>
+                                <property name="activatable">false</property>
+                                <child type="prefix">
+                                  <object class="GtkCheckButton" id="radio_kde">
+                                    <property name="group">radio_gnome</property>
+                                    <property name="valign">3</property>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="AdwActionRow">
+                                    <property name="activatable">false</property>
+                                    <property name="focusable">false</property>
+                                    <property name="can-target">false</property>
+                                    <property name="child">
+                                      <object class="GtkBox">
+                                        <property name="orientation">0</property>
+                                        <property name="spacing">16</property>
+                                        <property name="margin-top">6</property>
+                                        <property name="margin-bottom">6</property>
+                                        <property name="margin-start">6</property>
+                                        <property name="margin-end">6</property>
+                                        <child>
+                                          <object class="GtkAspectFrame">
+                                            <property name="ratio">1.8</property>
+                                            <property name="obey-child">false</property>
+                                            <property name="width-request">180</property>
+                                            <property name="height-request">100</property>
+                                            <child>
+                                              <object class="GtkPicture">
+                                                <property name="can-shrink">true</property>
+                                                <property name="content-fit">2</property>
+                                                <property name="file">resource:///org/zenos/FirstSetup/assets/kde.jpg</property>
+                                                <style>
+                                                  <class name="desktop-thumbnail-flat"/>
+                                                </style>
+                                              </object>
+                                            </child>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkLabel">
+                                            <property name="label" translatable="yes">Perfect for users who like to tweak every aspect of their system.</property>
+                                            <property name="wrap">true</property>
+                                            <property name="halign">1</property>
+                                            <property name="valign">3</property>
+                                            <property name="hexpand">true</property>
+                                            <property name="selectable">true</property>
+                                            <style>
+                                              <class name="dim-label"/>
+                                            </style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </property>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="AdwSwitchRow">
+                                    <property name="title" translatable="yes">Exclude Bloatware</property>
+                                    <property name="subtitle" translatable="yes">Only install core Plasma utilities</property>
+                                    <property name="active">false</property>
+                                    <property name="sensitive" bind-source="radio_kde" bind-property="active" bind-flags="sync-create"/>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="AdwExpanderRow" id="row_xfce">
+                                <property name="title">XFCE</property>
+                                <property name="subtitle" translatable="yes">Lightweight and traditional</property>
+                                <property name="activatable">false</property>
+                                <child type="prefix">
+                                  <object class="GtkCheckButton" id="radio_xfce">
+                                    <property name="group">radio_gnome</property>
+                                    <property name="valign">3</property>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="AdwActionRow">
+                                    <property name="activatable">false</property>
+                                    <property name="focusable">false</property>
+                                    <property name="can-target">false</property>
+                                    <property name="child">
+                                      <object class="GtkBox">
+                                        <property name="orientation">0</property>
+                                        <property name="spacing">16</property>
+                                        <property name="margin-top">6</property>
+                                        <property name="margin-bottom">6</property>
+                                        <property name="margin-start">6</property>
+                                        <property name="margin-end">6</property>
+                                        <child>
+                                          <object class="GtkAspectFrame">
+                                            <property name="ratio">1.8</property>
+                                            <property name="obey-child">false</property>
+                                            <property name="width-request">180</property>
+                                            <property name="height-request">100</property>
+                                            <child>
+                                              <object class="GtkPicture">
+                                                <property name="can-shrink">true</property>
+                                                <property name="content-fit">2</property>
+                                                <property name="file">resource:///org/zenos/FirstSetup/assets/xfce.jpg</property>
+                                                <style>
+                                                  <class name="desktop-thumbnail-flat"/>
+                                                </style>
+                                              </object>
+                                            </child>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkLabel">
+                                            <property name="label" translatable="yes">A lightweight and traditional desktop environment. It is fast, reliable, and uses very few system resources while remaining highly functional.</property>
+                                            <property name="wrap">true</property>
+                                            <property name="halign">1</property>
+                                            <property name="valign">3</property>
+                                            <property name="hexpand">true</property>
+                                            <property name="selectable">true</property>
+                                            <style>
+                                              <class name="dim-label"/>
+                                            </style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </property>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="AdwExpanderRow" id="row_cinnamon">
+                                <property name="title">Cinnamon</property>
+                                <property name="subtitle" translatable="yes">Traditional layout, modern features</property>
+                                <property name="activatable">false</property>
+                                <child type="prefix">
+                                  <object class="GtkCheckButton" id="radio_cinnamon">
+                                    <property name="group">radio_gnome</property>
+                                    <property name="valign">3</property>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="AdwActionRow">
+                                    <property name="activatable">false</property>
+                                    <property name="focusable">false</property>
+                                    <property name="can-target">false</property>
+                                    <property name="child">
+                                      <object class="GtkBox">
+                                        <property name="orientation">0</property>
+                                        <property name="spacing">16</property>
+                                        <property name="margin-top">6</property>
+                                        <property name="margin-bottom">6</property>
+                                        <property name="margin-start">6</property>
+                                        <property name="margin-end">6</property>
+                                        <child>
+                                          <object class="GtkAspectFrame">
+                                            <property name="ratio">1.8</property>
+                                            <property name="obey-child">false</property>
+                                            <property name="width-request">180</property>
+                                            <property name="height-request">100</property>
+                                            <child>
+                                              <object class="GtkPicture">
+                                                <property name="can-shrink">true</property>
+                                                <property name="content-fit">2</property>
+                                                <property name="file">resource:///org/zenos/FirstSetup/assets/cinnamon.jpg</property>
+                                                <style>
+                                                  <class name="desktop-thumbnail-flat"/>
+                                                </style>
+                                              </object>
+                                            </child>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkLabel">
+                                            <property name="label" translatable="yes">A polished, traditional desktop experience that balances modern technologies with a familiar, easy-to-learn layout.</property>
+                                            <property name="wrap">true</property>
+                                            <property name="halign">1</property>
+                                            <property name="valign">3</property>
+                                            <property name="hexpand">true</property>
+                                            <property name="selectable">true</property>
+                                            <style>
+                                              <class name="dim-label"/>
+                                            </style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </property>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="AdwExpanderRow" id="row_budgie">
+                                <property name="title">Budgie</property>
+                                <property name="subtitle" translatable="yes">Elegant and simple</property>
+                                <property name="activatable">false</property>
+                                <child type="prefix">
+                                  <object class="GtkCheckButton" id="radio_budgie">
+                                    <property name="group">radio_gnome</property>
+                                    <property name="valign">3</property>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="AdwActionRow">
+                                    <property name="activatable">false</property>
+                                    <property name="focusable">false</property>
+                                    <property name="can-target">false</property>
+                                    <property name="child">
+                                      <object class="GtkBox">
+                                        <property name="orientation">0</property>
+                                        <property name="spacing">16</property>
+                                        <property name="margin-top">6</property>
+                                        <property name="margin-bottom">6</property>
+                                        <property name="margin-start">6</property>
+                                        <property name="margin-end">6</property>
+                                        <child>
+                                          <object class="GtkAspectFrame">
+                                            <property name="ratio">1.8</property>
+                                            <property name="obey-child">false</property>
+                                            <property name="width-request">180</property>
+                                            <property name="height-request">100</property>
+                                            <child>
+                                              <object class="GtkPicture">
+                                                <property name="can-shrink">true</property>
+                                                <property name="content-fit">2</property>
+                                                <property name="file">resource:///org/zenos/FirstSetup/assets/budgie.jpg</property>
+                                                <style>
+                                                  <class name="desktop-thumbnail-flat"/>
+                                                </style>
+                                              </object>
+                                            </child>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkLabel">
+                                            <property name="label" translatable="yes">A modern desktop designed for elegance and simplicity, blending traditional layouts with clean design elements.</property>
+                                            <property name="wrap">true</property>
+                                            <property name="halign">1</property>
+                                            <property name="valign">3</property>
+                                            <property name="hexpand">true</property>
+                                            <property name="selectable">true</property>
+                                            <style>
+                                              <class name="dim-label"/>
+                                            </style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </property>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="AdwExpanderRow" id="row_mate">
+                                <property name="title">MATE</property>
+                                <property name="subtitle" translatable="yes">Classic, stable and lightweight</property>
+                                <property name="activatable">false</property>
+                                <child type="prefix">
+                                  <object class="GtkCheckButton" id="radio_mate">
+                                    <property name="group">radio_gnome</property>
+                                    <property name="valign">3</property>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="AdwActionRow">
+                                    <property name="activatable">false</property>
+                                    <property name="focusable">false</property>
+                                    <property name="can-target">false</property>
+                                    <property name="child">
+                                      <object class="GtkBox">
+                                        <property name="orientation">0</property>
+                                        <property name="spacing">16</property>
+                                        <property name="margin-top">6</property>
+                                        <property name="margin-bottom">6</property>
+                                        <property name="margin-start">6</property>
+                                        <property name="margin-end">6</property>
+                                        <child>
+                                          <object class="GtkAspectFrame">
+                                            <property name="ratio">1.8</property>
+                                            <property name="obey-child">false</property>
+                                            <property name="width-request">180</property>
+                                            <property name="height-request">100</property>
+                                            <child>
+                                              <object class="GtkPicture">
+                                                <property name="can-shrink">true</property>
+                                                <property name="content-fit">2</property>
+                                                <property name="file">resource:///org/zenos/FirstSetup/assets/mate.jpg</property>
+                                                <style>
+                                                  <class name="desktop-thumbnail-flat"/>
+                                                </style>
+                                              </object>
+                                            </child>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkLabel">
+                                            <property name="label" translatable="yes">A continuation of the classic GNOME 2 desktop. It provides an intuitive and attractive desktop environment that works beautifully on older hardware.</property>
+                                            <property name="wrap">true</property>
+                                            <property name="halign">1</property>
+                                            <property name="valign">3</property>
+                                            <property name="hexpand">true</property>
+                                            <property name="selectable">true</property>
+                                            <style>
+                                              <class name="dim-label"/>
+                                            </style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </property>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="AdwExpanderRow" id="row_ii">
+                                <property name="title">ii</property>
+                                <property name="subtitle" translatable="yes">Dynamic tiling Wayland compositor</property>
+                                <property name="activatable">false</property>
+                                <child type="prefix">
+                                  <object class="GtkCheckButton" id="radio_ii">
+                                    <property name="group">radio_gnome</property>
+                                    <property name="valign">3</property>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="AdwActionRow">
+                                    <property name="activatable">false</property>
+                                    <property name="focusable">false</property>
+                                    <property name="can-target">false</property>
+                                    <property name="child">
+                                      <object class="GtkBox">
+                                        <property name="orientation">0</property>
+                                        <property name="spacing">16</property>
+                                        <property name="margin-top">6</property>
+                                        <property name="margin-bottom">6</property>
+                                        <property name="margin-start">6</property>
+                                        <property name="margin-end">6</property>
+                                        <child>
+                                          <object class="GtkAspectFrame">
+                                            <property name="ratio">1.8</property>
+                                            <property name="obey-child">false</property>
+                                            <property name="width-request">180</property>
+                                            <property name="height-request">100</property>
+                                            <child>
+                                              <object class="GtkPicture">
+                                                <property name="can-shrink">true</property>
+                                                <property name="content-fit">2</property>
+                                                <property name="file">resource:///org/zenos/FirstSetup/assets/ii.jpg</property>
+                                                <style>
+                                                  <class name="desktop-thumbnail-flat"/>
+                                                </style>
+                                              </object>
+                                            </child>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkLabel">
+                                            <property name="label" translatable="yes">Built for power users who prefer keyboard-driven workflows and maximum screen real estate. Based heavily on Hyprland.</property>
+                                            <property name="wrap">true</property>
+                                            <property name="halign">1</property>
+                                            <property name="valign">3</property>
+                                            <property name="hexpand">true</property>
+                                            <property name="selectable">true</property>
+                                            <style>
+                                              <class name="dim-label"/>
+                                            </style>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </property>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

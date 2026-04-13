@@ -9,5 +9,8 @@
     <file preprocess="xml-stripblanks">views/timezone/layout.ui</file>
     <file preprocess="xml-stripblanks">views/timezone/widget-timezone.ui</file>
     <file preprocess="xml-stripblanks">views/keyboard/layout.ui</file>
+    <file preprocess="xml-stripblanks">views/internet/wireless-row.ui</file>
+    <file preprocess="xml-stripblanks">views/internet/layout.ui</file>
+    <file preprocess="xml-stripblanks">views/internet/advanced-dialogs.ui</file>
   </gresource>
 </gresources>
