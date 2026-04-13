@@ -1,15 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <requires lib="gtk" version="4.0"/>
-  <requires lib="libadwaita" version="1.0" />
   <template class="ZenOSDefaultNetwork" parent="AdwBin">
     <property name="hexpand">true</property>
     <property name="vexpand">true</property>
     <child>
       <object class="GtkStack" id="main_stack">
-        <property name="transition-type">crossfade</property>
-        
-        <!-- Checking Connection State -->
+        <property name="transition-type">1</property>
         <child>
           <object class="GtkStackPage">
             <property name="name">checking</property>
@@ -20,22 +17,22 @@
                 <property name="description" translatable="yes">Please wait until the connection check is done</property>
                 <child>
                   <object class="GtkBox">
-                    <property name="orientation">vertical</property>
+                    <property name="orientation">1</property>
                     <property name="spacing">16</property>
-                    <property name="halign">center</property>
+                    <property name="halign">3</property>
                     <child>
                       <object class="GtkSpinner" id="loading_spinner">
                         <property name="width-request">32</property>
                         <property name="height-request">32</property>
-                        <property name="halign">center</property>
+                        <property name="halign">3</property>
                       </object>
                     </child>
                     <child>
                       <object class="GtkButton" id="btn_recheck">
                         <property name="label" translatable="yes">Check Again</property>
-                        <property name="halign">center</property>
+                        <property name="halign">3</property>
                         <style>
-                          <class name="pill" />
+                          <class name="pill"/>
                         </style>
                       </object>
                     </child>
@@ -45,29 +42,12 @@
             </property>
           </object>
         </child>
-
-        <!-- Network Selection State -->
         <child>
           <object class="GtkStackPage">
             <property name="name">network</property>
             <property name="child">
               <object class="GtkOverlay">
-                <property name="valign">center</property>
-                <child type="overlay">
-                  <object class="GtkButton" id="btn_next">
-                    <property name="sensitive">false</property>
-                    <property name="margin-end">12</property>
-                    <property name="margin-start">12</property>
-                    <property name="icon-name">go-next-symbolic</property>
-                    <property name="halign">end</property>
-                    <property name="valign">center</property>
-                    <property name="tooltip-text" translatable="yes">Next</property>
-                    <style>
-                      <class name="circular" />
-                      <class name="suggested-action" />
-                    </style>
-                  </object>
-                </child>
+                <property name="valign">3</property>
                 <child>
                   <object class="AdwStatusPage" id="status_page">
                     <property name="title" translatable="yes">Internet</property>
@@ -78,7 +58,7 @@
                         <property name="maximum-size">600</property>
                         <child>
                           <object class="GtkBox">
-                            <property name="orientation">vertical</property>
+                            <property name="orientation">1</property>
                             <property name="hexpand">false</property>
                             <child>
                               <object class="AdwPreferencesGroup" id="wired_group">
@@ -93,7 +73,7 @@
                                     <property name="activatable">false</property>
                                     <child>
                                       <object class="GtkBox">
-                                        <property name="halign">center</property>
+                                        <property name="halign">3</property>
                                         <property name="hexpand">true</property>
                                         <property name="margin-top">12</property>
                                         <property name="margin-bottom">12</property>
@@ -127,8 +107,8 @@
                                         </child>
                                         <child type="overlay">
                                           <object class="GtkImage">
-                                            <property name="valign">end</property>
-                                            <property name="halign">start</property>
+                                            <property name="valign">2</property>
+                                            <property name="halign">1</property>
                                             <property name="margin-start">10</property>
                                             <property name="margin-bottom">10</property>
                                             <property name="icon-name">background-app-ghost-symbolic</property>
@@ -163,7 +143,6 @@
             </property>
           </object>
         </child>
-
       </object>
     </child>
   </template>

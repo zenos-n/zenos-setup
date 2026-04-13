@@ -82,14 +82,17 @@ def get_timezone_preview(tzname):
     if tzname in tz_preview_cache:
         return tz_preview_cache[tzname]
     else:
-        timezone = ZoneInfo(tzname)
-        now = datetime.datetime.now(timezone)
-        now_str = (
-            "%02d:%02d" % (now.hour, now.minute),
-            now.strftime("%A, %d %B %Y"),
-        )
-        tz_preview_cache[tzname] = now_str
-        return now_str
+        try:
+            timezone = ZoneInfo(tzname)
+            now = datetime.datetime.now(timezone)
+            now_str = (
+                "%02d:%02d" % (now.hour, now.minute),
+                now.strftime("%A, %d %B %Y"),
+            )
+            tz_preview_cache[tzname] = now_str
+            return now_str
+        except Exception:
+            return ("--:--", "Unknown Date")
 
 
 # --- timezone.py dump (adapted for the new router) ---
@@ -115,8 +118,9 @@ class TimezoneRow(Adw.ActionRow):
         self.parent_expander.connect("notify::expanded", self.update_time_preview)
 
     def update_time_preview(self, *args):
-        tz_time, tz_date = get_timezone_preview(self.tz_name)
-        self.set_subtitle(f"{tz_time} • {tz_date}")
+        if self.parent_expander.get_expanded():
+            tz_time, tz_date = get_timezone_preview(self.tz_name)
+            self.set_subtitle(f"{tz_time} • {tz_date}")
 
 
 @Gtk.Template(resource_path="/com/negzero/zenos/setup/views/timezone/layout.ui")
@@ -148,20 +152,15 @@ class Page(Adw.Bin):
     def __init__(self, router, **kwargs):
         super().__init__(**kwargs)
         self.router = router
+        self.detected_tz = None
+        self._block_signals = False
         self._deltas_generated = False
         self.__expanders = []
         self.__tz_entries = []
 
-        # changed catches both typing AND the clear button click
         self.entry_search_timezone.connect("changed", self.__on_search)
-
-        # start with the button locked
-        self.router.set_next_enabled(False)
-
-        # lazy load the huge list
+        self.router.set_next_enabled(False, caller=self)
         self.connect("map", self._on_map)
-        
-        # trigger ip fetch when we scroll into view
         self.router.carousel.connect("page-changed", self.timezone_verify)
 
     def _on_map(self, *args):
@@ -202,6 +201,7 @@ class Page(Adw.Bin):
             country, region = next(self._tz_generator)
 
             if len(all_timezones[region][country]) > 0:
+                self._block_signals = True
                 expander = Adw.ExpanderRow.new()
                 expander.set_title(country)
                 expander.set_subtitle(region)
@@ -214,15 +214,21 @@ class Page(Adw.Bin):
                     
                     if len(self.__tz_entries) > 1:
                         timezone_row.select_button.set_group(self.__tz_entries[0].select_button)
-                        
-                    expander.add_row(timezone_row)
                     
+                    if self.detected_tz and tzname == self.detected_tz:
+                        timezone_row.select_button.set_active(True)
+                        self._update_selection_labels(timezone_row)
+                        self.router.set_next_enabled(True, caller=self)
+                    
+                    expander.add_row(timezone_row)
+                self._block_signals = False
             return True
         except StopIteration:
             self.loading_spinner.stop()
             self.loading_spinner.set_visible(False)
             self.entry_search_timezone.set_sensitive(True)
             self.all_timezones_group.set_visible(True)
+            self._block_signals = False
             return False
 
     def timezone_verify(self, carousel=None, idx=None):
@@ -231,19 +237,25 @@ class Page(Adw.Bin):
 
         def timezone_verify_callback(result, *args):
             if result:
-                current_city = result.get_city_name()
-                current_country = result.get_country_name()
+                self.detected_tz = result.get_timezone_str()
                 for entry in self.__tz_entries:
-                    if current_city == entry.title and current_country == entry.subtitle:
-                        self.selected_timezone["zone"] = current_city
-                        self.selected_timezone["region"] = current_country
+                    if entry.tz_name == self.detected_tz:
+                        self._block_signals = True
                         entry.select_button.set_active(True)
-                        # unlock if auto-detection worked
-                        self.router.set_next_enabled(True)
-                        return
+                        self._update_selection_labels(entry)
+                        self._block_signals = False
+                        self.router.set_next_enabled(True, caller=self)
+                        break
 
         thread = threading.Thread(target=get_location, args=(timezone_verify_callback,))
         thread.start()
+
+    def _update_selection_labels(self, widget):
+        tz_split = widget.tz_name.split("/", 1)
+        self.selected_timezone["region"] = tz_split[0]
+        self.selected_timezone["zone"] = tz_split[1] if len(tz_split) > 1 else tz_split[0]
+        self.current_tz_label.set_label(widget.tz_name)
+        self.current_location_label.set_label(_("(at %s, %s)") % (widget.title, widget.subtitle))
 
     def get_finals(self):
         return {
@@ -254,6 +266,8 @@ class Page(Adw.Bin):
         }
 
     def __on_search(self, *args):
+        self._block_signals = True
+        
         def remove_accents(msg: str):
             out = unicodedata.normalize("NFD", msg).encode("ascii", "ignore").decode("utf-8")
             return str(out)
@@ -261,18 +275,22 @@ class Page(Adw.Bin):
         search_entry = self.entry_search_timezone.get_text().lower()
         keywords = remove_accents(search_entry)
 
-        # if keywords is empty (including via clear button), reset visibility
         if len(keywords) == 0:
             for expander in self.__expanders:
                 expander.set_visible(True)
                 expander.set_expanded(False)
             for entry in self.__tz_entries:
                 entry.set_visible(True)
+            self._block_signals = False
             return
 
-        current_expander = 0
-        current_country = self.__tz_entries[0].subtitle if self.__tz_entries else ""
-        visible_entries = 0
+        current_expander_idx = 0
+        if not self.__tz_entries:
+            self._block_signals = False
+            return
+            
+        current_country = self.__tz_entries[0].subtitle
+        visible_entries_in_current = 0
         
         for entry in self.__tz_entries:
             row_title = remove_accents(entry.get_title().lower())
@@ -280,29 +298,27 @@ class Page(Adw.Bin):
             entry.set_visible(match)
             
             if entry.subtitle != current_country:
-                self.__expanders[current_expander].set_expanded(visible_entries != 0)
-                self.__expanders[current_expander].set_visible(visible_entries != 0)
-                visible_entries = 0
+                exp = self.__expanders[current_expander_idx]
+                exp.set_visible(visible_entries_in_current > 0)
+                exp.set_expanded(visible_entries_in_current > 0)
+                
+                visible_entries_in_current = 0
                 current_country = entry.subtitle
-                current_expander += 1
+                current_expander_idx += 1
             
             if match:
-                visible_entries += 1
+                visible_entries_in_current += 1
         
-        # apply to the final expander in the list
-        if self.__expanders:
-            self.__expanders[current_expander].set_expanded(visible_entries != 0)
-            self.__expanders[current_expander].set_visible(visible_entries != 0)
+        if current_expander_idx < len(self.__expanders):
+            exp = self.__expanders[current_expander_idx]
+            exp.set_visible(visible_entries_in_current > 0)
+            exp.set_expanded(visible_entries_in_current > 0)
 
-    def __on_row_toggle(self, __check_button, widget):
-        if not __check_button.get_active():
+        self._block_signals = False
+
+    def __on_row_toggle(self, btn, widget):
+        if self._block_signals or not btn.get_active():
             return
-
-        tz_split = widget.tz_name.split("/", 1)
-        self.selected_timezone["region"] = tz_split[0]
-        self.selected_timezone["zone"] = tz_split[1]
-        self.current_tz_label.set_label(widget.tz_name)
-        self.current_location_label.set_label(_("(at %s, %s)") % (widget.title, widget.subtitle))
         
-        # user manually picked a row, so let them go next
-        self.router.set_next_enabled(True)
+        self._update_selection_labels(widget)
+        self.router.set_next_enabled(True, caller=self)

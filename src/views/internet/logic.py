@@ -230,7 +230,6 @@ class Page(Adw.Bin):
     status_page = Gtk.Template.Child()
     loading_spinner = Gtk.Template.Child()
     btn_recheck = Gtk.Template.Child()
-    btn_next = Gtk.Template.Child()
     
     wired_group = Gtk.Template.Child()
     wireless_group = Gtk.Template.Child()
@@ -261,7 +260,6 @@ class Page(Adw.Bin):
         self.hidden_network_row.connect("activated", self.on_open_hidden_network)
         self.proxy_settings_row.connect("activated", self.on_open_proxy)
         self.btn_recheck.connect("clicked", self.on_recheck_clicked)
-        self.btn_next.connect("clicked", self.on_next_clicked)
 
         # start the background connectivity loop & wifi scan
         self.start_connectivity_check()
@@ -486,10 +484,8 @@ class Page(Adw.Bin):
 
     def _update_ui_state(self, state, is_connected):
         # sync with the router's button gating system
-        if hasattr(self.router, 'set_next_enabled'):
-            self.router.set_next_enabled(is_connected)
+        self.router.set_next_enabled(is_connected, caller=self)
             
-        self.btn_next.set_sensitive(is_connected)
         
         # Switch away from the loading view upon first result
         if self.main_stack.get_visible_child_name() == "checking":

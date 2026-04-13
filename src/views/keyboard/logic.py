@@ -144,7 +144,7 @@ class Page(Adw.Bin):
     def __verify(self, *args):
         # ungrey the global next button if a valid kb is picked
         has_kb = len(self.selected_keyboard) > 0
-        self.router.set_next_enabled(has_kb)
+        self.router.set_next_enabled(has_kb, caller=self)
 
     def __generate_rows(self):
         for data in all_keyboards:

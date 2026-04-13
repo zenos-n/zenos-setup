@@ -1,5 +1,5 @@
 import importlib
-from gi.repository import Adw, Gtk, GObject, GLib
+from gi.repository import Adw, Gtk, GObject, GLib, Gdk
 
 FLOWS = {
     "installer": {
@@ -62,20 +62,39 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
 
         self.active_flow_id = "oobe" if start_in_oobe else "installer"
         self.current_step_id = None
+        self.pending_step_id = None # track where we are GOING
         self.history = []
         self.loaded_pages = {}
+
+        display = Gdk.Display.get_default()
+        if display:
+            icon_theme = Gtk.IconTheme.get_for_display(display)
+            icon_theme.add_resource_path("/com/negzero/zenos/icons")
 
         self.btn_back.connect("clicked", lambda _: self.navigate_back())
         self.btn_next.connect("clicked", lambda _: self.navigate_next("next"))
 
+        # connect to page-changed to update logic ONLY after the animation confirms
+        self.carousel.connect("page-changed", self._on_carousel_page_changed)
+
         self.preload_all_views()
 
-        # jump right in
         start_step = FLOWS[self.active_flow_id]["start"]
         self.navigate_to_step(start_step)
         
-    def set_next_enabled(self, enabled: bool):
-        """api for logic.py to call manually"""
+    def set_next_enabled(self, enabled: bool, caller=None):
+        if caller == "router":
+            self.btn_next.set_sensitive(enabled)
+            return
+
+        # we check against current_step_id because that's the page the user is actually looking at
+        current_node = FLOWS[self.active_flow_id]["steps"].get(self.current_step_id, {})
+        current_view_name = current_node.get("view", "")
+        current_page_widget = self.loaded_pages.get(current_view_name)
+
+        if caller != current_page_widget:
+            return
+
         self.btn_next.set_sensitive(enabled)
 
     def preload_all_views(self):
@@ -91,22 +110,30 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
                 except Exception as e:
                     print(f"[-] failed to preload '{view_name}': {e}")
 
-    def _apply_navigation_effects(self, view_name):
-        self.carousel.scroll_to(self.loaded_pages[view_name], True)
+    def _on_carousel_page_changed(self, carousel, index):
+        """
+        this triggers after the scroll animation finishes.
+        we finally update the logical current_step_id here.
+        """
+        if self.pending_step_id:
+            self.current_step_id = self.pending_step_id
+            self.pending_step_id = None
+            
+            step_config = FLOWS[self.active_flow_id]["steps"].get(self.current_step_id)
+            view_name = step_config["view"]
+            self._apply_navigation_effects(view_name)
 
+    def _apply_navigation_effects(self, view_name):
         is_welcome = "welcome" in view_name or "boot" in view_name
         page_count = self.carousel.get_n_pages()
         self.carousel_indicator_dots.set_visible(not is_welcome and page_count >= 3)
 
-        # check if page should be gated (disabled by default)
         target_page = self.loaded_pages[view_name]
         manifest = getattr(target_page, "MANIFEST", {})
         is_gated = manifest.get("gated", False)
         
-        # if gated, we disable. if not, we enable.
-        self.set_next_enabled(not is_gated)
+        self.set_next_enabled(not is_gated, caller="router")
 
-        # handle button visibility
         should_show_back = not is_welcome and len(self.history) > 0
         self.btn_back.set_visible(should_show_back)
 
@@ -115,7 +142,7 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
         self.btn_next.set_visible(has_next)
 
     def navigate_to_step(self, step_id, is_back=False):
-        if step_id == self.current_step_id:
+        if step_id == self.current_step_id or step_id == self.pending_step_id:
             return
 
         step_config = FLOWS[self.active_flow_id]["steps"].get(step_id)
@@ -124,6 +151,7 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
 
         view_name = step_config["view"]
 
+        # handle history before we move
         if not is_back and self.current_step_id:
             self.history.append(self.current_step_id)
 
@@ -131,10 +159,14 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
         if target_view.get_parent() != self.carousel:
             self.carousel.append(target_view)
 
-        self.current_step_id = step_id
-        GLib.timeout_add(50, self._apply_navigation_effects, view_name)
+        # we set pending, but current_step_id remains the old one until page-changed fires
+        self.pending_step_id = step_id
+        
+        # trigger the animation
+        self.carousel.scroll_to(target_view, True)
 
     def navigate_next(self, route_key="next"):
+        # important: we check routes based on the current step, NOT the pending one
         current_step_config = FLOWS[self.active_flow_id]["steps"].get(self.current_step_id, {})
         next_step_id = current_step_config.get("routes", {}).get(route_key)
         if next_step_id:
