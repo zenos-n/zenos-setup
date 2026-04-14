@@ -225,10 +225,32 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
             return
 
         manifest = getattr(target_page, "MANIFEST", {})
-        is_gated = manifest.get("gated", False)
         
-        self.set_next_enabled(not is_gated, caller="router")
+        # toggle the close button/alt+f4 availability
+        is_unclosable = manifest.get("unclosable", False)
+        self.set_deletable(not is_unclosable)
 
+        # burn the bridges if it's a progress page
+        if "progress" in view_name:
+            self.history = [] # clear back-button history
+
+            # nuke everything in the carousel behind us
+            try:
+                current_idx = self.carousel_steps.index(self.current_step_id)
+                if current_idx > 0:
+                    to_purge = self.carousel_steps[:current_idx]
+                    self.carousel_steps = self.carousel_steps[current_idx:]
+                    for step_id in to_purge:
+                        bin_widget = self.step_bins.pop(step_id, None)
+                        if bin_widget:
+                            self.carousel.remove(bin_widget)
+                    print(f"[-] point of no return reached: purged {len(to_purge)} steps")
+            except ValueError:
+                pass
+
+        self.set_next_enabled(not manifest.get("gated", False), caller="router")
+
+        # back button should now naturally hide because history is empty
         should_show_back = not is_welcome and len(self.history) > 0
         self.btn_back.set_visible(should_show_back)
 

@@ -22,6 +22,10 @@ class ZenosSetupApplication(Adw.Application):
         self.intro_played = False
 
     def on_close(self, window):
+        # if we've flagged the window as unclosable, block the shutdown call entirely
+        if not window.get_deletable():
+            return True
+
         # trigger the gnome shutdown dialog
         bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
         proxy = Gio.DBusProxy.new_sync(

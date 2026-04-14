@@ -17,8 +17,9 @@ class Page(Adw.Bin):
         self.btn_setup.connect('activated', self.on_manual_clicked)
 
     def on_now_clicked(self, *args):
-        # tells the router we picked the 'install' branch
-        self.router.navigate_next("run_install_script")
+        # use the key "install_now", not the destination id
+        self.router.navigate_next("install_now")
 
     def on_manual_clicked(self, *args):
-        self.router.navigate_next("oobe_config_start")
+        # use the key "finish_setup"
+        self.router.navigate_next("finish_setup")
