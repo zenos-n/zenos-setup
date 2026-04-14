@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <template class="ZenOSRebootPage" parent="AdwBin">
+    <property name="halign">0</property>
+    <property name="valign">0</property>
+    <property name="hexpand">true</property>
+    <property name="vexpand">true</property>
+    <child>
+      <object class="AdwStatusPage" id="status_page">
+        <property name="title" translatable="yes">ZenOS has finished installing.</property>
+        <property name="description" translatable="yes">Please restart your computer to begin using ZenOS.</property>
+        <property name="icon-name">system-reboot-symbolic</property>
+        <child>
+          <object class="GtkButton" id="btn_reboot">
+            <property name="label" translatable="yes">Reboot Now</property>
+            <property name="halign">3</property>
+            <style>
+              <class name="pill"/>
+              <class name="suggested-action"/>
+            </style>
+            <signal name="clicked" handler="on_reboot_clicked"/>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

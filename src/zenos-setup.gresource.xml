@@ -20,6 +20,7 @@
     <file preprocess="xml-stripblanks">views/disks/widget-partition-row.ui</file>
     <file preprocess="xml-stripblanks">views/path_choice/layout.ui</file>
     <file preprocess="xml-stripblanks">views/progress/layout.ui</file>
+    <file preprocess="xml-stripblanks">views/reboot/layout.ui</file>
   </gresource>
 
   <gresource prefix="/com/negzero/zenos/icons">
@@ -29,7 +30,4 @@
     <file alias="scalable/actions/zenos-logo-text-symbolic.svg">../data/icons/hicolor/symbolic/actions/zenos-logo-text-symbolic.svg</file>
   </gresource>
 
-  <gresource prefix="/com/negzero/zenos/graphics">
-    <file alias=""></file>
-  </gresource>
 </gresources>
