@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <template class="ZenOSDefaultPath" parent="AdwBin">
+    <property name="halign">0</property>
+    <property name="valign">0</property>
+    <property name="hexpand">true</property>
+    <child>
+      <object class="AdwStatusPage" id="status_page">
+        <property name="title" translatable="yes">Are you ready to install ZenOS?</property>
+        <property name="description" translatable="yes">You may either install ZenOS now and set it up after rebooting (which is useful when you're setting it up for someone else) or set your account up first to have an environment ready when you reboot.</property>
+        <property name="icon-name">zenos-symbolic</property>
+        <child>
+          <object class="AdwPreferencesPage">
+            <child>
+              <object class="AdwPreferencesGroup">
+                <child>
+                  <object class="AdwActionRow" id="btn_now">
+                    <property name="title" translatable="yes">Install ZenOS Now</property>
+                    <property name="icon-name">folder-download-symbolic</property>
+                    <property name="activatable">true</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="icon-name">go-next-symbolic</property>
+                        <property name="halign">3</property>
+                        <property name="valign">3</property>
+                        <style>
+                          <class name="flat"/>
+                        </style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="btn_setup">
+                    <property name="title" translatable="yes">Finish Setup First</property>
+                    <property name="icon-name">user-info-symbolic</property>
+                    <property name="activatable">true</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="icon-name">go-next-symbolic</property>
+                        <property name="halign">3</property>
+                        <property name="valign">3</property>
+                        <style>
+                          <class name="flat"/>
+                        </style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

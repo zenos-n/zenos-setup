@@ -15,13 +15,15 @@ FLOWS = {
             "timezone": {"view": "timezone", "routes": {"next": "keyboard"}},
             "keyboard": {"view": "keyboard", "routes": {"next": "internet"}},
             "internet": {"view": "internet", "routes": {"next": "disks"}},
-            "disks": {
-                "view": "disks",
+            "disks": {"view": "disks", "routes": {"path_choice": "path_choice" }},
+            "path_choice": {
+                "view": "path_choice",
                 "routes": {
                     "install_now": "run_install_script",
                     "finish_setup": "oobe_config_start"
                 }
             },
+
             # path: install now
             "run_install_script": {"view": "progress", "routes": {"next": "reboot_to_oobe"}},
             "reboot_to_oobe": {"view": "reboot", "routes": {}},
@@ -38,7 +40,7 @@ FLOWS = {
     "oobe": {
         "start": "oobe_welcome",
         "steps": {
-            "oobe_welcome": {"view": "oobe_welcome", "routes": {"next": "computer_name"}},
+            "oobe_welcome": {"view": "oobe_welcome", "routes": {"start": "computer_name"}},
             "computer_name": {"view": "computer_name", "routes": {"next": "user_setup"}},
             "user_setup": {"view": "user_setup", "routes": {"next": "theme"}},
             "theme": {"view": "theme", "routes": {"next": "extra_software"}},

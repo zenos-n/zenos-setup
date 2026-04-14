@@ -259,10 +259,11 @@ class ZenOSDefaultDiskPartModal(Adw.Window):
     # Map the AdwToastOverlay from dialog-disk.ui
     group_partitions = Gtk.Template.Child()
 
-    def __init__(self, parent_window, disk, **kwargs):
+    def __init__(self, parent_window, disk, router, **kwargs): # add router here
         super().__init__(**kwargs)
         self.set_transient_for(parent_window)
         self.disk = disk
+        self.router = router # store it
 
         self.btn_cancel.connect("clicked", self.__on_cancel)
         self.btn_apply.connect("clicked", self.__on_apply)
@@ -282,9 +283,9 @@ class ZenOSDefaultDiskPartModal(Adw.Window):
         self.close()
 
     def __on_apply(self, *args):
-        # Gather selections and hand off to the confirmation modal
         summary = self.__partition_selector.get_summary()
-        confirm = ZenOSDefaultDiskConfirmModal(self.get_transient_for(), self.disk, summary)
+        # pass it to the next modal
+        confirm = ZenOSDefaultDiskConfirmModal(self.get_transient_for(), self.disk, summary, self.router)
         self.close()
         confirm.present()
 
@@ -299,11 +300,12 @@ class ZenOSDefaultDiskConfirmModal(Adw.Window):
     # Maps the AdwPreferencesGroup inside the StatusPage
     group_partitions = Gtk.Template.Child()
 
-    def __init__(self, parent_window, disk, summary, **kwargs):
+    def __init__(self, parent_window, disk, summary, router, **kwargs): # add router here
         super().__init__(**kwargs)
         self.set_transient_for(parent_window)
         self.disk = disk
         self.summary = summary
+        self.router = router # now self.router.navigate_next() won't crash
 
         self.btn_cancel.connect("clicked", self.__on_cancel)
         self.btn_apply.connect("clicked", self.__on_apply)
@@ -329,9 +331,7 @@ class ZenOSDefaultDiskConfirmModal(Adw.Window):
         self.close()
 
     def __on_apply(self, *args):
-        print(f"applying manual partition changes to {self.disk.name}")
-        for role, part in self.summary:
-            print(f" - {role} -> {part.partition}")
+        self.router.navigate_next("path_choice")
         self.close()
 
 
@@ -382,19 +382,13 @@ class Page(Adw.Bin):
             self.group_disks.add(row)
 
     def __on_auto_clicked(self, *args):
-        self.router.navigate_next("install_now")
+        self.router.navigate_next("path_choice")
 
     def __on_manual_clicked(self, *args):
-        # Need at least one selected disk to configure
         if not self.__selected_disks:
             return
-
-        # For manual partitioning, we'll configure the first selected disk
         disk = self.__selected_disks[0]
-
-        # Instantiate and present the modal window
-        # self.get_root() gets the top-level Adw.ApplicationWindow
-        modal = ZenOSDefaultDiskPartModal(self.get_root(), disk)
+        modal = ZenOSDefaultDiskPartModal(self.get_root(), disk, self.router)
         modal.present()
 
     def on_disk_entry_toggled(self, widget, disk):
@@ -434,3 +428,4 @@ class Page(Adw.Bin):
             "recipe": self.__recipe,
             "total_size_gb": self.__selected_disks_sum / (1024**3)
         }
+
