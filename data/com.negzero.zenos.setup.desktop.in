@@ -1,7 +1,7 @@
 [Desktop Entry]
-Name=ZenOS-Setup
+Name=ZenOS Setup
 Exec=zenos-setup
-Icon=com.negzero.zenos.setup
+Icon=zenos
 Terminal=false
 Type=Application
 Categories=Utility;
