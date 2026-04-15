@@ -1,5 +1,11 @@
 import os
-from gi.repository import Gtk, Gdk, Gio, GLib, Adw, GObject
+import gi
+
+gi.require_version('Gtk', '4.0')
+gi.require_version('Adw', '1')
+gi.require_version('Gst', '1.0')
+
+from gi.repository import Gtk, Gdk, Gio, GLib, Adw, GObject, Gst
 
 class ZenAnimatedButton(Gtk.Button):
     def __init__(self, **kwargs):
@@ -24,43 +30,36 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
         self.set_default_size(1920, 1080)
         self.set_title("ZenOS Welcome")
 
-        self.is_playing = False
         self.can_close = False
         self.timer_id = 0
         self.transition_started = False
+        self.anims_killed_for_end = False
 
-        self.current_frame = 1
-        self.total_frames = 600
-        self.frame_timer = 0
+        self.video_path = os.environ.get("ZENOS_VIDEO_PATH", "/run/current-system/sw/share/zenos/intro.mkv")
+        self.wallpaper_path = os.environ.get("ZENOS_WALLPAPER_PATH", "/run/current-system/sw/share/zenos/wall.png")
 
-        self.frame_dir = os.environ.get("ZENOS_FRAMES_DIR", "/run/current-system/sw/share/zenos/frames")
-
+        # setup dconf BEFORE gstreamer touches anything
         self.settings = Gio.Settings.new('org.gnome.desktop.interface')
         self.og_anim_state = self.settings.get_boolean('enable-animations')
         self.bg_settings = Gio.Settings.new('org.gnome.desktop.background')
 
-        # set up dbus proxy for toggling cursed extensions
         try:
             bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
             self.ext_proxy = Gio.DBusProxy.new_sync(
-                bus,
-                Gio.DBusProxyFlags.NONE,
-                None,
-                "org.gnome.Shell.Extensions",
-                "/org/gnome/Shell/Extensions",
-                "org.gnome.Shell.Extensions",
-                None
+                bus, Gio.DBusProxyFlags.NONE, None,
+                "org.gnome.Shell.Extensions", "/org/gnome/Shell/Extensions",
+                "org.gnome.Shell.Extensions", None
             )
         except Exception:
             self.ext_proxy = None
 
-        # step 1: set wallpaper black, disable animations immediately
-        self.set_global_anims(False)
         self.bg_settings.set_string('picture-options', 'none')
         self.bg_settings.set_string('primary-color', '#000000')
+        self.set_global_anims(False)
 
         self.connect("close-request", self.on_close_request)
         self.connect("map", self.on_window_mapped)
@@ -68,11 +67,38 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
         self.overlay = Gtk.Overlay()
         self.set_content(self.overlay)
 
-        self.picture = Gtk.Picture()
-        self.picture.set_hexpand(True)
-        self.picture.set_vexpand(True)
-        self.picture.set_content_fit(Gtk.ContentFit.COVER)
-        self.overlay.set_child(self.picture)
+        self.video = Gtk.Picture()
+        self.video.set_hexpand(True)
+        self.video.set_vexpand(True)
+        self.video.set_can_focus(False)
+        self.overlay.set_child(self.video)
+
+        self.pipeline = None
+        if os.path.exists(self.video_path):
+            # initialize gstreamer safely now that dbus is secure
+            if not Gst.is_initialized():
+                Gst.init(None)
+
+            uri = Gio.File.new_for_path(self.video_path).get_uri()
+
+            # build a cursed manual gstreamer pipeline to bypass missing gtk4paintablesink
+            self.pipeline = Gst.ElementFactory.make("playbin", "playbin")
+            self.pipeline.set_property("uri", uri)
+
+            appsink = Gst.ElementFactory.make("appsink", "vid_sink")
+            appsink.set_property("emit-signals", True)
+            caps = Gst.Caps.from_string("video/x-raw, format=RGBA")
+            appsink.set_property("caps", caps)
+            appsink.connect("new-sample", self.on_new_sample)
+
+            self.pipeline.set_property("video-sink", appsink)
+
+            bus = self.pipeline.get_bus()
+            bus.add_signal_watch()
+            bus.connect("message::eos", self.on_eos)
+
+            self.pipeline.set_state(Gst.State.PLAYING)
+            GLib.timeout_add(33, self.check_video_progress)
 
         self.skip_button = ZenAnimatedButton(label="Skip Intro")
         self.skip_button.add_css_class("pill")
@@ -90,12 +116,46 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
         self.setup_input_tracking()
         self.fullscreen()
 
-        self.start_playback()
+    def on_new_sample(self, sink):
+        sample = sink.emit('pull-sample')
+        if not sample:
+            return Gst.FlowReturn.ERROR
+
+        caps = sample.get_caps()
+        struct = caps.get_structure(0)
+        width = struct.get_value('width')
+        height = struct.get_value('height')
+
+        buffer = sample.get_buffer()
+        success, map_info = buffer.map(Gst.MapFlags.READ)
+        if success:
+            bytes_data = GLib.Bytes.new(map_info.data)
+            buffer.unmap(map_info)
+            # punt the frame update back to the main UI thread
+            GLib.idle_add(self.update_frame, bytes_data, width, height)
+
+        return Gst.FlowReturn.OK
+
+    def update_frame(self, bytes_data, width, height):
+        if self.transition_started:
+            return False
+
+        texture = Gdk.MemoryTexture.new(
+            width, height,
+            Gdk.MemoryFormat.R8G8B8A8,
+            bytes_data,
+            width * 4
+        )
+        self.video.set_paintable(texture)
+        return False
+
+    def on_eos(self, bus, message):
+        GLib.idle_add(self.trigger_transition)
 
     def set_global_anims(self, state):
+        print("changing anims to: ", state)
         self.settings.set_boolean('enable-animations', state)
         Gio.Settings.sync()
-
         if self.ext_proxy:
             method = "EnableExtension" if state else "DisableExtension"
             try:
@@ -110,60 +170,53 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
                 pass
 
     def on_window_mapped(self, *args):
-        # step 2: wait 50ms after the window physically maps to switch it up
         GLib.timeout_add(50, self.step_two_enable_anims_and_bg)
 
     def step_two_enable_anims_and_bg(self):
-        self.set_global_anims(self.og_anim_state)
-        final_frame = os.path.join(self.frame_dir, f"frame_{self.total_frames:04d}.png")
-        target_wallpaper = f"file://{final_frame}"
+        self.set_global_anims(True)
+
+        # don't rely on os.path.exists here, just blast the uri string
+        target_uri = f"file://{self.wallpaper_path}"
+        print(target_uri)
 
         self.bg_settings.set_string('picture-options', 'zoom')
-        self.bg_settings.set_string('picture-uri', target_wallpaper)
-        self.bg_settings.set_string('picture-uri-dark', target_wallpaper)
+        self.bg_settings.set_string('picture-uri', target_uri)
+        self.bg_settings.set_string('picture-uri-dark', target_uri)
+        Gio.Settings.sync()
+
         return False
 
-    def start_playback(self):
-        self.is_playing = True
-        self.frame_timer = GLib.timeout_add(33, self.next_frame)
-
-    def next_frame(self):
-        if not self.is_playing or self.transition_started:
+    def check_video_progress(self):
+        if self.transition_started or not self.pipeline:
             return False
 
-        # step 3: wait until the last 10 frames -> disable animations again
-        if self.current_frame == self.total_frames - 10:
-            self.set_global_anims(False)
+        success_pos, pos = self.pipeline.query_position(Gst.Format.TIME)
+        success_dur, dur = self.pipeline.query_duration(Gst.Format.TIME)
 
-        if self.current_frame > self.total_frames:
-            self.trigger_transition()
-            return False
+        # gstreamer time is in nanoseconds, so 166ms is ~166,666,000 ns
+        if success_pos and success_dur and dur > 0 and pos > 0 and (dur - pos) < 166666000:
+            if not self.anims_killed_for_end:
+                self.set_global_anims(False)
+                self.anims_killed_for_end = True
 
-        frame_name = f"frame_{self.current_frame:04d}.png"
-        frame_path = os.path.join(self.frame_dir, frame_name)
-
-        file = Gio.File.new_for_path(frame_path)
-        self.picture.set_file(file)
-
-        self.current_frame += 1
         return True
 
     def setup_input_tracking(self):
-        key_controller = Gtk.EventControllerKey()
-        key_controller.connect("key-pressed", self.on_input_detected)
-        self.add_controller(key_controller)
-        click_controller = Gtk.GestureClick()
-        click_controller.connect("pressed", self.on_input_detected)
-        self.add_controller(click_controller)
+        key = Gtk.EventControllerKey()
+        key.connect("key-pressed", self.on_input_detected)
+        self.add_controller(key)
+
+        click = Gtk.GestureClick()
+        click.connect("pressed", self.on_input_detected)
+        self.add_controller(click)
 
     def on_input_detected(self, *args):
-        if self.is_playing:
-            self.animation.set_value_from(self.skip_button.progress)
-            self.animation.set_value_to(1.0)
-            self.animation.play()
-            if self.timer_id > 0:
-                GLib.source_remove(self.timer_id)
-            self.timer_id = GLib.timeout_add(2000, self.hide_skip_button)
+        self.animation.set_value_from(self.skip_button.progress)
+        self.animation.set_value_to(1.0)
+        self.animation.play()
+        if self.timer_id > 0:
+            GLib.source_remove(self.timer_id)
+        self.timer_id = GLib.timeout_add(2000, self.hide_skip_button)
         return False
 
     def hide_skip_button(self):
@@ -180,26 +233,25 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
         self.trigger_transition()
 
     def trigger_transition(self):
-        if self.transition_started:
-            return False
+        if self.transition_started: return False
         self.transition_started = True
-        self.is_playing = False
+
+        if self.pipeline:
+            self.pipeline.set_state(Gst.State.NULL)
+            self.pipeline = None
+
         self.can_close = True
 
-        # violently kill animations right here so the close anim is definitely dead
-        self.set_global_anims(False)
+        if not self.anims_killed_for_end:
+            self.set_global_anims(False)
 
-        # kill the video window instantly while anims are dead
         self.set_visible(False)
 
-        # wait 50ms, then re-enable anims
         GLib.timeout_add(50, self._phase2_enable_anims)
         return False
 
     def _phase2_enable_anims(self):
-        self.set_global_anims(self.og_anim_state)
-
-        # wait 150ms for mutter to process the anim state change, then open setup
+        self.set_global_anims(True)
         GLib.timeout_add(150, self._phase3_open_window)
         return False
 

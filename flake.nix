@@ -13,18 +13,7 @@
     in
     {
       packages.${system} = rec {
-        
-        zenos-frames = pkgs.stdenv.mkDerivation {
-          pname = "zenos-frames";
-          version = "0.1.0";
-          src = /home/doromiert/3D/dest2;
 
-          installPhase = ''
-            mkdir -p $out/share/zenos/frames
-            cp frame_*.png $out/share/zenos/frames/
-          '';
-        };
-        
         default = pkgs.stdenv.mkDerivation {
           pname = "zenos-setup";
           version = "0.1.0";
@@ -38,34 +27,36 @@
             wrapGAppsHook4
             desktop-file-utils
             appstream-glib
-            appstream
-            libxml2
             glib
-            libgweather
             python3
           ];
 
           buildInputs = with pkgs; [
             gtk4
             libadwaita
-            networkmanager # Added for libnm and GI typelibs
+            networkmanager
             python3
             python3Packages.pygobject3
             python3Packages.requests
             python3Packages.babel
+            gst_all_1.gstreamer
+            gst_all_1.gst-plugins-base
+            gst_all_1.gst-plugins-good
+            gst_all_1.gst-libav
           ];
 
           postInstall = ''
             wrapProgram $out/bin/zenos-setup \
               --prefix PYTHONPATH : "$PYTHONPATH" \
-              --prefix GI_TYPELIB_PATH : "$GI_TYPELIB_PATH"
+              --prefix GI_TYPELIB_PATH : "$GI_TYPELIB_PATH" \
+              --set ZENOS_VIDEO_PATH "/home/doromiert/3D/dest2-ffv1/output.mkv" \
+              --set ZENOS_WALLPAPER_PATH "$src/src/assets/wall.png"
           '';
         };
 
-        # this just wraps the `default` package, so nix doesn't rebuild the whole thing twice
         oobe = pkgs.writeShellScriptBin "oobe" ''
-          # point directly to your home dir, completely skipping the store copy
-          export ZENOS_FRAMES_DIR="/home/doromiert/3D/dest2"
+          # for local dev, point it to your local file
+          export ZENOS_VIDEO_PATH="/home/doromiert/3D/dest2-ffv1/output.mkv"
           exec ${default}/bin/zenos-setup --oobe "$@"
         '';
       };
