@@ -91,6 +91,14 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
             icon_theme = Gtk.IconTheme.get_for_display(display)
             icon_theme.add_resource_path("/com/negzero/zenos/icons")
 
+            css_provider = Gtk.CssProvider()
+            css_provider.load_from_resource("/com/negzero/zenos/setup/style.css")
+            Gtk.StyleContext.add_provider_for_display(
+                display,
+                css_provider,
+                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            )
+
         self.btn_back.connect("clicked", lambda _: self.navigate_back())
         self.btn_next.connect("clicked", lambda _: self.navigate_next("next"))
         self.carousel.connect("page-changed", self._on_carousel_page_changed)
@@ -102,7 +110,7 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
         self.current_step_id = start_step
         self._populate_path_placeholders(start_step)
         self._ensure_step_loaded(start_step)
-        
+
         step_config = FLOWS[self.active_flow_id]["steps"].get(start_step)
         self._apply_navigation_effects(step_config["view"])
         self._speculative_load_forks(start_step)
@@ -230,7 +238,7 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
         if self.pending_step_id:
             self.current_step_id = self.pending_step_id
             self.pending_step_id = None
-            
+
             step_config = FLOWS[self.active_flow_id]["steps"].get(self.current_step_id)
             view_name = step_config["view"]
 

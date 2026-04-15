@@ -1,0 +1,98 @@
+
+/* CSS inspired from: Settings Appearance Panel */
+
+.background-preview-button {
+    background: none;
+    border-radius: 9px;
+    padding: 3px;
+    box-shadow: none;
+    outline: none;
+  }
+  
+  .background-preview-button:checked {
+    box-shadow: 0 0 0 3px @accent_color;
+  }
+  
+  .background-preview-button:focus:focus-visible {
+    box-shadow: 0 0 0 3px alpha(@accent_color, .3);
+  }
+  
+  .background-preview-button:checked:focus:focus-visible {
+    box-shadow: 0 0 0 3px @accent_color, 0 0 0 6px alpha(@accent_color, .3);
+  }
+  
+  .appearance-thumbnail {
+    border-radius: 6px;
+  }
+
+  /* Base style for all accent color buttons */
+button.color-button {
+    min-width: 24px;
+    min-height: 24px;
+    border-radius: 50%;
+    padding: 0;
+    margin: 0;
+    
+    /* 6px total border area (3px ring + 3px gap space) */
+    border: 3px solid transparent; 
+    background-clip: content-box;
+    
+    background-image: none;
+    box-shadow: none;
+    transition: all 0.2s ease-in-out;
+}
+
+/* When selected: add 3px padding to create the gap between color and ring */
+button.color-button:checked {
+    padding: 3px;
+}
+
+/* Override Libadwaita's default hover styles so colors stay pure */
+button.color-button:hover { filter: brightness(1.1); }
+button.color-button:active { filter: brightness(0.9); }
+
+/* --- Define the specific GNOME 47 colors --- */
+
+button.accent-blue { background-color: #3584e4; }
+button.accent-blue:checked { border-color: #3584e4; }
+
+button.accent-teal { background-color: #33d17a; }
+button.accent-teal:checked { border-color: #33d17a; }
+
+button.accent-green { background-color: #26a269; }
+button.accent-green:checked { border-color: #26a269; }
+
+button.accent-yellow { background-color: #f6d32d; }
+button.accent-yellow:checked { border-color: #f6d32d; }
+
+button.accent-orange { background-color: #ff7800; }
+button.accent-orange:checked { border-color: #ff7800; }
+
+button.accent-red { background-color: #e01b24; }
+button.accent-red:checked { border-color: #e01b24; }
+
+button.accent-pink { background-color: #d56199; }
+button.accent-pink:checked { border-color: #d56199; }
+
+button.accent-purple { background-color: #9141ac; }
+button.accent-purple:checked { border-color: #9141ac; }
+
+button.accent-slate { background-color: #77767b; }
+button.accent-slate:checked { border-color: #77767b; }
+
+/* Card styling for the desktop options */
+button.desktop-card {
+    background: none;
+    border-radius: 12px;
+    padding: 0;
+    box-shadow: none;
+    border: 2px solid transparent;
+    transition: all 0.2s ease-in-out;
+}
+
+
+.desktop-thumbnail-flat {
+    border-radius: 8px;
+    min-width: 0;
+    min-height: 0;
+}
