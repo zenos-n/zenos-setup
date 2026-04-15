@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <template class="ZenosComputerNamePage" parent="AdwBin">
+    <property name="child">
+      <object class="GtkBox">
+        <property name="orientation">1</property>
+        <child>
+          <object class="AdwBanner" id="banner">
+            <style>
+              <class name="warning"/>
+            </style>
+          </object>
+        </child>
+        <child>
+          <object class="AdwStatusPage">
+            <property name="vexpand">true</property>
+            <property name="title" translatable="yes">Let's name your computer.</property>
+            <property name="icon-name">computer-symbolic</property>
+            <property name="child">
+              <object class="AdwPreferencesPage">
+                <child>
+                  <object class="AdwPreferencesGroup">
+                    <child>
+                      <object class="AdwEntryRow" id="entry_row">
+                        <property name="title" translatable="yes">Name your computer</property>
+                        <signal name="notify::text" handler="on_text_changed"/>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </property>
+          </object>
+        </child>
+      </object>
+    </property>
+  </template>
+</interface>
