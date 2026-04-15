@@ -34,38 +34,39 @@ else
 
   nix = find_program('nix', required: true)
   src_root = meson.project_source_root()
-  build_root = meson.project_build_root()
 
-  # hammer button → nix build
-  nix_build = custom_target('nix-build-proxy',
-    output: 'nix-build.done',
+  # oobe proxy - builds via nix and drops the runner script in one go
+  custom_target('zenos-oobe-proxy',
+    output: 'zenos-oobe',
     command: [
       'sh', '-c',
-      'cd "$1" && nix build . && touch "$2"',
+      '''
+      cd "$1" && nix build .#oobe -o result-oobe
+      echo "#!/bin/sh" > "$2"
+      echo 'exec "'"$1"'/result-oobe/bin/oobe" "$@"' >> "$2"
+      chmod +x "$2"
+      ''',
       'sh', src_root, '@OUTPUT@'
     ],
     build_by_default: true
   )
 
-  # drop a real executable wrapper into the build root so Builder
-  # can find it by name (it scans for a file matching the project binary
-  # when meson introspection has no executable() target)
-  custom_target('zenos-setup-runner',
-  output: 'zenos-setup',
-  command: [
-    'sh', '-c',
-    '''
-    rm -f "$1"
-    echo "#!/bin/sh" > "$1"
-    echo 'exec "'"$2"'/result/bin/zenos-setup" "$@"' >> "$1"
-    chmod +x "$1"
-    ''',
-    'sh', '@OUTPUT@', src_root
-  ],
-  depends: nix_build,
-  build_by_default: true,
-  install: true,
-  install_dir: get_option('bindir')
-)
+  # setup proxy - builds via nix and drops the runner script in one go
+  custom_target('zenos-setup-proxy',
+    output: 'zenos-setup',
+    command: [
+      'sh', '-c',
+      '''
+      cd "$1" && nix build .
+      echo "#!/bin/sh" > "$2"
+      echo 'exec "'"$1"'/result/bin/zenos-setup" "$@"' >> "$2"
+      chmod +x "$2"
+      ''',
+      'sh', src_root, '@OUTPUT@'
+    ],
+    build_by_default: true,
+    install: true,
+    install_dir: get_option('bindir')
+  )
 
 endif
