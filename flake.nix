@@ -35,12 +35,15 @@
             wrapGAppsHook4
             desktop-file-utils
             appstream-glib
+	    appstream
+            libxml2
             glib
             python3
           ];
 
           buildInputs = with pkgs; [
             gtk4
+            libgweather
             libadwaita
             networkmanager
             python3
