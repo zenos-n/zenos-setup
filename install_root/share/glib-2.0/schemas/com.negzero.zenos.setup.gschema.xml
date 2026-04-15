@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<schemalist gettext-domain="zenos-setup">
-	<schema id="com.negzero.zenos.setup" path="/com/negzero/zenos/setup/">
-	</schema>
-</schemalist>
