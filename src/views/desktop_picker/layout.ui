@@ -11,6 +11,7 @@
           <object class="AdwStatusPage">
             <property name="title" translatable="yes">Desktop Environment</property>
             <property name="description" translatable="yes">Choose your preferred desktop experience</property>
+            <property name="icon-name">preferences-desktop-remote-desktop-symbolic</property>
             <child>
               <object class="AdwClamp">
                 <property name="maximum-size">600</property>
@@ -24,7 +25,7 @@
                         <child>
                           <object class="AdwSwitchRow" id="switch_install_de">
                             <property name="title" translatable="yes">Install Desktop Environment</property>
-                            <property name="subtitle" translatable="yes">Turn off to use the system as a server</property>
+                            <property name="subtitle" translatable="yes">Turn off to use the system as a server or bring your own desktop</property>
                             <property name="active">true</property>
                           </object>
                         </child>
@@ -71,7 +72,6 @@
                                               <object class="GtkPicture">
                                                 <property name="can-shrink">true</property>
                                                 <property name="content-fit">2</property>
-                                                <property name="file">resource:///org/zenos/FirstSetup/assets/gnome.jpg</property>
                                                 <style>
                                                   <class name="desktop-thumbnail-flat"/>
                                                 </style>
@@ -81,7 +81,7 @@
                                         </child>
                                         <child>
                                           <object class="GtkLabel">
-                                            <property name="label" translatable="yes">A modern, distraction-free desktop environment. Polished and intuitive.</property>
+                                            <property name="label" translatable="yes">A modern, distraction-free desktop environment. Polished and intuitive. The recommended option for ZenOS.</property>
                                             <property name="wrap">true</property>
                                             <property name="halign">1</property>
                                             <property name="valign">3</property>
@@ -96,17 +96,33 @@
                                   </object>
                                 </child>
                                 <child>
-                                  <object class="AdwSwitchRow">
+                                  <object class="AdwSwitchRow" id="gnome_ff_switch">
                                     <property name="title" translatable="yes">Firefox Customization</property>
-                                    <property name="subtitle" translatable="yes">Apply consistent branding and privacy tweaks</property>
+                                    <property name="subtitle" translatable="yes">Make Firefox look like a GNOME-native application. This is an unofficial modification, credit for the theme goes to rafaelmardojai</property>
                                     <property name="active">true</property>
                                     <property name="sensitive" bind-source="radio_gnome" bind-property="active" bind-flags="sync-create"/>
                                   </object>
                                 </child>
                                 <child>
-                                  <object class="AdwSwitchRow">
+                                  <object class="AdwSwitchRow" id="gnome_ext_switch">
                                     <property name="title" translatable="yes">Recommended Extensions</property>
-                                    <property name="subtitle" translatable="yes">Dash-to-Dock, AppIndicator, and Blur-my-Shell</property>
+                                    <property name="subtitle" translatable="yes">A collection of extensions that improve the UX, hand-picked by Negative Zero</property>
+                                    <property name="active">true</property>
+                                    <property name="sensitive" bind-source="radio_gnome" bind-property="active" bind-flags="sync-create"/>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="AdwSwitchRow" id="gnome_tile_switch">
+                                    <property name="title" translatable="yes">Window Tiling</property>
+                                    <property name="subtitle" translatable="yes">Automatic window tiling thanks to the Forge extension</property>
+                                    <property name="active">true</property>
+                                    <property name="sensitive" bind-source="radio_gnome" bind-property="active" bind-flags="sync-create"/>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="AdwSwitchRow" id="gnome_bloat_switch">
+                                    <property name="title" translatable="yes">Install Default Apps</property>
+                                    <property name="subtitle" translatable="yes">GNOME ships with a few extra apps by default, toggle this off to get a minimal GNOME experience</property>
                                     <property name="active">true</property>
                                     <property name="sensitive" bind-source="radio_gnome" bind-property="active" bind-flags="sync-create"/>
                                   </object>
@@ -152,7 +168,6 @@
                                               <object class="GtkPicture">
                                                 <property name="can-shrink">true</property>
                                                 <property name="content-fit">2</property>
-                                                <property name="file">resource:///org/zenos/FirstSetup/assets/kde.jpg</property>
                                                 <style>
                                                   <class name="desktop-thumbnail-flat"/>
                                                 </style>
@@ -178,9 +193,9 @@
                                   </object>
                                 </child>
                                 <child>
-                                  <object class="AdwSwitchRow">
-                                    <property name="title" translatable="yes">Exclude Bloatware</property>
-                                    <property name="subtitle" translatable="yes">Only install core Plasma utilities</property>
+                                  <object class="AdwSwitchRow" id="kde_bloat_switch">
+                                    <property name="title" translatable="yes">Install default apps</property>
+                                    <property name="subtitle" translatable="yes">KDE Plasma ships with some additional tools, toggle this off to get a minimal KDE Plasma experience</property>
                                     <property name="active">false</property>
                                     <property name="sensitive" bind-source="radio_kde" bind-property="active" bind-flags="sync-create"/>
                                   </object>
@@ -221,7 +236,6 @@
                                               <object class="GtkPicture">
                                                 <property name="can-shrink">true</property>
                                                 <property name="content-fit">2</property>
-                                                <property name="file">resource:///org/zenos/FirstSetup/assets/xfce.jpg</property>
                                                 <style>
                                                   <class name="desktop-thumbnail-flat"/>
                                                 </style>
@@ -282,7 +296,6 @@
                                               <object class="GtkPicture">
                                                 <property name="can-shrink">true</property>
                                                 <property name="content-fit">2</property>
-                                                <property name="file">resource:///org/zenos/FirstSetup/assets/cinnamon.jpg</property>
                                                 <style>
                                                   <class name="desktop-thumbnail-flat"/>
                                                 </style>
@@ -343,7 +356,6 @@
                                               <object class="GtkPicture">
                                                 <property name="can-shrink">true</property>
                                                 <property name="content-fit">2</property>
-                                                <property name="file">resource:///org/zenos/FirstSetup/assets/budgie.jpg</property>
                                                 <style>
                                                   <class name="desktop-thumbnail-flat"/>
                                                 </style>
@@ -404,7 +416,6 @@
                                               <object class="GtkPicture">
                                                 <property name="can-shrink">true</property>
                                                 <property name="content-fit">2</property>
-                                                <property name="file">resource:///org/zenos/FirstSetup/assets/mate.jpg</property>
                                                 <style>
                                                   <class name="desktop-thumbnail-flat"/>
                                                 </style>
@@ -465,7 +476,6 @@
                                               <object class="GtkPicture">
                                                 <property name="can-shrink">true</property>
                                                 <property name="content-fit">2</property>
-                                                <property name="file">resource:///org/zenos/FirstSetup/assets/ii.jpg</property>
                                                 <style>
                                                   <class name="desktop-thumbnail-flat"/>
                                                 </style>

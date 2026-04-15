@@ -23,14 +23,19 @@ FLOWS = {
                     "finish_setup": "oobe_config_start"
                 }
             },
-
-            # path: install now
             "run_install_script": {"view": "progress", "routes": {"next": "reboot_to_oobe"}},
             "reboot_to_oobe": {"view": "reboot", "routes": {}},
-
-            # path: finish setup first
             "oobe_config_start": {"view": "computer_name", "routes": {"next": "user_setup"}},
-            "user_setup": {"view": "user_setup", "routes": {"next": "theme"}},
+            "user_setup": {"view": "user_setup", "routes": {"next": "desktop"}},
+            "desktop": {
+                "view": "desktop_picker",
+                "routes": {
+                    "next": [
+                        {"target": "theme", "condition": "is_gnome"},
+                        {"target": "extra_software"}
+                    ]
+                }
+            },
             "theme": {"view": "theme", "routes": {"next": "extra_software"}},
             "extra_software": {"view": "extra_software", "routes": {"next": "run_final_install"}},
             "run_final_install": {"view": "progress", "routes": {"next": "reboot_final"}},
@@ -42,7 +47,16 @@ FLOWS = {
         "steps": {
             "oobe_welcome": {"view": "oobe_welcome", "routes": {"start": "computer_name"}},
             "computer_name": {"view": "computer_name", "routes": {"next": "user_setup"}},
-            "user_setup": {"view": "user_setup", "routes": {"next": "theme"}},
+            "user_setup": {"view": "user_setup", "routes": {"next": "desktop"}},
+            "desktop": {
+                "view": "desktop_picker",
+                "routes": {
+                    "next": [
+                        {"target": "theme", "condition": "is_gnome"},
+                        {"target": "extra_software"}
+                    ]
+                }
+            },
             "theme": {"view": "theme", "routes": {"next": "extra_software"}},
             "extra_software": {"view": "extra_software", "routes": {"next": "run_rebuild"}},
             "run_rebuild": {"view": "progress", "routes": {"next": "last_reboot"}},
@@ -70,7 +84,7 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
 
         self.loaded_pages = {}
         self.carousel_steps = []
-        self.step_bins = {} # maps step_id -> Adw.Bin dummy wrapper
+        self.step_bins = {}
 
         display = Gdk.Display.get_default()
         if display:
@@ -81,18 +95,16 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
         self.btn_next.connect("clicked", lambda _: self.navigate_next("next"))
         self.carousel.connect("page-changed", self._on_carousel_page_changed)
 
-        # bootstrap the very first path into existence
         start_step = FLOWS[self.active_flow_id]["start"]
-        self._populate_path_placeholders(start_step)
 
-        # force synchronous load for the very first page so we don't start on a blank screen
+        # we set current_step_id BEFORE populating placeholders because
+        # _get_path_segment calls _check_condition which now guards against None
+        self.current_step_id = start_step
+        self._populate_path_placeholders(start_step)
         self._ensure_step_loaded(start_step)
         
-        self.current_step_id = start_step
         step_config = FLOWS[self.active_flow_id]["steps"].get(start_step)
         self._apply_navigation_effects(step_config["view"])
-
-        # speculative load forks on idle frames
         self._speculative_load_forks(start_step)
 
     def set_next_enabled(self, enabled: bool, caller=None):
@@ -110,15 +122,28 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
         self.btn_next.set_sensitive(enabled)
 
     def _get_path_segment(self, start_step_id):
-        # walks down the flow until it hits a fork (>1 routes) or a dead end (0 routes)
         segment = [start_step_id]
         current = start_step_id
         while True:
             routes = FLOWS[self.active_flow_id]["steps"][current].get("routes", {})
             if len(routes) == 1:
-                next_step = list(routes.values())[0]
-                segment.append(next_step)
-                current = next_step
+                route_key = list(routes.keys())[0]
+                route_data = routes[route_key]
+
+                if isinstance(route_data, list):
+                    next_step = None
+                    for choice in route_data:
+                        if not choice.get("condition") or self._check_condition(choice["condition"]):
+                            next_step = choice["target"]
+                            break
+                else:
+                    next_step = route_data
+
+                if next_step and next_step not in segment:
+                    segment.append(next_step)
+                    current = next_step
+                else:
+                    break
             else:
                 break
         return segment
@@ -145,7 +170,6 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
 
         def _bg_load():
             try:
-                # the actual import is the slow part
                 mod = importlib.import_module(f".views.{view_name}.logic", package=__package__)
                 GLib.idle_add(_fg_init, mod)
             except Exception as e:
@@ -160,7 +184,6 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
             self._attach_to_bin(step_id)
             if callback: callback()
 
-        # offload the import war crime to a thread
         threading.Thread(target=_bg_load, daemon=True).start()
 
     def _attach_to_bin(self, step_id):
@@ -175,8 +198,12 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
 
     def _speculative_load_forks(self, step_id):
         routes = FLOWS[self.active_flow_id]["steps"][step_id].get("routes", {})
-        for next_step_id in routes.values():
-            self._ensure_step_loaded(next_step_id)
+        for route_val in routes.values():
+            if isinstance(route_val, list):
+                for choice in route_val:
+                    self._ensure_step_loaded(choice["target"])
+            else:
+                self._ensure_step_loaded(route_val)
 
     def _unload_forward_paths(self, from_step_id):
         try:
@@ -185,10 +212,9 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
             return
 
         dead_steps = self.carousel_steps[idx+1:]
-        if not dead_steps:
-            return
+        if not dead_steps: return
 
-        print(f"[-] unloading dead path placeholders & ram: {dead_steps}")
+        print(f"[-] unloading dead path: {dead_steps}")
         self.carousel_steps = self.carousel_steps[:idx+1]
 
         for step_id in dead_steps:
@@ -221,20 +247,13 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
         self.carousel_indicator_dots.set_visible(not is_welcome and page_count >= 3)
 
         target_page = self.loaded_pages.get(view_name)
-        if not target_page:
-            return
+        if not target_page: return
 
         manifest = getattr(target_page, "MANIFEST", {})
-        
-        # toggle the close button/alt+f4 availability
-        is_unclosable = manifest.get("unclosable", False)
-        self.set_deletable(not is_unclosable)
+        self.set_deletable(not manifest.get("unclosable", False))
 
-        # burn the bridges if it's a progress page
         if "progress" in view_name:
-            self.history = [] # clear back-button history
-
-            # nuke everything in the carousel behind us
+            self.history = []
             try:
                 current_idx = self.carousel_steps.index(self.current_step_id)
                 if current_idx > 0:
@@ -242,29 +261,21 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
                     self.carousel_steps = self.carousel_steps[current_idx:]
                     for step_id in to_purge:
                         bin_widget = self.step_bins.pop(step_id, None)
-                        if bin_widget:
-                            self.carousel.remove(bin_widget)
-                    print(f"[-] point of no return reached: purged {len(to_purge)} steps")
-            except ValueError:
-                pass
+                        if bin_widget: self.carousel.remove(bin_widget)
+            except ValueError: pass
 
         self.set_next_enabled(not manifest.get("gated", False), caller="router")
-
-        # back button should now naturally hide because history is empty
-        should_show_back = not is_welcome and len(self.history) > 0
-        self.btn_back.set_visible(should_show_back)
+        self.btn_back.set_visible(not is_welcome and len(self.history) > 0)
 
         current_node = FLOWS[self.active_flow_id]["steps"].get(self.current_step_id, {})
-        has_next = "next" in current_node.get("routes", {})
-        self.btn_next.set_visible(has_next)
+        self.btn_next.set_visible("next" in current_node.get("routes", {}))
 
     def navigate_to_step(self, step_id, is_back=False):
         if step_id == self.current_step_id or step_id == self.pending_step_id:
             return
 
         step_config = FLOWS[self.active_flow_id]["steps"].get(step_id)
-        if not step_config:
-            return
+        if not step_config: return
 
         if not is_back and self.current_step_id:
             self.history.append(self.current_step_id)
@@ -274,24 +285,44 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
         if step_id not in self.carousel_steps:
             self._populate_path_placeholders(step_id)
 
-        # ensure loaded before scrolling
         self._ensure_step_loaded(step_id, lambda: GLib.timeout_add(50, self._do_scroll, step_id))
 
     def _do_scroll(self, step_id):
-        if step_id != self.pending_step_id:
+        if step_id != self.pending_step_id: return False
+        target_bin = self.step_bins.get(step_id)
+        if target_bin: self.carousel.scroll_to(target_bin, True)
+        return False
+
+    def _check_condition(self, condition_name):
+        # critical fix: don't crash if we haven't bootstrapped the first step
+        if not self.current_step_id:
             return False
 
-        target_bin = self.step_bins.get(step_id)
-        if target_bin:
-            self.carousel.scroll_to(target_bin, True)
+        current_node = FLOWS[self.active_flow_id]["steps"].get(self.current_step_id)
+        if not current_node:
+            return False
+
+        current_view_name = current_node["view"]
+        current_page = self.loaded_pages.get(current_view_name)
+
+        if current_page and hasattr(current_page, "state"):
+            return current_page.state.get(condition_name, False)
 
         return False
 
     def navigate_next(self, route_key="next"):
-        current_step_config = FLOWS[self.active_flow_id]["steps"].get(self.current_step_id, {})
-        next_step_id = current_step_config.get("routes", {}).get(route_key)
-        if next_step_id:
-            self.navigate_to_step(next_step_id)
+        current_node = FLOWS[self.active_flow_id]["steps"].get(self.current_step_id, {})
+        route_data = current_node.get("routes", {}).get(route_key)
+
+        if not route_data: return
+
+        if isinstance(route_data, list):
+            target = next((r["target"] for r in route_data if self._check_condition(r.get("condition"))), None)
+            if not target and not route_data[-1].get("condition"):
+                target = route_data[-1]["target"]
+            if target: self.navigate_to_step(target)
+        elif isinstance(route_data, str):
+            self.navigate_to_step(route_data)
 
     def navigate_back(self):
         if self.history:

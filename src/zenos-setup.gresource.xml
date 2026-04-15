@@ -23,6 +23,7 @@
     <file preprocess="xml-stripblanks">views/reboot/layout.ui</file>
     <file preprocess="xml-stripblanks">views/computer_name/layout.ui</file>
     <file preprocess="xml-stripblanks">views/user_setup/layout.ui</file>
+    <file preprocess="xml-stripblanks">views/desktop_picker/layout.ui</file>
   </gresource>
 
   <gresource prefix="/com/negzero/zenos/icons">
