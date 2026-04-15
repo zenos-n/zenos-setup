@@ -1,1 +1,0 @@
-/home/doromiert/Projects/ZenOS-Setup/src/main.py
