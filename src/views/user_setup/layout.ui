@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <template class="ZenOSUser" parent="AdwBin">
+    <property name="hexpand">true</property>
+    <property name="vexpand">true</property>
+    <child>
+      <object class="GtkOverlay">
+        <property name="valign">3</property>
+        <child>
+          <object class="GtkBox">
+            <property name="orientation">1</property>
+            <child>
+              <object class="AdwAvatar">
+                <property name="valign">3</property>
+                <property name="size">128</property>
+                <property name="show-initials">true</property>
+                <property name="text" bind-source="fullname_entry" bind-property="text" bind-flags="sync-create"/>
+              </object>
+            </child>
+            <child>
+              <object class="AdwStatusPage" id="status_page">
+                <property name="title" translatable="yes">Create User</property>
+                <property name="description" translatable="yes">Provide details for your user account</property>
+                <child>
+                  <object class="AdwPreferencesPage">
+                    <child>
+                      <object class="AdwPreferencesGroup">
+                        <child>
+                          <object class="AdwEntryRow" id="fullname_entry">
+                            <property name="title" translatable="yes">Name</property>
+                            <property name="input-purpose">7</property>
+                            <property name="max-length">32</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwEntryRow" id="username_entry">
+                            <property name="title" translatable="yes">Username</property>
+                            <property name="input-purpose">7</property>
+                            <property name="max-length">32</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwPasswordEntryRow" id="password_entry">
+                            <property name="title" translatable="yes">Password</property>
+                            <property name="input-purpose">8</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwPasswordEntryRow" id="password_confirmation">
+                            <property name="title" translatable="yes">Confirm Password</property>
+                            <property name="input-purpose">8</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="warning">
+                            <style>
+                              <class name="warning"/>
+                              <class name="dim-label"/>
+                            </style>
+                            <property name="visible">false</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="error">
+                            <style>
+                              <class name="error"/>
+                            </style>
+                            <property name="visible">false</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>
