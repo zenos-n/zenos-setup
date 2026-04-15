@@ -1,69 +1,79 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <requires lib="gtk" version="4.0"/>
+  <requires lib="libadwaita" version="1.0" />
   <template class="ZenOSTheme" parent="AdwBin">
-    <property name="hexpand">true</property>
-    <property name="vexpand">true</property>
+    <property name="hexpand">1</property>
+    <property name="vexpand">1</property>
     <child>
       <object class="GtkOverlay">
-        <property name="valign">3</property>
+        <property name="valign">center</property>
         <child>
           <object class="AdwStatusPage">
             <property name="title" translatable="yes">Color Scheme</property>
             <property name="description" translatable="yes">Choose a color scheme for your system</property>
-            <property name="icon-name">dark-mode-symbolic</property>
             <child>
               <object class="AdwClamp">
-                <property name="maximum-size">500</property>
-                <property name="tightening-threshold">400</property>
+                <property name="maximum_size">500</property>
+                <property name="tightening_threshold">400</property>
                 <child>
                   <object class="GtkBox">
-                    <property name="orientation">1</property>
+                    <property name="orientation">vertical</property>
                     <property name="spacing">24</property>
+
                     <child>
                       <object class="AdwPreferencesGroup">
                         <child>
                           <object class="AdwPreferencesRow">
-                            <property name="activatable">false</property>
-                            <property name="focusable">false</property>
+                            <property name="activatable">False</property>
+                            <property name="focusable">False</property>
                             <child>
                               <object class="AdwClamp">
-                                <property name="maximum-size">400</property>
-                                <property name="tightening-threshold">300</property>
+                                <property name="maximum_size">400</property>
+                                <property name="tightening_threshold">300</property>
                                 <child>
                                   <object class="GtkGrid">
-                                    <property name="column-homogeneous">true</property>
+                                    <property name="column-homogeneous">True</property>
                                     <property name="column-spacing">24</property>
                                     <property name="row-spacing">12</property>
                                     <property name="margin-start">12</property>
                                     <property name="margin-end">12</property>
                                     <property name="margin-top">18</property>
                                     <property name="margin-bottom">12</property>
-                                    <property name="hexpand">true</property>
+                                    <property name="hexpand">True</property>
                                     <child>
                                       <object class="GtkToggleButton" id="btn_default">
                                         <property name="tooltip-text" translatable="yes">Light Mode</property>
                                         <child>
-                                          <object class="GtkOverlay">
+                                          <object class="GtkAspectFrame">
+                                            <property name="ratio">1.5</property>
+                                            <property name="obey-child">False</property>
+                                            <property name="width-request">180</property>
+                                            <property name="height-request">120</property>
+                                            <property name="halign">center</property>
+                                            <property name="hexpand">True</property>
                                             <child>
-                                              <object class="GtkPicture" id="default_image">
-                                                <property name="hexpand">true</property>
-                                                <property name="halign">3</property>
-                                                <property name="can-shrink">false</property>
-                                                <style>
-                                                  <class name="appearance-thumbnail"/>
-                                                </style>
-                                              </object>
-                                            </child>
-                                            <child type="overlay">
-                                              <object class="GtkPicture">
-                                                <property name="hexpand">true</property>
-                                                <property name="halign">3</property>
-                                                <property name="can-shrink">false</property>
-                                                <style>
-                                                  <class name="appearance-thumbnail"/>
-                                                  <class name="icon-dropshadow"/>
-                                                </style>
+                                              <object class="GtkOverlay">
+                                                <child>
+                                                  <object class="GtkPicture" id="default_image">
+                                                    <property name="can-shrink">True</property>
+                                                    <property name="content-fit">cover</property>
+                                                    <style>
+                                                      <class name="appearance-thumbnail"/>
+                                                    </style>
+                                                  </object>
+                                                </child>
+                                                <child type="overlay">
+                                                  <object class="GtkPicture">
+                                                    <property name="can-shrink">True</property>
+                                                    <property name="content-fit">cover</property>
+                                                    <property name="file">resource:///com/negzero/zenos/setup/assets/theme-light.svg</property>
+                                                    <style>
+                                                      <class name="appearance-thumbnail"/>
+                                                      <class name="icon-dropshadow"/>
+                                                    </style>
+                                                  </object>
+                                                </child>
                                               </object>
                                             </child>
                                           </object>
@@ -91,26 +101,35 @@
                                         <property name="tooltip-text" translatable="yes">Dark Mode</property>
                                         <property name="group">btn_default</property>
                                         <child>
-                                          <object class="GtkOverlay">
+                                          <object class="GtkAspectFrame">
+                                            <property name="ratio">1.5</property>
+                                            <property name="obey-child">False</property>
+                                            <property name="width-request">180</property>
+                                            <property name="height-request">120</property>
+                                            <property name="halign">center</property>
+                                            <property name="hexpand">True</property>
                                             <child>
-                                              <object class="GtkPicture" id="dark_image">
-                                                <property name="hexpand">true</property>
-                                                <property name="halign">3</property>
-                                                <property name="can-shrink">false</property>
-                                                <style>
-                                                  <class name="appearance-thumbnail"/>
-                                                </style>
-                                              </object>
-                                            </child>
-                                            <child type="overlay">
-                                              <object class="GtkPicture">
-                                                <property name="hexpand">true</property>
-                                                <property name="halign">3</property>
-                                                <property name="can-shrink">false</property>
-                                                <style>
-                                                  <class name="appearance-thumbnail"/>
-                                                  <class name="icon-dropshadow"/>
-                                                </style>
+                                              <object class="GtkOverlay">
+                                                <child>
+                                                  <object class="GtkPicture" id="dark_image">
+                                                    <property name="can-shrink">True</property>
+                                                    <property name="content-fit">cover</property>
+                                                    <style>
+                                                      <class name="appearance-thumbnail"/>
+                                                    </style>
+                                                  </object>
+                                                </child>
+                                                <child type="overlay">
+                                                  <object class="GtkPicture">
+                                                    <property name="can-shrink">True</property>
+                                                    <property name="content-fit">cover</property>
+                                                    <property name="file">resource:///com/negzero/zenos/setup/assets/theme-dark.svg</property>
+                                                    <style>
+                                                      <class name="appearance-thumbnail"/>
+                                                      <class name="icon-dropshadow"/>
+                                                    </style>
+                                                  </object>
+                                                </child>
                                               </object>
                                             </child>
                                           </object>
@@ -141,25 +160,27 @@
                         </child>
                       </object>
                     </child>
+
                     <child>
                       <object class="AdwPreferencesGroup">
                         <property name="title" translatable="yes">Accent Color</property>
                         <child>
                           <object class="AdwPreferencesRow">
-                            <property name="activatable">false</property>
-                            <property name="focusable">false</property>
+                            <property name="activatable">False</property>
+                            <property name="focusable">False</property>
                             <child>
                               <object class="GtkBox" id="accent_box">
-                                <property name="halign">3</property>
+                                <property name="halign">center</property>
                                 <property name="margin-top">14</property>
                                 <property name="margin-bottom">14</property>
                                 <property name="spacing">12</property>
+
                                 <child>
                                   <object class="GtkToggleButton" id="accent_blue">
                                     <property name="width-request">36</property>
                                     <property name="height-request">36</property>
-                                    <property name="valign">3</property>
-                                    <property name="halign">3</property>
+                                    <property name="valign">center</property>
+                                    <property name="halign">center</property>
                                     <property name="tooltip-text" translatable="yes">Blue</property>
                                     <style>
                                       <class name="circular"/>
@@ -168,13 +189,14 @@
                                     </style>
                                   </object>
                                 </child>
+
                                 <child>
                                   <object class="GtkToggleButton" id="accent_teal">
                                     <property name="group">accent_blue</property>
                                     <property name="width-request">36</property>
                                     <property name="height-request">36</property>
-                                    <property name="valign">3</property>
-                                    <property name="halign">3</property>
+                                    <property name="valign">center</property>
+                                    <property name="halign">center</property>
                                     <property name="tooltip-text" translatable="yes">Teal</property>
                                     <style>
                                       <class name="circular"/>
@@ -183,13 +205,14 @@
                                     </style>
                                   </object>
                                 </child>
+
                                 <child>
                                   <object class="GtkToggleButton" id="accent_green">
                                     <property name="group">accent_blue</property>
                                     <property name="width-request">36</property>
                                     <property name="height-request">36</property>
-                                    <property name="valign">3</property>
-                                    <property name="halign">3</property>
+                                    <property name="valign">center</property>
+                                    <property name="halign">center</property>
                                     <property name="tooltip-text" translatable="yes">Green</property>
                                     <style>
                                       <class name="circular"/>
@@ -198,13 +221,14 @@
                                     </style>
                                   </object>
                                 </child>
+
                                 <child>
                                   <object class="GtkToggleButton" id="accent_yellow">
                                     <property name="group">accent_blue</property>
                                     <property name="width-request">36</property>
                                     <property name="height-request">36</property>
-                                    <property name="valign">3</property>
-                                    <property name="halign">3</property>
+                                    <property name="valign">center</property>
+                                    <property name="halign">center</property>
                                     <property name="tooltip-text" translatable="yes">Yellow</property>
                                     <style>
                                       <class name="circular"/>
@@ -213,13 +237,14 @@
                                     </style>
                                   </object>
                                 </child>
+
                                 <child>
                                   <object class="GtkToggleButton" id="accent_orange">
                                     <property name="group">accent_blue</property>
                                     <property name="width-request">36</property>
                                     <property name="height-request">36</property>
-                                    <property name="valign">3</property>
-                                    <property name="halign">3</property>
+                                    <property name="valign">center</property>
+                                    <property name="halign">center</property>
                                     <property name="tooltip-text" translatable="yes">Orange</property>
                                     <style>
                                       <class name="circular"/>
@@ -228,13 +253,14 @@
                                     </style>
                                   </object>
                                 </child>
+
                                 <child>
                                   <object class="GtkToggleButton" id="accent_red">
                                     <property name="group">accent_blue</property>
                                     <property name="width-request">36</property>
                                     <property name="height-request">36</property>
-                                    <property name="valign">3</property>
-                                    <property name="halign">3</property>
+                                    <property name="valign">center</property>
+                                    <property name="halign">center</property>
                                     <property name="tooltip-text" translatable="yes">Red</property>
                                     <style>
                                       <class name="circular"/>
@@ -243,13 +269,14 @@
                                     </style>
                                   </object>
                                 </child>
+
                                 <child>
                                   <object class="GtkToggleButton" id="accent_pink">
                                     <property name="group">accent_blue</property>
                                     <property name="width-request">36</property>
                                     <property name="height-request">36</property>
-                                    <property name="valign">3</property>
-                                    <property name="halign">3</property>
+                                    <property name="valign">center</property>
+                                    <property name="halign">center</property>
                                     <property name="tooltip-text" translatable="yes">Pink</property>
                                     <style>
                                       <class name="circular"/>
@@ -258,13 +285,14 @@
                                     </style>
                                   </object>
                                 </child>
+
                                 <child>
                                   <object class="GtkToggleButton" id="accent_purple">
                                     <property name="group">accent_blue</property>
                                     <property name="width-request">36</property>
                                     <property name="height-request">36</property>
-                                    <property name="valign">3</property>
-                                    <property name="halign">3</property>
+                                    <property name="valign">center</property>
+                                    <property name="halign">center</property>
                                     <property name="tooltip-text" translatable="yes">Purple</property>
                                     <style>
                                       <class name="circular"/>
@@ -273,13 +301,14 @@
                                     </style>
                                   </object>
                                 </child>
+
                                 <child>
                                   <object class="GtkToggleButton" id="accent_slate">
                                     <property name="group">accent_blue</property>
                                     <property name="width-request">36</property>
                                     <property name="height-request">36</property>
-                                    <property name="valign">3</property>
-                                    <property name="halign">3</property>
+                                    <property name="valign">center</property>
+                                    <property name="halign">center</property>
                                     <property name="tooltip-text" translatable="yes">Slate</property>
                                     <style>
                                       <class name="circular"/>
@@ -288,12 +317,14 @@
                                     </style>
                                   </object>
                                 </child>
+
                               </object>
                             </child>
                           </object>
                         </child>
                       </object>
                     </child>
+
                   </object>
                 </child>
               </object>

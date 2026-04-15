@@ -26,6 +26,9 @@
     <file preprocess="xml-stripblanks">views/desktop_picker/layout.ui</file>
     <file preprocess="xml-stripblanks">views/theme/layout.ui</file>
 
+    <file preprocess="xml-stripblanks">assets/theme-dark.svg</file>
+    <file preprocess="xml-stripblanks">assets/theme-light.svg</file>
+
     <file>style.css</file>
   </gresource>
 
