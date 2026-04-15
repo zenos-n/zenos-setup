@@ -10,6 +10,14 @@
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
+      lib = nixpkgs.lib;
+
+      # the intro video hosted on your r2 cdn
+      # trigger a hash failure to get the correct SRI hash
+      introVideo = pkgs.fetchurl {
+        url = "https://r2.neg-zero.com/intro.mkv";
+        sha256 = "sha256-BciVM83HWmloezUTjrKlvv2CHGEgpNb84zUy9zkGlGM=";
+      };
     in
     {
       packages.${system} = rec {
@@ -49,14 +57,16 @@
             wrapProgram $out/bin/zenos-setup \
               --prefix PYTHONPATH : "$PYTHONPATH" \
               --prefix GI_TYPELIB_PATH : "$GI_TYPELIB_PATH" \
-              --set ZENOS_VIDEO_PATH "/home/doromiert/3D/dest2-ffv1/output.mkv" \
+              --set ZENOS_VIDEO_PATH "${introVideo}" \
               --set ZENOS_WALLPAPER_PATH "$src/src/assets/wall.png"
           '';
         };
 
         oobe = pkgs.writeShellScriptBin "oobe" ''
-          # for local dev, point it to your local file
-          export ZENOS_VIDEO_PATH="/home/doromiert/3D/dest2-ffv1/output.mkv"
+          # check for local override, otherwise use the cdn version
+          if [ -z "$ZENOS_VIDEO_PATH" ]; then
+            export ZENOS_VIDEO_PATH="${introVideo}"
+          fi
           exec ${default}/bin/zenos-setup --oobe "$@"
         '';
       };
