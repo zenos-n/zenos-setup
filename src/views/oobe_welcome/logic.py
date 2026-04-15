@@ -15,6 +15,5 @@ class Page(Adw.Bin):
         self.next_btn.connect('clicked', self.on_next_clicked)
 
     def on_next_clicked(self, *args):
-        # tells the router we picked the 'install' branch
-        self.router.navigate_next("language")
+        self.router.navigate_next("start")
 

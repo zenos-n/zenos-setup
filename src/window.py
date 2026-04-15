@@ -105,8 +105,6 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
 
         start_step = FLOWS[self.active_flow_id]["start"]
 
-        # we set current_step_id BEFORE populating placeholders because
-        # _get_path_segment calls _check_condition which now guards against None
         self.current_step_id = start_step
         self._populate_path_placeholders(start_step)
         self._ensure_step_loaded(start_step)
@@ -158,6 +156,13 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
 
     def _populate_path_placeholders(self, start_step_id):
         segment = self._get_path_segment(start_step_id)
+
+        # find where we are to inject immediately after
+        if self.current_step_id in self.carousel_steps:
+            insert_idx = self.carousel_steps.index(self.current_step_id) + 1
+        else:
+            insert_idx = len(self.carousel_steps)
+
         for step_id in segment:
             if step_id not in self.carousel_steps:
                 dummy_bin = Adw.Bin()
@@ -165,8 +170,10 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
                 dummy_bin.set_vexpand(True)
 
                 self.step_bins[step_id] = dummy_bin
-                self.carousel.append(dummy_bin)
-                self.carousel_steps.append(step_id)
+                # inject into carousel and tracking list at the calculated position
+                self.carousel.insert(dummy_bin, insert_idx)
+                self.carousel_steps.insert(insert_idx, step_id)
+                insert_idx += 1
 
     def _ensure_step_loaded(self, step_id, callback=None):
         view_name = FLOWS[self.active_flow_id]["steps"][step_id]["view"]
@@ -290,6 +297,7 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
 
         self.pending_step_id = step_id
 
+        # always populate/inject before trying to load/scroll
         if step_id not in self.carousel_steps:
             self._populate_path_placeholders(step_id)
 
@@ -302,7 +310,6 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
         return False
 
     def _check_condition(self, condition_name):
-        # critical fix: don't crash if we haven't bootstrapped the first step
         if not self.current_step_id:
             return False
 

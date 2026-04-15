@@ -1,4 +1,3 @@
-
 /* CSS inspired from: Settings Appearance Panel */
 
 .background-preview-button {
@@ -29,22 +28,26 @@
 button.color-button {
     min-width: 24px;
     min-height: 24px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     padding: 0;
-    margin: 0;
-    
-    /* 6px total border area (3px ring + 3px gap space) */
-    border: 3px solid transparent; 
-    background-clip: content-box;
+    /* initial margin to prevent layout shift when ring appears */
+    margin: 6px;
+    border: none;
     
     background-image: none;
     box-shadow: none;
     transition: all 0.2s ease-in-out;
 }
 
-/* When selected: add 3px padding to create the gap between color and ring */
+/* When checked, we use outline for the ring so it doesn't shrink the core.
+   3px gap (offset) + 3px thickness = 6px total expansion.
+*/
 button.color-button:checked {
-    padding: 3px;
+    outline-offset: 3px;
+    outline-width: 3px;
+    outline-style: solid;
 }
 
 /* Override Libadwaita's default hover styles so colors stay pure */
@@ -54,31 +57,31 @@ button.color-button:active { filter: brightness(0.9); }
 /* --- Define the specific GNOME 47 colors --- */
 
 button.accent-blue { background-color: #3584e4; }
-button.accent-blue:checked { border-color: #3584e4; }
+button.accent-blue:checked { outline-color: #3584e4; }
 
 button.accent-teal { background-color: #33d17a; }
-button.accent-teal:checked { border-color: #33d17a; }
+button.accent-teal:checked { outline-color: #33d17a; }
 
 button.accent-green { background-color: #26a269; }
-button.accent-green:checked { border-color: #26a269; }
+button.accent-green:checked { outline-color: #26a269; }
 
 button.accent-yellow { background-color: #f6d32d; }
-button.accent-yellow:checked { border-color: #f6d32d; }
+button.accent-yellow:checked { outline-color: #f6d32d; }
 
 button.accent-orange { background-color: #ff7800; }
-button.accent-orange:checked { border-color: #ff7800; }
+button.accent-orange:checked { outline-color: #ff7800; }
 
 button.accent-red { background-color: #e01b24; }
-button.accent-red:checked { border-color: #e01b24; }
+button.accent-red:checked { outline-color: #e01b24; }
 
 button.accent-pink { background-color: #d56199; }
-button.accent-pink:checked { border-color: #d56199; }
+button.accent-pink:checked { outline-color: #d56199; }
 
 button.accent-purple { background-color: #9141ac; }
-button.accent-purple:checked { border-color: #9141ac; }
+button.accent-purple:checked { outline-color: #9141ac; }
 
 button.accent-slate { background-color: #77767b; }
-button.accent-slate:checked { border-color: #77767b; }
+button.accent-slate:checked { outline-color: #77767b; }
 
 /* Card styling for the desktop options */
 button.desktop-card {
