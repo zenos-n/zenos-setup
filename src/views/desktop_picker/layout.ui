@@ -96,19 +96,21 @@
                                   </object>
                                 </child>
                                 <child>
-                                  <object class="AdwSwitchRow" id="gnome_ff_switch">
-                                    <property name="title" translatable="yes">Firefox Customization</property>
-                                    <property name="subtitle" translatable="yes">Make Firefox look like a GNOME-native application. This is an unofficial modification, credit for the theme goes to rafaelmardojai</property>
-                                    <property name="active">true</property>
-                                    <property name="sensitive" bind-source="radio_gnome" bind-property="active" bind-flags="sync-create"/>
-                                  </object>
-                                </child>
-                                <child>
                                   <object class="AdwSwitchRow" id="gnome_ext_switch">
                                     <property name="title" translatable="yes">Recommended Extensions</property>
                                     <property name="subtitle" translatable="yes">A collection of extensions that improve the UX, hand-picked by Negative Zero</property>
                                     <property name="active">true</property>
                                     <property name="sensitive" bind-source="radio_gnome" bind-property="active" bind-flags="sync-create"/>
+                                    <child>
+                                      <object class="GtkButton" id="gnome_ext_more_btn">
+                                        <property name="icon-name">go-next-symbolic</property>
+                                        <property name="halign">3</property>
+                                        <property name="valign">3</property>
+                                        <style>
+                                          <class name="flat"/>
+                                        </style>
+                                      </object>
+                                    </child>
                                   </object>
                                 </child>
                                 <child>
@@ -120,9 +122,9 @@
                                   </object>
                                 </child>
                                 <child>
-                                  <object class="AdwSwitchRow" id="gnome_bloat_switch">
-                                    <property name="title" translatable="yes">Install Default Apps</property>
-                                    <property name="subtitle" translatable="yes">GNOME ships with a few extra apps by default, toggle this off to get a minimal GNOME experience</property>
+                                  <object class="AdwSwitchRow" id="gnome_theme_switch">
+                                    <property name="title" translatable="yes">ZenOS Theming</property>
+                                    <property name="subtitle" translatable="yes">Toggle this off to get a stock GNOME experience</property>
                                     <property name="active">true</property>
                                     <property name="sensitive" bind-source="radio_gnome" bind-property="active" bind-flags="sync-create"/>
                                   </object>
@@ -193,9 +195,9 @@
                                   </object>
                                 </child>
                                 <child>
-                                  <object class="AdwSwitchRow" id="kde_bloat_switch">
-                                    <property name="title" translatable="yes">Install default apps</property>
-                                    <property name="subtitle" translatable="yes">KDE Plasma ships with some additional tools, toggle this off to get a minimal KDE Plasma experience</property>
+                                  <object class="AdwSwitchRow" id="kde_theming_switch">
+                                    <property name="title" translatable="yes">ZenOS Theming</property>
+                                    <property name="subtitle" translatable="yes">Toggle this off to get a stock KDE Plasma experience</property>
                                     <property name="active">false</property>
                                     <property name="sensitive" bind-source="radio_kde" bind-property="active" bind-flags="sync-create"/>
                                   </object>
