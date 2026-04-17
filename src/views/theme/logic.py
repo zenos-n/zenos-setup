@@ -1,5 +1,4 @@
 from gi.repository import Adw, Gtk, GObject, Gio, Gdk
-import os
 
 @Gtk.Template(resource_path='/com/negzero/zenos/setup/views/theme/layout.ui')
 class Page(Adw.Bin):
@@ -36,21 +35,6 @@ class Page(Adw.Bin):
             "is_gnome": True
         }
 
-        # get the base path from the environment variable or fallback to a sensible default
-        self.base_wp_path = os.getenv("ZENOS_WALLPAPER_PATH", "/usr/share/backgrounds/zenos/")
-
-        self.wallpaper_map = {
-            "blue": "blue.png",
-            "teal": "teal.png",
-            "green": "green.png",
-            "yellow": "yellow.png",
-            "orange": "orange.png",
-            "red": "red.png",
-            "pink": "pink.png",
-            "purple": "purple.png",
-            "slate": "slate.png"
-        }
-
         self._setup_view()
         self._connect_signals()
 
@@ -60,12 +44,15 @@ class Page(Adw.Bin):
         self._load_current_wallpaper()
 
     def _load_current_wallpaper(self):
+        # use gsettings to find what the user is actually rocking
         settings = Gio.Settings.new("org.gnome.desktop.background")
 
+        # light mode wallpaper
         wallpaper_path = settings.get_string("picture-uri")
         if wallpaper_path:
             self.default_image.set_file(Gio.File.new_for_uri(wallpaper_path))
 
+        # dark mode wallpaper (gnome specific key)
         dark_wallpaper_path = settings.get_string("picture-uri-dark") or wallpaper_path
         if dark_wallpaper_path:
             self.dark_image.set_file(Gio.File.new_for_uri(dark_wallpaper_path))
@@ -93,11 +80,13 @@ class Page(Adw.Bin):
         if btn.get_active():
             self.state["dark_mode"] = is_dark
 
+            # apply to the app immediately
             style_manager = Adw.StyleManager.get_default()
             style_manager.set_color_scheme(
                 Adw.ColorScheme.PREFER_DARK if is_dark else Adw.ColorScheme.PREFER_LIGHT
             )
 
+            # apply system-wide
             try:
                 settings = Gio.Settings.new("org.gnome.desktop.interface")
                 settings.set_string("color-scheme", "prefer-dark" if is_dark else "default")
@@ -110,39 +99,22 @@ class Page(Adw.Bin):
 
         self.state["accent"] = name
 
+        # apply system-wide
         try:
             settings = Gio.Settings.new("org.gnome.desktop.interface")
             settings.set_string("accent-color", name)
         except Exception:
             pass
 
-        self._apply_wallpaper(name)
+        # libadwaita apps can be stubborn about live-reloading accent colors
+        # via gsettings, so we forcefully inject a css provider to guarantee
+        # the installer window updates instantly
         self._apply_app_accent(name)
-
-    def _apply_wallpaper(self, accent_name):
-        filename = self.wallpaper_map.get(accent_name)
-        if not filename:
-            return
-
-        # build the absolute path using the env var
-        full_path = os.path.join(self.base_wp_path, filename)
-        wp_uri = f"file://{full_path}"
-
-        try:
-            bg_settings = Gio.Settings.new("org.gnome.desktop.background")
-            bg_settings.set_string("picture-uri", wp_uri)
-            bg_settings.set_string("picture-uri-dark", wp_uri)
-
-            # update the preview images in the UI
-            file_obj = Gio.File.new_for_path(full_path)
-            self.default_image.set_file(file_obj)
-            self.dark_image.set_file(file_obj)
-        except Exception as e:
-            print(f"failed to set wallpaper: {e}")
 
     def _apply_app_accent(self, name):
         display = Gdk.Display.get_default()
 
+        # aggressively remove the old provider to force gtk to redraw
         if hasattr(self, "_accent_provider"):
             Gtk.StyleContext.remove_provider_for_display(
                 display,
@@ -171,6 +143,7 @@ class Page(Adw.Bin):
         """
         self._accent_provider.load_from_data(css.encode('utf-8'))
 
+        # inject with user priority (800) so it overrides libadwaita's internal theme styles
         Gtk.StyleContext.add_provider_for_display(
             display,
             self._accent_provider,

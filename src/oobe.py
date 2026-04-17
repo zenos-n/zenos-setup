@@ -41,7 +41,6 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
 
         self.video_path = os.environ.get("ZENOS_VIDEO_PATH", "/run/current-system/sw/share/zenos/intro.mkv")
         self.wallpaper_path = os.environ.get("ZENOS_WALLPAPER_PATH", "/run/current-system/sw/share/zenos/destination-2.png")
-        self.wallpaper_path = self.wallpaper_path + "purple.png"
 
         # setup dconf BEFORE gstreamer touches anything
         self.settings = Gio.Settings.new('org.gnome.desktop.interface')
