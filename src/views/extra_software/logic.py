@@ -279,3 +279,6 @@ class Page(Adw.Bin):
             checkbtn.set_active(True)
 
         self._updating_ui = False
+
+    def get_finals(self):
+        return {"apps": list(self.user_choices)}

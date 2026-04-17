@@ -22,6 +22,7 @@ class Page(Gtk.Box):
     def __init__(self, router, **kwargs):
         super().__init__(**kwargs)
         self.router = router
+        self.install_state = None
 
         # hook up the slideshow nav
         self.tour_btn_back.connect("clicked", self._on_tour_prev)
@@ -31,6 +32,14 @@ class Page(Gtk.Box):
         # toggle between console and tour
         self.console_button.connect("clicked", self._show_console)
         self.tour_button.connect("clicked", self._show_tour)
+
+        # collect all page state before doing anything else
+        self.install_state = self.router.collect_state()
+        print("[+] install state collected:")
+        print(self.install_state.to_json(indent=2))
+
+        # TODO: hand self.install_state to your util here
+        # e.g. threading.Thread(target=run_my_util, args=(self.install_state,), daemon=True).start()
 
         # fake progress for testing
         GObject.timeout_add(100, self._fake_progress)

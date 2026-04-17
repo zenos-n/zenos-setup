@@ -18,6 +18,7 @@ class Page(Adw.Bin):
     def __init__(self, router, **kwargs):
         super().__init__(**kwargs)
         self.router = router
+        self._hostname = ""
 
     @Gtk.Template.Callback()
     def on_text_changed(self, entry, *args):
@@ -54,4 +55,8 @@ class Page(Adw.Bin):
         else:
             self.banner.set_revealed(False)
 
+        self._hostname = sanitized
         self.router.set_next_enabled(True, caller=self)
+
+    def get_finals(self):
+        return {"hostname": self._hostname}

@@ -1,6 +1,7 @@
 import importlib
 import threading
 from gi.repository import Adw, Gtk, GObject, GLib, Gdk
+from .state import InstallState
 
 FLOWS = {
     "installer": {
@@ -81,6 +82,8 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
         self.current_step_id = None
         self.pending_step_id = None
         self.history = []
+
+        self.install_state = InstallState(oobe=start_in_oobe)
 
         self.loaded_pages = {}
         self.carousel_steps = []
@@ -338,6 +341,39 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
             if target: self.navigate_to_step(target)
         elif isinstance(route_data, str):
             self.navigate_to_step(route_data)
+
+    # -- view name → stable page id used in the output JSON --
+    _PAGE_ID_MAP = {
+        "language":      "language",
+        "timezone":      "timezone",
+        "keyboard":      "keyboard",
+        "computer_name": "computer_name",
+        "user_setup":    "user",
+        "desktop_picker":"desktop",
+        "theme":         "theme",
+        "extra_software":"software",
+        "disks":         "disks",
+        "internet":      "network",
+    }
+
+    def collect_state(self) -> InstallState:
+        """
+        Walk every loaded page that exposes get_finals() and shove its
+        data into install_state.  Call this from the progress page right
+        before handing off to your util.
+        """
+        for view_name, page_id in self._PAGE_ID_MAP.items():
+            page = self.loaded_pages.get(view_name)
+            if page is None:
+                continue
+            if not hasattr(page, "get_finals"):
+                continue
+            try:
+                data = page.get_finals()
+                self.install_state.set_page(page_id, data)
+            except Exception as e:
+                print(f"[-] collect_state: {view_name} raised {e}")
+        return self.install_state
 
     def navigate_back(self):
         if self.history:

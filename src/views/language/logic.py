@@ -152,3 +152,9 @@ class Page(Adw.Bin):
             # just check if the query is in the pre-compiled blob
             match = re.search(query, row.search_blob, re.IGNORECASE)
             row.set_visible(match is not None)
+
+    def get_finals(self):
+        return {
+            "locale": self.selected_language.get("code") or "en_US.UTF-8",
+            "display_name": self.selected_language.get("title") or "English",
+        }

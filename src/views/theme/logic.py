@@ -87,3 +87,6 @@ class Page(Adw.Bin):
     def _on_accent_toggled(self, btn, name):
         if btn.get_active():
             self.state["accent"] = name
+
+    def get_finals(self):
+        return dict(self.state)

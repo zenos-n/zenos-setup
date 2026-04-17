@@ -74,3 +74,6 @@ class Page(Adw.Bin):
             "username": self.username_entry.get_text().strip(),
             "password": self.password_entry.get_text()
         }
+
+    def get_finals(self):
+        return self.get_data()

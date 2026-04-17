@@ -59,3 +59,6 @@ class Page(Adw.Bin):
                 "tiling": self.gnome_tile_switch.get_active(),
             } if selected_de == "gnome" else {}
         }
+
+    def get_finals(self):
+        return self.state
