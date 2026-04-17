@@ -21,11 +21,11 @@ FLOWS = {
                 "view": "path_choice",
                 "routes": {
                     "install_now": "run_install_script",
-                    "finish_setup": "oobe_config_start"
+                    "finish_setup": "oobe_config_start",
+                    "online": "online_install"
                 }
             },
-            "run_install_script": {"view": "progress", "routes": {"next": "reboot_to_oobe"}},
-            "reboot_to_oobe": {"view": "reboot", "routes": {}},
+            "online_install": {"view": "online_config", "routes": {"next": "run_install_script"}},
             "oobe_config_start": {"view": "computer_name", "routes": {"next": "user_setup"}},
             "user_setup": {"view": "user_setup", "routes": {"next": "desktop"}},
             "desktop": {
@@ -38,9 +38,11 @@ FLOWS = {
                 }
             },
             "theme": {"view": "theme", "routes": {"next": "extra_software"}},
-            "extra_software": {"view": "extra_software", "routes": {"next": "run_final_install"}},
-            "run_final_install": {"view": "progress", "routes": {"next": "reboot_final"}},
-            "reboot_final": {"view": "reboot", "routes": {}}
+            "extra_software": {"view": "extra_software", "routes": {"next": "run_install_script"}},
+
+            # ACTUALLY DESTRUCTIVE
+            "run_install_script": {"view": "progress", "routes": {"next": "reboot_to_oobe"}},
+            "reboot_to_oobe": {"view": "reboot", "routes": {}},
         }
     },
     "oobe": {
@@ -309,8 +311,47 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
         current_node = FLOWS[self.active_flow_id]["steps"].get(self.current_step_id, {})
         self.btn_next.set_visible("next" in current_node.get("routes", {}))
 
-    def navigate_to_step(self, step_id, is_back=False):
+    def navigate_to_step(self, step_id, is_back=False, force=False):
         if step_id == self.current_step_id or step_id == self.pending_step_id:
+            return
+
+        if step_id == "run_install_script" and not force:
+            dialog = Adw.MessageDialog(
+                heading="Ready to install?",
+                body="This will permanently format the selected disks and install the system. This action cannot be undone. Are you sure you want to continue?",
+                transient_for=self
+            )
+
+            # shut gtk up about min width/height calculation weirdness
+            dialog.set_default_size(450, -1)
+
+            dialog.add_response("cancel", "Cancel")
+            dialog.add_response("install", "Install")
+            dialog.set_response_appearance("install", Adw.ResponseAppearance.DESTRUCTIVE)
+
+            # pull affected drives from state to show in the dialog
+            state = self.collect_state()
+            disk_data = state.get_page("disks") or {}
+
+            targets = disk_data.get("disks", ["Unknown Drive"])
+
+            pref_group = Adw.PreferencesGroup(title="Affected Drives")
+            for t in targets:
+                if not t: continue
+                # logic.py saves just the name ('sda'), so we format it nicely
+                display_name = f"/dev/{t}" if not str(t).startswith("/") and t != "Unknown Drive" else str(t)
+                row = Adw.ActionRow(title=display_name, subtitle="All data will be permanently erased")
+                row.add_prefix(Gtk.Image.new_from_icon_name("drive-harddisk-symbolic"))
+                pref_group.add(row)
+
+            dialog.set_extra_child(pref_group)
+
+            def on_response(dlg, response):
+                if response == "install":
+                    self.navigate_to_step(step_id, is_back=is_back, force=True)
+
+            dialog.connect("response", on_response)
+            dialog.present()
             return
 
         step_config = FLOWS[self.active_flow_id]["steps"].get(step_id)

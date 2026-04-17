@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <template class="ZenOSDefaultCustom" parent="AdwBin">
+    <property name="halign">0</property>
+    <property name="valign">0</property>
+    <property name="hexpand">true</property>
+    <child>
+      <object class="AdwStatusPage" id="status_page">
+        <property name="icon-name">org.gnome.Settings-symbolic</property>
+        <property name="title" translatable="yes">Custom Configuration</property>
+        <property name="description" translatable="yes">Enter the URL of the repository containing your configuration and the host you want to install</property>
+        <child>
+          <object class="AdwPreferencesPage">
+            <child>
+              <object class="AdwPreferencesGroup">
+                <child>
+                  <object class="AdwEntryRow" id="image_url_entry">
+                    <property name="title" translatable="yes">Configuration URL</property>
+                    <property name="show-apply-button">true</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwComboRow" id="host_dropdown">
+                    <property name="title" translatable="yes">Target Host</property>
+                    <property name="sensitive">false</property>
+                    <style>
+                      <class name="dimmed"/>
+                    </style>
+                    <child type="suffix">
+                      <object class="GtkSpinner" id="url_spinner">
+                        <property name="valign">3</property>
+                        <property name="margin-end">6</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwPreferencesGroup" id="error_group">
+                <property name="visible">false</property>
+                <child>
+                  <object class="GtkLabel" id="error_label">
+                    <property name="wrap">true</property>
+                    <property name="halign">1</property>
+                    <style>
+                      <class name="error"/>
+                    </style>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>
+
