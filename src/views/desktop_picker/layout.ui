@@ -195,7 +195,7 @@
                                   </object>
                                 </child>
                                 <child>
-                                  <object class="AdwSwitchRow" id="kde_theming_switch">
+                                  <object class="AdwSwitchRow" id="kde_theme_switch">
                                     <property name="title" translatable="yes">ZenOS Theming</property>
                                     <property name="subtitle" translatable="yes">Toggle this off to get a stock KDE Plasma look</property>
                                     <property name="active">false</property>

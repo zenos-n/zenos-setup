@@ -17,13 +17,12 @@ class Page(Adw.Bin):
     radio_ii = Gtk.Template.Child()
 
     # gnome sub-options
-    gnome_ff_switch = Gtk.Template.Child()
+    gnome_theme_switch = Gtk.Template.Child()
     gnome_ext_switch = Gtk.Template.Child()
     gnome_tile_switch = Gtk.Template.Child()
-    gnome_bloat_switch = Gtk.Template.Child()
 
     # kde sub-options
-    kde_bloat_switch = Gtk.Template.Child()
+    kde_theme_switch = Gtk.Template.Child()
 
     MANIFEST = {
         "unclosable": False,
@@ -55,13 +54,8 @@ class Page(Adw.Bin):
             "is_gnome": install_de and selected_de == "gnome",
 
             "gnome_options": {
-                "firefox_theme": self.gnome_ff_switch.get_active(),
+                "theme": self.gnome_theme_switch.get_active(),
                 "extensions": self.gnome_ext_switch.get_active(),
                 "tiling": self.gnome_tile_switch.get_active(),
-                "install_default_apps": self.gnome_bloat_switch.get_active(),
-            } if selected_de == "gnome" else {},
-
-            "kde_options": {
-                "install_default_apps": self.kde_bloat_switch.get_active()
-            } if selected_de == "kde" else {}
+            } if selected_de == "gnome" else {}
         }
