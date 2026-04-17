@@ -44,6 +44,16 @@
     <file alias="cinnamon.png">../data/screenshots/cinnamon.png</file>
     <file alias="ii.png">../data/screenshots/ii.png</file>
     <file alias="budgie.png">../data/screenshots/budgie.png</file>
+
+    <file alias="wallpapers/destination-2.png">../data/wallpapers/destination-2.png</file>
+    <file alias="wallpapers/destination-2.png">../data/wallpapers/blue.png</file>
+    <file alias="wallpapers/destination-2.png">../data/wallpapers/pink.png</file>
+    <file alias="wallpapers/destination-2.png">../data/wallpapers/green.png</file>
+    <file alias="wallpapers/destination-2.png">../data/wallpapers/teal.png</file>
+    <file alias="wallpapers/destination-2.png">../data/wallpapers/slate.png</file>
+    <file alias="wallpapers/destination-2.png">../data/wallpapers/orange.png</file>
+    <file alias="wallpapers/destination-2.png">../data/wallpapers/yellow.png</file>
+    <file alias="wallpapers/destination-2.png">../data/wallpapers/red.png</file>
   </gresource>
 
   <gresource prefix="/com/negzero/zenos/icons">
