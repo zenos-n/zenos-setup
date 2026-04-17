@@ -54,32 +54,32 @@ button.color-button:active { filter: brightness(0.9); }
 
 /* --- Define the specific GNOME 47 colors --- */
 
-button.accent-blue { background-color: #3584e4; }
-button.accent-blue:checked { outline-color: #3584e4; }
+button.accent-blue { background-color: #3583E4; }
+button.accent-blue:checked { outline-color: #3583E4; }
 
-button.accent-teal { background-color: #33d17a; }
-button.accent-teal:checked { outline-color: #33d17a; }
+button.accent-teal { background-color: #208FA4; }
+button.accent-teal:checked { outline-color: #208FA4; }
 
-button.accent-green { background-color: #26a269; }
-button.accent-green:checked { outline-color: #26a269; }
+button.accent-green { background-color: #25A268; }
+button.accent-green:checked { outline-color: #25A268; }
 
-button.accent-yellow { background-color: #f6d32d; }
-button.accent-yellow:checked { outline-color: #f6d32d; }
+button.accent-yellow { background-color: #E5A509; }
+button.accent-yellow:checked { outline-color: #E5A509; }
 
-button.accent-orange { background-color: #ff7800; }
-button.accent-orange:checked { outline-color: #ff7800; }
+button.accent-orange { background-color: #C64600; }
+button.accent-orange:checked { outline-color: #C64600; }
 
-button.accent-red { background-color: #e01b24; }
-button.accent-red:checked { outline-color: #e01b24; }
+button.accent-red { background-color: #E62D41; }
+button.accent-red:checked { outline-color: #E62D41; }
 
-button.accent-pink { background-color: #d56199; }
-button.accent-pink:checked { outline-color: #d56199; }
+button.accent-pink { background-color: #D56098; }
+button.accent-pink:checked { outline-color: #D56098; }
 
-button.accent-purple { background-color: #9141ac; }
-button.accent-purple:checked { outline-color: #9141ac; }
+button.accent-purple { background-color: #9041AC; }
+button.accent-purple:checked { outline-color: #9041AC; }
 
-button.accent-slate { background-color: #77767b; }
-button.accent-slate:checked { outline-color: #77767b; }
+button.accent-slate { background-color: #6F8396; }
+button.accent-slate:checked { outline-color: #6F8396; }
 
 /* Card styling for the desktop options */
 button.desktop-card {

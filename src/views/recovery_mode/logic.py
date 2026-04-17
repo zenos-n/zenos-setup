@@ -20,16 +20,10 @@ class Page(Adw.Bin):
         self.row_terminal.connect('activated', self.on_terminal_clicked)
 
     def on_browser_clicked(self, *args):
-        # launch browser (assuming firefox or epiphany is in the image)
-        # we use Popen so it runs in the background
         subprocess.Popen(['firefox'])
 
     def on_terminal_clicked(self, *args):
-        # launch kitty or gnome-terminal
-        # if you want it to run a specific script immediately: ['kitty', 'sh', '-c', 'my_script.sh']
         subprocess.Popen(['kgx'])
 
     def on_disk_clicked(self, *args):
-        # launch gparted for disk management
-        # usually needs sudo/pkexec, but in a recovery ISO you're often already root
         subprocess.Popen(['gparted'])

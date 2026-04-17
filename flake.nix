@@ -54,12 +54,16 @@
             gst_all_1.gst-plugins-base
             gst_all_1.gst-plugins-good
             gst_all_1.gst-libav
+            firefox
+            gparted
+            gnome-console
           ];
 
           postInstall = ''
             wrapProgram $out/bin/zenos-setup \
               --prefix PYTHONPATH : "$PYTHONPATH" \
               --prefix GI_TYPELIB_PATH : "$GI_TYPELIB_PATH" \
+              --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.gparted pkgs.gnome-console pkgs.firefox ]} \
               --set ZENOS_VIDEO_PATH "${introVideo}" \
               --set ZENOS_WALLPAPER_PATH "$src/src/assets/wall.png"
           '';

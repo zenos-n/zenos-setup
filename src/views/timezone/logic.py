@@ -215,10 +215,10 @@ class Page(Adw.Bin):
             return False
 
         try:
-            # chunking this so the compositor has time to render page transitions
-            for _ in range(4):
-                country, region, cities = next(self._populate_iter)
-                self._build_expander(country, region, cities)
+            # removing the range loop. processing 1 country per frame instead of 4
+            # keeps the framerate alive instead of dumping dozens of widgets at once.
+            country, region, cities = next(self._populate_iter)
+            self._build_expander(country, region, cities)
             return True
         except StopIteration:
             self._on_populate_finished()
