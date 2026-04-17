@@ -1,12 +1,5 @@
 [default]
-name=Default
-runtime=host
-toolchain=default
-config-opts=
-run-opts=
-prefix=/home/doromiert/Projects/.gnome-builder/projects/ZenOS-Setup/install/host
-app-id=
-postbuild=
-prebuild=
-run-command=
-default=true
+builddir=_build
+name=ZenOS Setup
+prefix=/usr
+run-command=nix run .

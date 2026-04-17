@@ -29,12 +29,10 @@
                           <object class="AdwActionRow">
                             <property name="title" translatable="yes">Core Applications</property>
                             <property name="subtitle" translatable="yes">Essential apps like Calendar or Document Viewer</property>
-                            <property name="activatable-widget">core_switch</property>
-                            <child type="suffix">
-                              <object class="GtkSwitch" id="core_switch">
-                                <property name="valign">3</property>
+                            <property name="activatable-widget">core_check</property>
+                            <child type="prefix">
+                              <object class="GtkCheckButton" id="core_check">
                                 <property name="active">true</property>
-                                <property name="focusable">false</property>
                               </object>
                             </child>
                             <child>
@@ -55,11 +53,9 @@
                             <property name="title" translatable="yes">Browsers</property>
                             <property name="subtitle" translatable="yes">Web browser for your desktop</property>
                             <property name="activatable-widget">browsers_switch</property>
-                            <child type="suffix">
-                              <object class="GtkSwitch" id="browsers_switch">
-                                <property name="valign">3</property>
+                            <child type="prefix">
+                              <object class="GtkCheckButton" id="browsers_switch">
                                 <property name="active">true</property>
-                                <property name="focusable">false</property>
                               </object>
                             </child>
                             <child>
@@ -80,8 +76,8 @@
                             <property name="title" translatable="yes">Common Utilities</property>
                             <property name="subtitle" translatable="yes">Useful utilities to enhance your desktop experience</property>
                             <property name="activatable-widget">utilities_switch</property>
-                            <child type="suffix">
-                              <object class="GtkSwitch" id="utilities_switch">
+                            <child type="prefix">
+                              <object class="GtkCheckButton" id="utilities_switch">
                                 <property name="valign">3</property>
                                 <property name="active">true</property>
                                 <property name="focusable">false</property>
@@ -105,8 +101,8 @@
                             <property name="title" translatable="yes">Gaming</property>
                             <property name="subtitle" translatable="yes">Steam, emulators and tools for video games</property>
                             <property name="activatable-widget">gaming_switch</property>
-                            <child type="suffix">
-                              <object class="GtkSwitch" id="gaming_switch">
+                            <child type="prefix">
+                              <object class="GtkCheckButton" id="gaming_switch">
                                 <property name="valign">3</property>
                                 <property name="active">false</property>
                                 <property name="focusable">false</property>
@@ -130,8 +126,8 @@
                             <property name="title" translatable="yes">Development Tools</property>
                             <property name="subtitle" translatable="yes">Code editors and other useful tools for developers</property>
                             <property name="activatable-widget">dev_switch</property>
-                            <child type="suffix">
-                              <object class="GtkSwitch" id="dev_switch">
+                            <child type="prefix">
+                              <object class="GtkCheckButton" id="dev_switch">
                                 <property name="valign">3</property>
                                 <property name="active">false</property>
                                 <property name="focusable">false</property>
@@ -155,8 +151,8 @@
                             <property name="title" translatable="yes">Office</property>
                             <property name="subtitle" translatable="yes">The LibreOffice suite</property>
                             <property name="activatable-widget">office_switch</property>
-                            <child type="suffix">
-                              <object class="GtkSwitch" id="office_switch">
+                            <child type="prefix">
+                              <object class="GtkCheckButton" id="office_switch">
                                 <property name="valign">3</property>
                                 <property name="active">false</property>
                                 <property name="focusable">false</property>

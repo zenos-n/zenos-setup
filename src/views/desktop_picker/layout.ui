@@ -124,7 +124,7 @@
                                 <child>
                                   <object class="AdwSwitchRow" id="gnome_theme_switch">
                                     <property name="title" translatable="yes">ZenOS Theming</property>
-                                    <property name="subtitle" translatable="yes">Toggle this off to get a stock GNOME experience</property>
+                                    <property name="subtitle" translatable="yes">Toggle this off to get a stock GNOME look</property>
                                     <property name="active">true</property>
                                     <property name="sensitive" bind-source="radio_gnome" bind-property="active" bind-flags="sync-create"/>
                                   </object>
@@ -197,7 +197,7 @@
                                 <child>
                                   <object class="AdwSwitchRow" id="kde_theming_switch">
                                     <property name="title" translatable="yes">ZenOS Theming</property>
-                                    <property name="subtitle" translatable="yes">Toggle this off to get a stock KDE Plasma experience</property>
+                                    <property name="subtitle" translatable="yes">Toggle this off to get a stock KDE Plasma look</property>
                                     <property name="active">false</property>
                                     <property name="sensitive" bind-source="radio_kde" bind-property="active" bind-flags="sync-create"/>
                                   </object>
