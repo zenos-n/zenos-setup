@@ -46,7 +46,11 @@ FLOWS = {
     "oobe": {
         "start": "oobe_welcome",
         "steps": {
-            "oobe_welcome": {"view": "oobe_welcome", "routes": {"start": "computer_name"}},
+            "oobe_welcome": {"view": "oobe_welcome", "routes": {"start": "language"}},
+            "language": {"view": "language", "routes": {"next": "timezone"}},
+            "timezone": {"view": "timezone", "routes": {"next": "keyboard"}},
+            "keyboard": {"view": "keyboard", "routes": {"next": "internet"}},
+            "internet": {"view": "internet", "routes": {"next": "computer_name"}},
             "computer_name": {"view": "computer_name", "routes": {"next": "user_setup"}},
             "user_setup": {"view": "user_setup", "routes": {"next": "desktop"}},
             "desktop": {
@@ -82,6 +86,7 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
         self.current_step_id = None
         self.pending_step_id = None
         self.history = []
+        self.flow_history = []
 
         self.install_state = InstallState(oobe=start_in_oobe)
 
@@ -109,6 +114,7 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
         start_step = FLOWS[self.active_flow_id]["start"]
 
         self.current_step_id = start_step
+        self.flow_history.append(start_step)
         self._populate_path_placeholders(start_step)
         self._ensure_step_loaded(start_step)
 
@@ -216,12 +222,19 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
 
     def _speculative_load_forks(self, step_id):
         routes = FLOWS[self.active_flow_id]["steps"][step_id].get("routes", {})
+
+        targets = []
         for route_val in routes.values():
             if isinstance(route_val, list):
-                for choice in route_val:
-                    self._ensure_step_loaded(choice["target"])
+                targets.extend(c["target"] for c in route_val)
             else:
-                self._ensure_step_loaded(route_val)
+                targets.append(route_val)
+
+        for target in targets:
+            view_name = FLOWS[self.active_flow_id]["steps"][target].get("view")
+            # prevent instantiating pages that run backend tasks on __init__
+            if view_name not in ("progress", "reboot"):
+                self._ensure_step_loaded(target)
 
     def _unload_forward_paths(self, from_step_id):
         try:
@@ -234,6 +247,11 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
 
         print(f"[-] unloading dead path: {dead_steps}")
         self.carousel_steps = self.carousel_steps[:idx+1]
+
+        # dynamic slicing for the persistent history if we backtrack and take a new route
+        if from_step_id in self.flow_history:
+            f_idx = self.flow_history.index(from_step_id)
+            self.flow_history = self.flow_history[:f_idx+1]
 
         for step_id in dead_steps:
             dummy_bin = self.step_bins.pop(step_id, None)
@@ -248,6 +266,9 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
         if self.pending_step_id:
             self.current_step_id = self.pending_step_id
             self.pending_step_id = None
+
+            if self.current_step_id not in self.flow_history:
+                self.flow_history.append(self.current_step_id)
 
             step_config = FLOWS[self.active_flow_id]["steps"].get(self.current_step_id)
             view_name = step_config["view"]
@@ -358,21 +379,38 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
 
     def collect_state(self) -> InstallState:
         """
-        Walk every loaded page that exposes get_finals() and shove its
-        data into install_state.  Call this from the progress page right
-        before handing off to your util.
+        Walk the exact chronological path the user took and collect state.
+        This prevents grabbing dead forks or injecting pages out of order.
         """
-        for view_name, page_id in self._PAGE_ID_MAP.items():
+        path = self.flow_history.copy()
+        if self.current_step_id and self.current_step_id not in path:
+            path.append(self.current_step_id)
+
+        collected_views = set()
+
+        for step_id in path:
+            step_config = FLOWS[self.active_flow_id]["steps"].get(step_id)
+            if not step_config: continue
+
+            view_name = step_config.get("view")
+            if not view_name or view_name in collected_views:
+                continue
+
+            page_id = self._PAGE_ID_MAP.get(view_name)
+            if not page_id:
+                continue
+
             page = self.loaded_pages.get(view_name)
-            if page is None:
+            if page is None or not hasattr(page, "get_finals"):
                 continue
-            if not hasattr(page, "get_finals"):
-                continue
+
             try:
                 data = page.get_finals()
                 self.install_state.set_page(page_id, data)
+                collected_views.add(view_name)
             except Exception as e:
                 print(f"[-] collect_state: {view_name} raised {e}")
+
         return self.install_state
 
     def navigate_back(self):

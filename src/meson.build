@@ -31,6 +31,7 @@ zenos_setup_sources = [
   '__init__.py',
   'main.py',
   'oobe.py',
+  'state.py',
   'window.py',
 ]
 
