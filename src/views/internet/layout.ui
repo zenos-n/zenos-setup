@@ -71,6 +71,9 @@
                                 <child>
                                   <object class="AdwPreferencesRow" id="network_spinner_row">
                                     <property name="activatable">false</property>
+                                    <style>
+                                      <class name="transparent-row"/>
+                                    </style>
                                     <child>
                                       <object class="GtkBox">
                                         <property name="halign">3</property>
@@ -131,6 +134,18 @@
                                     </child>
                                   </object>
                                 </child>
+                                <child>
+                                  <object class="AdwActionRow" id="advanced_settings_row">
+                                    <property name="title" translatable="yes">Advanced Network Settings...</property>
+                                    <child type="prefix">
+                                      <object class="GtkImage">
+                                        <property name="margin-start">5</property>
+                                        <property name="margin-end">5</property>
+                                        <property name="icon-name">preferences-system-network-symbolic</property>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
                               </object>
                             </child>
                           </object>
@@ -147,3 +162,4 @@
     </child>
   </template>
 </interface>
+

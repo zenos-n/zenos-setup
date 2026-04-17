@@ -2,7 +2,6 @@
 <interface>
   <requires lib="gtk" version="4.0"/>
   <requires lib="libadwaita" version="1.0"/>
-  
   <template class="HiddenNetworkDialog" parent="AdwMessageDialog">
     <property name="heading" translatable="yes">Hidden Network</property>
     <property name="body" translatable="yes">Enter the details for the hidden Wi-Fi network.</property>
@@ -21,23 +20,5 @@
       </object>
     </property>
   </template>
-
-  <template class="ProxySettingsDialog" parent="AdwMessageDialog">
-    <property name="heading" translatable="yes">Proxy Settings</property>
-    <property name="body" translatable="yes">Configure your network proxy settings below.</property>
-    <property name="extra-child">
-      <object class="AdwPreferencesGroup">
-        <child>
-          <object class="AdwEntryRow" id="proxy_entry">
-            <property name="title" translatable="yes">Proxy URL</property>
-          </object>
-        </child>
-        <child>
-          <object class="AdwEntryRow" id="port_entry">
-            <property name="title" translatable="yes">Port</property>
-          </object>
-        </child>
-      </object>
-    </property>
-  </template>
 </interface>
+

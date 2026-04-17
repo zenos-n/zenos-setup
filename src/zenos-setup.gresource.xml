@@ -11,7 +11,8 @@
     <file preprocess="xml-stripblanks">views/keyboard/layout.ui</file>
     <file preprocess="xml-stripblanks">views/internet/wireless-row.ui</file>
     <file preprocess="xml-stripblanks">views/internet/layout.ui</file>
-    <file preprocess="xml-stripblanks">views/internet/advanced-dialogs.ui</file>
+    <file preprocess="xml-stripblanks">views/internet/hidden-network-dialog.ui</file>
+    <file preprocess="xml-stripblanks">views/internet/proxy-settings-dialog.ui</file>
     <file preprocess="xml-stripblanks">views/disks/layout.ui</file>
     <file preprocess="xml-stripblanks">views/disks/widget-disk.ui</file>
     <file preprocess="xml-stripblanks">views/disks/dialog-disk.ui</file>

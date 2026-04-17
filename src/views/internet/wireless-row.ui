@@ -1,39 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <requires lib="gtk" version="4.0"/>
-  <template class="WirelessRow" parent="AdwActionRow">
-    <property name="use-markup">false</property>
-    <child type="prefix">
-      <object class="GtkOverlay">
-        <property name="vexpand">false</property>
-        <property name="hexpand">false</property>
-        <property name="margin-end">10</property>
+  <requires lib="libadwaita" version="1.0"/>
+  <template class="HiddenNetworkDialog" parent="AdwMessageDialog">
+    <property name="heading" translatable="yes">Hidden Network</property>
+    <property name="body" translatable="yes">Enter the details for the hidden Wi-Fi network.</property>
+    <property name="extra-child">
+      <object class="AdwPreferencesGroup">
         <child>
-          <object class="GtkImage" id="signal_icon">
-            <property name="icon-name">network-wireless-no-route-symbolic</property>
+          <object class="AdwEntryRow" id="ssid_entry">
+            <property name="title" translatable="yes">Network Name (SSID)</property>
           </object>
         </child>
-        <child type="overlay">
-          <object class="GtkImage" id="secure_icon">
-            <property name="valign">2</property>
-            <property name="halign">1</property>
-            <property name="margin-start">10</property>
-            <property name="margin-bottom">12</property>
-            <property name="icon-name">network-wireless-encrypted-symbolic</property>
-            <property name="pixel-size">10</property>
-            <property name="visible">false</property>
+        <child>
+          <object class="AdwPasswordEntryRow" id="password_entry">
+            <property name="title" translatable="yes">Password</property>
           </object>
         </child>
       </object>
-    </child>
-    <child type="suffix">
-      <object class="GtkLabel" id="connected_label">
-        <style>
-          <class name="dim-label"/>
-        </style>
-        <property name="label" translatable="yes">Connected</property>
-        <property name="visible">false</property>
-      </object>
-    </child>
+    </property>
   </template>
 </interface>
+

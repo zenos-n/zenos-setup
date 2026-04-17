@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="libadwaita" version="1.0"/>
+  <template class="ProxySettingsDialog" parent="AdwMessageDialog">
+    <property name="heading" translatable="yes">Proxy Settings</property>
+    <property name="body" translatable="yes">Configure your network proxy settings below.</property>
+    <property name="extra-child">
+      <object class="AdwPreferencesGroup">
+        <child>
+          <object class="AdwSwitchRow" id="proxy_switch">
+            <property name="title" translatable="yes">Enable Manual Proxy</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwEntryRow" id="proxy_entry">
+            <property name="title" translatable="yes">Proxy Host/URL</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwEntryRow" id="port_entry">
+            <property name="title" translatable="yes">Port</property>
+          </object>
+        </child>
+      </object>
+    </property>
+  </template>
+</interface>
+
