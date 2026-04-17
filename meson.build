@@ -26,47 +26,4 @@ if is_nix_sandbox
     update_desktop_database: true,
   )
 
-else
-  # ---------------------------------------------------------
-  # THE IDE HIJACK (runs when gnome builder indexes the project)
-  # ---------------------------------------------------------
-  message('gnome builder detected: proxying buttons to nix.')
-
-  nix = find_program('nix', required: true)
-  src_root = meson.project_source_root()
-
-  # oobe proxy - builds via nix and drops the runner script in one go
-  custom_target('zenos-oobe-proxy',
-    output: 'zenos-oobe',
-    command: [
-      'sh', '-c',
-      '''
-      cd "$1" && nix build .#oobe -o result-oobe
-      echo "#!/bin/sh" > "$2"
-      echo 'exec "'"$1"'/result-oobe/bin/oobe" "$@"' >> "$2"
-      chmod +x "$2"
-      ''',
-      'sh', src_root, '@OUTPUT@'
-    ],
-    build_by_default: true
-  )
-
-  # setup proxy - builds via nix and drops the runner script in one go
-  custom_target('zenos-setup-proxy',
-    output: 'zenos-setup',
-    command: [
-      'sh', '-c',
-      '''
-      cd "$1" && nix build .
-      echo "#!/bin/sh" > "$2"
-      echo 'exec "'"$1"'/result/bin/zenos-setup" "$@"' >> "$2"
-      chmod +x "$2"
-      ''',
-      'sh', src_root, '@OUTPUT@'
-    ],
-    build_by_default: true,
-    install: true,
-    install_dir: get_option('bindir')
-  )
-
 endif
