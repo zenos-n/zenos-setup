@@ -33,6 +33,8 @@ zenos_setup_sources = [
   'oobe.py',
   'state.py',
   'window.py',
+  'runner.py',
+  'builder.py'
 ]
 
 install_data(zenos_setup_sources, install_dir: moduledir)

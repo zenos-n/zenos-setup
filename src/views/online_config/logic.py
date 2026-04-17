@@ -26,13 +26,41 @@ class Page(Adw.Bin):
         self.router = kwargs.pop('router', None)
         super().__init__(**kwargs)
 
+        # local state for the state collector
+        self.state = {
+            "flake_url": "",
+            "selected_host": ""
+        }
+
         # hide the spinner by default so it doesn't take up space
         self.url_spinner.set_visible(False)
         self.image_url_entry.connect('changed', self.on_url_changed)
         self.image_url_entry.connect('apply', self.on_apply)
 
+        # track dropdown changes to keep state in sync
+        self.host_dropdown.connect('notify::selected', self.on_host_selected)
+
+    def get_finals(self):
+        """ called by window.py to grab the data for the final install manifest """
+        # refresh from ui just in case notify didn't fire for some reason
+        url = self.image_url_entry.get_text().strip()
+        selected_item = self.host_dropdown.get_selected_item()
+        host = selected_item.get_string() if selected_item else ""
+
+        return {
+            "flake": self._normalize_url(url),
+            "host": host,
+            "method": "online"
+        }
+
+    def on_host_selected(self, dropdown, pspec):
+        selected_item = dropdown.get_selected_item()
+        if selected_item:
+            self.state["selected_host"] = selected_item.get_string()
+
     def on_url_changed(self, entry):
         text = entry.get_text().strip()
+        # nix flake urls are a bit of a wild west, but this covers the basics
         is_valid = bool(re.match(r'^(github:|git\+|https?://|gitlab:|flake:|/|\./)', text))
 
         if not is_valid and text:
@@ -52,6 +80,9 @@ class Page(Adw.Bin):
         self.image_url_entry.set_sensitive(False)
         self.error_group.set_visible(False)
 
+        # update state early
+        self.state["flake_url"] = url
+
         threading.Thread(target=self._fetch_flake_info, args=(url,), daemon=True).start()
 
     def _normalize_url(self, url):
@@ -66,6 +97,7 @@ class Page(Adw.Bin):
         url = self._normalize_url(url)
 
         try:
+            # --no-write-lock-file is critical or it'll explode in a read-only environment
             result = subprocess.run(
                 ['nix', 'flake', 'show', url, '--json', '--no-write-lock-file'],
                 capture_output=True,
@@ -89,16 +121,13 @@ class Page(Adw.Bin):
         GLib.idle_add(self._update_dropdown, hosts, error_msg)
 
     def _update_dropdown(self, hosts, error_msg):
-        # stop and hide spinner
         self.url_spinner.stop()
         self.url_spinner.set_visible(False)
-
         self.image_url_entry.set_sensitive(True)
 
         if error_msg:
             self.error_label.set_text(error_msg)
             self.error_group.set_visible(True)
-            # lock it back up if the user tried a second invalid url
             if self.router:
                 self.router.set_next_enabled(False, caller=self)
 
@@ -109,12 +138,15 @@ class Page(Adw.Bin):
             self.host_dropdown.remove_css_class('dimmed')
             self.host_dropdown.set_selected(0)
 
-            # tell the router we're good to go
+            # update local state with first host
+            self.state["selected_host"] = hosts[0]
+
             if self.router:
                 self.router.set_next_enabled(True, caller=self)
         else:
             self.host_dropdown.set_sensitive(False)
             self.host_dropdown.add_css_class('dimmed')
             self.host_dropdown.set_model(Gtk.StringList.new([]))
+            self.state["selected_host"] = ""
             if self.router:
                 self.router.set_next_enabled(False, caller=self)

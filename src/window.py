@@ -416,6 +416,7 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
         "extra_software":"software",
         "disks":         "disks",
         "internet":      "network",
+        "online_config": "online"
     }
 
     def collect_state(self) -> InstallState:
