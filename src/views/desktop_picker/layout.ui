@@ -66,12 +66,13 @@
                                           <object class="GtkAspectFrame">
                                             <property name="ratio">1.8</property>
                                             <property name="obey-child">false</property>
-                                            <property name="width-request">180</property>
+                                            <property name="width-request">178</property>
                                             <property name="height-request">100</property>
                                             <child>
                                               <object class="GtkPicture">
                                                 <property name="can-shrink">true</property>
                                                 <property name="content-fit">2</property>
+                                                <property name="file">resource:///com/negzero/zenos/setup/assets/gnome.png</property>
                                                 <style>
                                                   <class name="desktop-thumbnail-flat"/>
                                                 </style>
@@ -164,12 +165,13 @@
                                           <object class="GtkAspectFrame">
                                             <property name="ratio">1.8</property>
                                             <property name="obey-child">false</property>
-                                            <property name="width-request">180</property>
+                                            <property name="width-request">178</property>
                                             <property name="height-request">100</property>
                                             <child>
                                               <object class="GtkPicture">
                                                 <property name="can-shrink">true</property>
                                                 <property name="content-fit">2</property>
+                                                <property name="file">resource:///com/negzero/zenos/setup/assets/kde.png</property>
                                                 <style>
                                                   <class name="desktop-thumbnail-flat"/>
                                                 </style>
@@ -232,12 +234,13 @@
                                           <object class="GtkAspectFrame">
                                             <property name="ratio">1.8</property>
                                             <property name="obey-child">false</property>
-                                            <property name="width-request">180</property>
+                                            <property name="width-request">178</property>
                                             <property name="height-request">100</property>
                                             <child>
                                               <object class="GtkPicture">
                                                 <property name="can-shrink">true</property>
                                                 <property name="content-fit">2</property>
+                                                <property name="file">resource:///com/negzero/zenos/setup/assets/xfce.png</property>
                                                 <style>
                                                   <class name="desktop-thumbnail-flat"/>
                                                 </style>
@@ -292,12 +295,13 @@
                                           <object class="GtkAspectFrame">
                                             <property name="ratio">1.8</property>
                                             <property name="obey-child">false</property>
-                                            <property name="width-request">180</property>
+                                            <property name="width-request">178</property>
                                             <property name="height-request">100</property>
                                             <child>
                                               <object class="GtkPicture">
                                                 <property name="can-shrink">true</property>
                                                 <property name="content-fit">2</property>
+                                                <property name="file">resource:///com/negzero/zenos/setup/assets/cinnamon.png</property>
                                                 <style>
                                                   <class name="desktop-thumbnail-flat"/>
                                                 </style>
@@ -352,10 +356,11 @@
                                           <object class="GtkAspectFrame">
                                             <property name="ratio">1.8</property>
                                             <property name="obey-child">false</property>
-                                            <property name="width-request">180</property>
+                                            <property name="width-request">178</property>
                                             <property name="height-request">100</property>
                                             <child>
                                               <object class="GtkPicture">
+                                                <property name="file">resource:///com/negzero/zenos/setup/assets/budgie.png</property>
                                                 <property name="can-shrink">true</property>
                                                 <property name="content-fit">2</property>
                                                 <style>
@@ -412,12 +417,13 @@
                                           <object class="GtkAspectFrame">
                                             <property name="ratio">1.8</property>
                                             <property name="obey-child">false</property>
-                                            <property name="width-request">180</property>
+                                            <property name="width-request">178</property>
                                             <property name="height-request">100</property>
                                             <child>
                                               <object class="GtkPicture">
                                                 <property name="can-shrink">true</property>
                                                 <property name="content-fit">2</property>
+                                                <property name="file">resource:///com/negzero/zenos/setup/assets/mate.png</property>
                                                 <style>
                                                   <class name="desktop-thumbnail-flat"/>
                                                 </style>
@@ -472,12 +478,13 @@
                                           <object class="GtkAspectFrame">
                                             <property name="ratio">1.8</property>
                                             <property name="obey-child">false</property>
-                                            <property name="width-request">180</property>
+                                            <property name="width-request">178</property>
                                             <property name="height-request">100</property>
                                             <child>
                                               <object class="GtkPicture">
                                                 <property name="can-shrink">true</property>
                                                 <property name="content-fit">2</property>
+                                                <property name="file">resource:///com/negzero/zenos/setup/assets/ii.png</property>
                                                 <style>
                                                   <class name="desktop-thumbnail-flat"/>
                                                 </style>
@@ -518,3 +525,4 @@
     </child>
   </template>
 </interface>
+

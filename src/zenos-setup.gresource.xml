@@ -37,12 +37,13 @@
     <file alias="theme-dark.svg">../data/theme/theme-dark.svg</file>
     <file alias="theme-light.svg">../data/theme/theme-light.svg</file>
 
-    <file>../data/screenshots/gnome.png</file>
-    <file>../data/screenshots/kde.png</file>
-    <file>../data/screenshots/mate.png</file>
-    <file>../data/screenshots/xfce.png</file>
-    <file>../data/screenshots/cinnamon.png</file>
-    <file>../data/screenshots/ii.png</file>
+    <file alias="gnome.png">../data/screenshots/gnome.png</file>
+    <file alias="kde.png">../data/screenshots/kde.png</file>
+    <file alias="mate.png">../data/screenshots/mate.png</file>
+    <file alias="xfce.png">../data/screenshots/xfce.png</file>
+    <file alias="cinnamon.png">../data/screenshots/cinnamon.png</file>
+    <file alias="ii.png">../data/screenshots/ii.png</file>
+    <file alias="budgie.png">../data/screenshots/budgie.png</file>
   </gresource>
 
   <gresource prefix="/com/negzero/zenos/icons">
