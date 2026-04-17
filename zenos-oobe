@@ -1,2 +1,0 @@
-#!/bin/sh
-exec "/home/doromiert/Projects/ZenOS-Setup/result-oobe/bin/oobe" "$@"

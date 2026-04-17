@@ -28,8 +28,6 @@
 button.color-button {
     min-width: 24px;
     min-height: 24px;
-    width: 24px;
-    height: 24px;
     border-radius: 50%;
     padding: 0;
     /* initial margin to prevent layout shift when ring appears */
