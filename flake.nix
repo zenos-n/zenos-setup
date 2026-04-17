@@ -65,7 +65,7 @@
               --prefix GI_TYPELIB_PATH : "$GI_TYPELIB_PATH" \
               --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.gparted pkgs.gnome-console pkgs.firefox ]} \
               --set ZENOS_VIDEO_PATH "${introVideo}" \
-              --set ZENOS_WALLPAPER_PATH "$src/src/assets/wall.png"
+              --set ZENOS_WALLPAPER_PATH "$src/data/destination-2.png"
           '';
         };
 

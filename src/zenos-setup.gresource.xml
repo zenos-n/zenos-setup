@@ -30,10 +30,19 @@
     <file preprocess="xml-stripblanks">views/extra_software/popup.ui</file>
     <file preprocess="xml-stripblanks">views/online_config/layout.ui</file>
 
-    <file preprocess="xml-stripblanks">assets/theme-dark.svg</file>
-    <file preprocess="xml-stripblanks">assets/theme-light.svg</file>
-
     <file>style.css</file>
+  </gresource>
+
+  <gresource prefix="/com/negzero/zenos/setup/assets">
+    <file alias="theme-dark.svg">../data/theme/theme-dark.svg</file>
+    <file alias="theme-light.svg">../data/theme/theme-light.svg</file>
+
+    <file>../data/screenshots/gnome.png</file>
+    <file>../data/screenshots/kde.png</file>
+    <file>../data/screenshots/mate.png</file>
+    <file>../data/screenshots/xfce.png</file>
+    <file>../data/screenshots/cinnamon.png</file>
+    <file>../data/screenshots/ii.png</file>
   </gresource>
 
   <gresource prefix="/com/negzero/zenos/icons">
