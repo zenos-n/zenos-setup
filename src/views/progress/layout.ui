@@ -10,62 +10,30 @@
         <property name="margin-end">40</property>
         <property name="margin-top">1</property>
         <property name="margin-bottom">18</property>
-        <property name="height-request">550</property>
+        <property name="valign">0</property>
+        <property name="vexpand">true</property>
         <property name="orientation">1</property>
         <child>
-          <object class="GtkOverlay">
-            <property name="valign">3</property>
-            <child type="overlay">
-              <object class="GtkButton" id="tour_btn_back">
-                <property name="visible">false</property>
-                <property name="margin-start">12</property>
-                <property name="margin-end">12</property>
-                <property name="icon-name">go-previous-symbolic</property>
-                <property name="halign">1</property>
-                <property name="valign">3</property>
-                <property name="tooltip-text" translatable="yes">Previous</property>
-                <style>
-                  <class name="circular"/>
-                </style>
-              </object>
-            </child>
-            <child type="overlay">
-              <object class="GtkButton" id="tour_btn_next">
-                <property name="visible">false</property>
-                <property name="margin-start">12</property>
-                <property name="margin-end">12</property>
-                <property name="icon-name">go-next-symbolic</property>
-                <property name="halign">2</property>
-                <property name="valign">3</property>
-                <property name="tooltip-text" translatable="yes">Next</property>
-                <style>
-                  <class name="circular"/>
-                </style>
+          <object class="GtkBox">
+            <property name="orientation">1</property>
+            <property name="vexpand">true</property>
+            <property name="hexpand">true</property>
+            <child>
+              <object class="AdwCarousel" id="carousel_tour">
+                <property name="halign">0</property>
+                <property name="valign">0</property>
+                <property name="hexpand">true</property>
+                <property name="vexpand">true</property>
+                <property name="allow-scroll-wheel">false</property>
+                <property name="allow-mouse-drag">false</property>
+                <property name="allow-long-swipes">false</property>
               </object>
             </child>
             <child>
-              <object class="GtkBox">
-                <property name="orientation">1</property>
-                <property name="vexpand">true</property>
-                <property name="hexpand">true</property>
-                <child>
-                  <object class="AdwCarousel" id="carousel_tour">
-                    <property name="halign">0</property>
-                    <property name="valign">0</property>
-                    <property name="hexpand">true</property>
-                    <property name="vexpand">true</property>
-                    <property name="allow-scroll-wheel">false</property>
-                    <property name="allow-mouse-drag">false</property>
-                    <property name="allow-long-swipes">false</property>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwCarouselIndicatorDots">
-                    <property name="carousel">carousel_tour</property>
-                    <property name="orientation">0</property>
-                    <property name="margin-bottom">18</property>
-                  </object>
-                </child>
+              <object class="AdwCarouselIndicatorDots">
+                <property name="carousel">carousel_tour</property>
+                <property name="orientation">0</property>
+                <property name="margin-bottom">18</property>
               </object>
             </child>
           </object>
@@ -79,7 +47,8 @@
         <property name="margin-end">40</property>
         <property name="margin-top">1</property>
         <property name="margin-bottom">18</property>
-        <property name="height-request">550</property>
+        <property name="valign">0</property>
+        <property name="vexpand">true</property>
         <property name="orientation">1</property>
         <child>
           <object class="GtkBox" id="console_output">
@@ -101,10 +70,8 @@
         <child>
           <object class="GtkLabel" id="progressbar_text">
             <property name="wrap">true</property>
-            <property name="wrap-mode">2</property>
             <property name="halign">1</property>
             <property name="valign">3</property>
-            <property name="margin-top">40</property>
             <property name="margin-start">40</property>
             <property name="label" translatable="yes">Installing</property>
             <style>
@@ -122,8 +89,6 @@
           <object class="GtkButton" id="console_button">
             <property name="visible">true</property>
             <property name="margin-end">40</property>
-            <property name="margin-start">12</property>
-            <property name="margin-top">40</property>
             <property name="icon-name">media-view-subtitles-symbolic</property>
             <property name="halign">2</property>
             <property name="valign">3</property>
@@ -137,8 +102,6 @@
           <object class="GtkButton" id="tour_button">
             <property name="visible">false</property>
             <property name="margin-end">40</property>
-            <property name="margin-start">12</property>
-            <property name="margin-top">40</property>
             <property name="icon-name">image-x-generic-symbolic</property>
             <property name="halign">2</property>
             <property name="valign">3</property>
@@ -161,3 +124,4 @@
     </child>
   </template>
 </interface>
+

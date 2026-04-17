@@ -6,8 +6,6 @@ class Page(Gtk.Box):
 
     # mapping the ui definitions to the class
     carousel_tour = Gtk.Template.Child()
-    tour_btn_back = Gtk.Template.Child()
-    tour_btn_next = Gtk.Template.Child()
     tour_box = Gtk.Template.Child()
     console_box = Gtk.Template.Child()
     console_button = Gtk.Template.Child()
@@ -25,8 +23,6 @@ class Page(Gtk.Box):
         self.install_state = None
 
         # hook up the slideshow nav
-        self.tour_btn_back.connect("clicked", self._on_tour_prev)
-        self.tour_btn_next.connect("clicked", self._on_tour_next)
         self.carousel_tour.connect("page-changed", self._update_tour_buttons)
 
         # toggle between console and tour
@@ -56,7 +52,6 @@ class Page(Gtk.Box):
     def _update_tour_buttons(self, *args):
         # logic to hide/show buttons based on carousel position
         pos = self.carousel_tour.get_position()
-        self.tour_btn_back.set_visible(pos > 0)
         # add logic for the end of the carousel here
 
     def _show_console(self, _):
