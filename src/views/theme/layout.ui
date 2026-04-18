@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <requires lib="gtk" version="4.0"/>
-  <requires lib="libadwaita" version="1.0" />
+  <requires lib="libadwaita" version="1.0"/>
   <template class="ZenOSTheme" parent="AdwBin">
     <property name="hexpand">1</property>
     <property name="vexpand">1</property>
@@ -20,7 +20,6 @@
                   <object class="GtkBox">
                     <property name="orientation">vertical</property>
                     <property name="spacing">24</property>
-
                     <child>
                       <object class="AdwPreferencesGroup">
                         <child>
@@ -42,21 +41,20 @@
                                     <property name="margin-bottom">12</property>
                                     <property name="hexpand">True</property>
                                     <child>
-                                      <object class="GtkToggleButton" id="btn_default">
-                                        <property name="tooltip-text" translatable="yes">Light Mode</property>
+                                      <!-- AspectFrame goes outside to control the footprint -->
+                                      <object class="GtkAspectFrame">
+                                        <property name="ratio">1.5</property>
+                                        <property name="obey-child">False</property>
+                                        <property name="width-request">180</property>
+                                        <property name="height-request">120</property>
+                                        <property name="halign">center</property>
                                         <child>
-                                          <object class="GtkAspectFrame">
-                                            <property name="ratio">1.5</property>
-                                            <property name="obey-child">False</property>
-                                            <property name="width-request">180</property>
-                                            <property name="height-request">120</property>
-                                            <property name="halign">center</property>
-                                            <property name="hexpand">True</property>
+                                          <object class="GtkToggleButton" id="btn_default">
+                                            <property name="tooltip-text" translatable="yes">Light Mode</property>
                                             <child>
                                               <object class="GtkOverlay">
                                                 <child>
                                                   <object class="GtkPicture" id="default_image">
-                                                    <property name="can-shrink">True</property>
                                                     <property name="content-fit">cover</property>
                                                     <style>
                                                       <class name="appearance-thumbnail"/>
@@ -65,7 +63,6 @@
                                                 </child>
                                                 <child type="overlay">
                                                   <object class="GtkPicture">
-                                                    <property name="can-shrink">True</property>
                                                     <property name="content-fit">cover</property>
                                                     <property name="file">resource:///com/negzero/zenos/setup/assets/theme-light.svg</property>
                                                     <style>
@@ -76,11 +73,11 @@
                                                 </child>
                                               </object>
                                             </child>
+                                            <style>
+                                              <class name="background-preview-button"/>
+                                            </style>
                                           </object>
                                         </child>
-                                        <style>
-                                          <class name="background-preview-button"/>
-                                        </style>
                                         <layout>
                                           <property name="column">0</property>
                                           <property name="row">0</property>
@@ -97,22 +94,20 @@
                                       </object>
                                     </child>
                                     <child>
-                                      <object class="GtkToggleButton" id="btn_dark">
-                                        <property name="tooltip-text" translatable="yes">Dark Mode</property>
-                                        <property name="group">btn_default</property>
+                                      <object class="GtkAspectFrame">
+                                        <property name="ratio">1.5</property>
+                                        <property name="obey-child">False</property>
+                                        <property name="width-request">180</property>
+                                        <property name="height-request">120</property>
+                                        <property name="halign">center</property>
                                         <child>
-                                          <object class="GtkAspectFrame">
-                                            <property name="ratio">1.5</property>
-                                            <property name="obey-child">False</property>
-                                            <property name="width-request">180</property>
-                                            <property name="height-request">120</property>
-                                            <property name="halign">center</property>
-                                            <property name="hexpand">True</property>
+                                          <object class="GtkToggleButton" id="btn_dark">
+                                            <property name="tooltip-text" translatable="yes">Dark Mode</property>
+                                            <property name="group">btn_default</property>
                                             <child>
                                               <object class="GtkOverlay">
                                                 <child>
                                                   <object class="GtkPicture" id="dark_image">
-                                                    <property name="can-shrink">True</property>
                                                     <property name="content-fit">cover</property>
                                                     <style>
                                                       <class name="appearance-thumbnail"/>
@@ -121,7 +116,6 @@
                                                 </child>
                                                 <child type="overlay">
                                                   <object class="GtkPicture">
-                                                    <property name="can-shrink">True</property>
                                                     <property name="content-fit">cover</property>
                                                     <property name="file">resource:///com/negzero/zenos/setup/assets/theme-dark.svg</property>
                                                     <style>
@@ -132,11 +126,11 @@
                                                 </child>
                                               </object>
                                             </child>
+                                            <style>
+                                              <class name="background-preview-button"/>
+                                            </style>
                                           </object>
                                         </child>
-                                        <style>
-                                          <class name="background-preview-button"/>
-                                        </style>
                                         <layout>
                                           <property name="column">1</property>
                                           <property name="row">0</property>
@@ -160,7 +154,6 @@
                         </child>
                       </object>
                     </child>
-
                     <child>
                       <object class="AdwPreferencesGroup">
                         <property name="title" translatable="yes">Accent Color</property>
@@ -174,7 +167,6 @@
                                 <property name="margin-top">14</property>
                                 <property name="margin-bottom">14</property>
                                 <property name="spacing">12</property>
-
                                 <child>
                                   <object class="GtkToggleButton" id="accent_blue">
                                     <property name="width-request">36</property>
@@ -189,7 +181,6 @@
                                     </style>
                                   </object>
                                 </child>
-
                                 <child>
                                   <object class="GtkToggleButton" id="accent_teal">
                                     <property name="group">accent_blue</property>
@@ -205,7 +196,6 @@
                                     </style>
                                   </object>
                                 </child>
-
                                 <child>
                                   <object class="GtkToggleButton" id="accent_green">
                                     <property name="group">accent_blue</property>
@@ -221,7 +211,6 @@
                                     </style>
                                   </object>
                                 </child>
-
                                 <child>
                                   <object class="GtkToggleButton" id="accent_yellow">
                                     <property name="group">accent_blue</property>
@@ -237,7 +226,6 @@
                                     </style>
                                   </object>
                                 </child>
-
                                 <child>
                                   <object class="GtkToggleButton" id="accent_orange">
                                     <property name="group">accent_blue</property>
@@ -253,7 +241,6 @@
                                     </style>
                                   </object>
                                 </child>
-
                                 <child>
                                   <object class="GtkToggleButton" id="accent_red">
                                     <property name="group">accent_blue</property>
@@ -269,7 +256,6 @@
                                     </style>
                                   </object>
                                 </child>
-
                                 <child>
                                   <object class="GtkToggleButton" id="accent_pink">
                                     <property name="group">accent_blue</property>
@@ -285,7 +271,6 @@
                                     </style>
                                   </object>
                                 </child>
-
                                 <child>
                                   <object class="GtkToggleButton" id="accent_purple">
                                     <property name="group">accent_blue</property>
@@ -301,7 +286,6 @@
                                     </style>
                                   </object>
                                 </child>
-
                                 <child>
                                   <object class="GtkToggleButton" id="accent_slate">
                                     <property name="group">accent_blue</property>
@@ -317,14 +301,12 @@
                                     </style>
                                   </object>
                                 </child>
-
                               </object>
                             </child>
                           </object>
                         </child>
                       </object>
                     </child>
-
                   </object>
                 </child>
               </object>
@@ -335,3 +317,4 @@
     </child>
   </template>
 </interface>
+

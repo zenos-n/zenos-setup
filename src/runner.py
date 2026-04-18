@@ -269,7 +269,7 @@ def _run_oobe(data: dict, pages: dict, work_dir: str, progress_fn, log_fn):
     progress_fn(0.05)
 
     config_dir = None
-    for candidate in ("/etc/zenos", "/etc/nixos"):
+    for candidate in ("/Config/ZenOS/Flake"):
         if os.path.isdir(candidate):
             config_dir = candidate
             break
@@ -277,9 +277,9 @@ def _run_oobe(data: dict, pages: dict, work_dir: str, progress_fn, log_fn):
     if not config_dir:
         if DRY_RUN:
             config_dir = work_dir
-            _emit(log_fn, f"[dry-run] no /etc/zenos found, using {work_dir}")
+            _emit(log_fn, f"[dry-run] no /Config/ZenOS/Flake found, using {work_dir}")
         else:
-            raise RuntimeError("no existing NixOS config at /etc/zenos or /etc/nixos")
+            raise RuntimeError("no existing NixOS config at /Config/ZenOS/Flake")
 
     try:
         with open("/etc/hostname") as f:
