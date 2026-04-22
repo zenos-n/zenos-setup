@@ -1,10 +1,9 @@
 import gi
-gi.require_version('Gtk', '4.0')
-gi.require_version('Adw', '1')
-from gi.repository import Gtk, Adw, GObject
 
-# throwing some dummy data in here so the UI actually populates when you click something.
-# structure matches exactly what you asked for.
+gi.require_version("Gtk", "4.0")
+gi.require_version("Adw", "1")
+from gi.repository import Adw, GObject, Gtk
+
 APPS = {
     "browsers": [
         {
@@ -13,24 +12,42 @@ APPS = {
             "icon": "firefox",
             "version": "125.0.1-stable",
             "license": "MPL-2.0",
-            "description": "the default web browser. respects your privacy and doesn't hoard your ram (usually).",
+            "description": "A fast, reliable and private web browser from the non-profit Mozilla organization.",
             "extraOptions": [
                 {
                     "id": "gnome_theme",
                     "title": "Gnome Theme",
-                    "subtitle": "Make Firefox look like a gnome-native app thanks to the firefox gnome theme, made by rafaelmardojai"
+                    "subtitle": "Make Firefox look like a gnome-native app thanks to the firefox gnome theme, made by rafaelmardojai",
                 }
-            ]
+            ],
         },
         {
-            "id": "chromium",
-            "name": "Chromium",
+            "id": "helium-browser",
+            "name": "Helium Browser",
+            "icon": "helium-browser",
+            "version": "0.11.3",
+            "license": "GPL-3.0",
+            "description": "The Chromium-based web browser made for people, with love.",
+            "extraOptions": [],
+        },
+        {
+            "id": "zen-browser",
+            "name": "Zen Browser",
+            "icon": "zen-browser",
+            "version": "1.19.8b",
+            "license": "MPL-2.0",
+            "description": "Experience tranquility while browsing the internet with Zen.",
+            "extraOptions": [],
+        },
+        {
+            "id": "ungoogled-chromium",
+            "name": "Ungoogled Chromium",
             "icon": "chromium",
             "version": "124.0.0",
             "license": "BSD",
-            "description": "open source base for chrome. eats ram for breakfast.",
-            "extraOptions": []
-        }
+            "description": "Chromium-based browser that is ungoogled, meaning it does not track your browsing history or send data to Google.",
+            "extraOptions": [],
+        },
     ],
     "gaming": [
         {
@@ -39,9 +56,27 @@ APPS = {
             "icon": "steam",
             "version": "latest",
             "license": "Proprietary",
-            "description": "gabe newell's money printer. runs proton so you can actually game on linux.",
-            "extraOptions": []
-        }
+            "description": "Steam is the ultimate destination for playing, discussing, and creating games.",
+            "extraOptions": [],
+        },
+        {
+            "id": "heroic",
+            "name": "Heroic Games Launcher",
+            "icon": "heroic",
+            "version": "2.21.0",
+            "license": "GPL-3.0",
+            "description": "Heroic is a Free and Open Source Epic, GOG and Amazon Prime Games launcher.",
+            "extraOptions": [],
+        },
+        {
+            "id": "prism-launcher",
+            "name": "Prism Launcher",
+            "icon": "prism-launcher",
+            "version": "2.21.0",
+            "license": "GPL-3.0",
+            "description": "An open-source Minecraft launcher with the ability to manage multiple instances, accounts and mods.",
+            "extraOptions": [],
+        },
     ],
     "dev": [
         {
@@ -50,20 +85,32 @@ APPS = {
             "icon": "code",
             "version": "1.89.0",
             "license": "MIT / Proprietary",
-            "description": "microsoft's text editor that everyone uses. electron based so it's heavy but it works.",
-            "extraOptions": []
-        }
-    ]
+            "description": "Visual Studio Code is a free and open-source(ish) code editor developed by Microsoft.",
+            "extraOptions": [],
+        },
+        {
+            "id": "zed",
+            "name": "Zed",
+            "icon": "zed",
+            "version": "0.233.5",
+            "license": "AGPL-3.0",
+            "description": "Zed is a minimal code editor crafted for speed and collaboration with humans.",
+            "extraOptions": [],
+        },
+    ],
 }
 
-@Gtk.Template(resource_path='/com/negzero/zenos/setup/views/extra_software/popup.ui')
+
+@Gtk.Template(resource_path="/com/negzero/zenos/setup/views/extra_software/popup.ui")
 class AppsPopup(Adw.Window):
-    __gtype_name__ = 'ZenOSApplicationsDialog'
+    __gtype_name__ = "ZenOSApplicationsDialog"
 
     applications_group = Gtk.Template.Child()
     apply_button = Gtk.Template.Child()
 
-    def __init__(self, category_name, category_apps, current_choices, apply_cb, **kwargs):
+    def __init__(
+        self, category_name, category_apps, current_choices, apply_cb, **kwargs
+    ):
         super().__init__(**kwargs)
         self.apply_cb = apply_cb
         self.set_title(f"Select {category_name.capitalize()}")
@@ -77,7 +124,9 @@ class AppsPopup(Adw.Window):
             app_id = app["id"]
 
             # default to checked if it's the first time they see it, otherwise grab saved state
-            existing = self.local_choices.get(app_id, {"app": app_id, "enabled": True, "extraOptions": []})
+            existing = self.local_choices.get(
+                app_id, {"app": app_id, "enabled": True, "extraOptions": []}
+            )
 
             # the main expander row
             row = Adw.ExpanderRow(title=app["name"], icon_name=app["icon"])
@@ -91,8 +140,12 @@ class AppsPopup(Adw.Window):
 
             # append the extra toggles if the app has any
             for opt in app.get("extraOptions", []):
-                opt_row = Adw.ActionRow(title=opt["title"], subtitle=opt["subtitle"], activatable=True)
-                opt_switch = Gtk.Switch(valign=Gtk.Align.CENTER, halign=Gtk.Align.CENTER)
+                opt_row = Adw.ActionRow(
+                    title=opt["title"], subtitle=opt["subtitle"], activatable=True
+                )
+                opt_switch = Gtk.Switch(
+                    valign=Gtk.Align.CENTER, halign=Gtk.Align.CENTER
+                )
                 opt_switch.set_active(opt["id"] in existing["extraOptions"])
 
                 # actually add the switch to the row this time
@@ -100,7 +153,9 @@ class AppsPopup(Adw.Window):
                 opt_row.set_activatable_widget(opt_switch)
 
                 # bind the extra option's interactability to the main app's checkbutton
-                check.bind_property("active", opt_row, "sensitive", GObject.BindingFlags.SYNC_CREATE)
+                check.bind_property(
+                    "active", opt_row, "sensitive", GObject.BindingFlags.SYNC_CREATE
+                )
 
                 row.add_row(opt_row)
                 extras_switches[opt["id"]] = opt_switch
@@ -124,10 +179,7 @@ class AppsPopup(Adw.Window):
             self.applications_group.add(row)
 
             # store references to the widgets so we can pull their state on apply
-            self.row_widgets[app_id] = {
-                "check": check,
-                "extras": extras_switches
-            }
+            self.row_widgets[app_id] = {"check": check, "extras": extras_switches}
 
         self.apply_button.connect("clicked", self._on_apply)
 
@@ -135,21 +187,21 @@ class AppsPopup(Adw.Window):
         results = []
         for app_id, widgets in self.row_widgets.items():
             is_enabled = widgets["check"].get_active()
-            active_extras = [eid for eid, switch in widgets["extras"].items() if switch.get_active()]
+            active_extras = [
+                eid for eid, switch in widgets["extras"].items() if switch.get_active()
+            ]
 
-            results.append({
-                "app": app_id,
-                "enabled": is_enabled,
-                "extraOptions": active_extras
-            })
+            results.append(
+                {"app": app_id, "enabled": is_enabled, "extraOptions": active_extras}
+            )
 
         self.apply_cb(results)
         self.close()
 
 
-@Gtk.Template(resource_path='/com/negzero/zenos/setup/views/extra_software/layout.ui')
+@Gtk.Template(resource_path="/com/negzero/zenos/setup/views/extra_software/layout.ui")
 class Page(Adw.Bin):
-    __gtype_name__ = 'ZenOSLayoutApplications'
+    __gtype_name__ = "ZenOSLayoutApplications"
 
     # buttons
     core_button = Gtk.Template.Child()
@@ -182,7 +234,7 @@ class Page(Adw.Bin):
             "utilities": self.utilities_switch,
             "gaming": self.gaming_switch,
             "dev": self.dev_switch,
-            "office": self.office_switch
+            "office": self.office_switch,
         }
 
         btn_map = {
@@ -191,7 +243,7 @@ class Page(Adw.Bin):
             self.utilities_button: "utilities",
             self.gaming_button: "gaming",
             self.dev_button: "dev",
-            self.office_button: "office"
+            self.office_button: "office",
         }
 
         # wire up popups
@@ -205,11 +257,9 @@ class Page(Adw.Bin):
             # prepopulate choices based on the initial xml state so we don't start empty
             is_active = checkbtn.get_active()
             for app in APPS.get(cat, []):
-                self.user_choices.append({
-                    "app": app["id"],
-                    "enabled": is_active,
-                    "extraOptions": []
-                })
+                self.user_choices.append(
+                    {"app": app["id"], "enabled": is_active, "extraOptions": []}
+                )
 
     def on_cat_toggled(self, checkbtn, category_name):
         if self._updating_ui:
@@ -240,7 +290,7 @@ class Page(Adw.Bin):
             category_name=category_name,
             category_apps=apps_for_cat,
             current_choices=self.user_choices,
-            apply_cb=lambda results: self.update_choices(results, category_name)
+            apply_cb=lambda results: self.update_choices(results, category_name),
         )
 
         parent_window = self.get_root()
@@ -251,7 +301,9 @@ class Page(Adw.Bin):
     def update_choices(self, category_results, category_name):
         # strip old states and inject new
         updated_app_ids = {r["app"] for r in category_results}
-        self.user_choices = [c for c in self.user_choices if c["app"] not in updated_app_ids]
+        self.user_choices = [
+            c for c in self.user_choices if c["app"] not in updated_app_ids
+        ]
         self.user_choices.extend(category_results)
 
         self.refresh_ui_for_category(category_name)
@@ -263,7 +315,9 @@ class Page(Adw.Bin):
             return
 
         app_ids = [a["id"] for a in apps_in_cat]
-        enabled_count = sum(1 for c in self.user_choices if c["app"] in app_ids and c["enabled"])
+        enabled_count = sum(
+            1 for c in self.user_choices if c["app"] in app_ids and c["enabled"]
+        )
 
         checkbtn = self.cat_checks[category_name]
 
