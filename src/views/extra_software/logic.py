@@ -72,7 +72,7 @@ APPS = {
             "id": "prism-launcher",
             "name": "Prism Launcher",
             "icon": "prism-launcher",
-            "version": "2.21.0",
+            "version": "11.0.2",
             "license": "GPL-3.0",
             "description": "An open-source Minecraft launcher with the ability to manage multiple instances, accounts and mods.",
             "extraOptions": [],
