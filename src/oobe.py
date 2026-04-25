@@ -39,9 +39,14 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
         self.transition_started = False
         self.anims_killed_for_end = False
 
-        self.video_path = os.environ.get("ZENOS_VIDEO_PATH", "/run/current-system/sw/share/zenos/intro.mkv")
-        self.wallpaper_path = os.environ.get("ZENOS_WALLPAPER_PATH", "/run/current-system/sw/share/zenos/destination-2.png")
-        self.wallpaper_path = self.wallpaper_path + "purple.png"
+        # set gresource path for the intro video
+        self.video_uri = "resource:///com/negzero/zenos/setup/assets/intro.webm"
+
+        # fix wallpaper pathing logic for themes
+        base_wallpaper = os.environ.get("ZENOS_WALLPAPER_PATH", "/run/current-system/sw/share/zenos/")
+        if not base_wallpaper.endswith('/'):
+            base_wallpaper += '/'
+        self.wallpaper_path = base_wallpaper + "purple.png"
 
         # setup dconf BEFORE gstreamer touches anything
         self.settings = Gio.Settings.new('org.gnome.desktop.interface')
@@ -71,35 +76,17 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
         self.video = Gtk.Picture()
         self.video.set_hexpand(True)
         self.video.set_vexpand(True)
+        self.video.set_content_fit(Gtk.ContentFit.FILL)
         self.video.set_can_focus(False)
         self.overlay.set_child(self.video)
 
         self.pipeline = None
-        if os.path.exists(self.video_path):
-            # initialize gstreamer safely now that dbus is secure
-            if not Gst.is_initialized():
-                Gst.init(None)
 
-            uri = Gio.File.new_for_path(self.video_path).get_uri()
+        # initialize gstreamer
+        if not Gst.is_initialized():
+            Gst.init(None)
 
-            # build a cursed manual gstreamer pipeline to bypass missing gtk4paintablesink
-            self.pipeline = Gst.ElementFactory.make("playbin", "playbin")
-            self.pipeline.set_property("uri", uri)
-
-            appsink = Gst.ElementFactory.make("appsink", "vid_sink")
-            appsink.set_property("emit-signals", True)
-            caps = Gst.Caps.from_string("video/x-raw, format=RGBA")
-            appsink.set_property("caps", caps)
-            appsink.connect("new-sample", self.on_new_sample)
-
-            self.pipeline.set_property("video-sink", appsink)
-
-            bus = self.pipeline.get_bus()
-            bus.add_signal_watch()
-            bus.connect("message::eos", self.on_eos)
-
-            self.pipeline.set_state(Gst.State.PLAYING)
-            GLib.timeout_add(33, self.check_video_progress)
+        self.setup_video_pipeline()
 
         self.skip_button = ZenAnimatedButton(label="Skip Intro")
         self.skip_button.add_css_class("pill")
@@ -117,6 +104,32 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
         self.setup_input_tracking()
         self.fullscreen()
 
+    def setup_video_pipeline(self):
+        # build the playback pipeline manually for fine control over scaling/cropping
+        self.pipeline = Gst.parse_launch(
+            f'urisourcebin uri={self.video_uri} name=src ! '
+            'decodebin ! videoconvert ! videoscale ! videocrop name=crop ! '
+            'appsink name=sink emit-signals=true caps="video/x-raw, format=RGBA"'
+        )
+
+        self.appsink = self.pipeline.get_by_name("sink")
+        self.appsink.connect("new-sample", self.on_new_sample)
+
+        self.cropper = self.pipeline.get_by_name("crop")
+
+        bus = self.pipeline.get_bus()
+        bus.add_signal_watch()
+        bus.connect("message::eos", self.on_eos)
+        bus.connect("message::error", self.on_pipeline_error)
+
+        self.pipeline.set_state(Gst.State.PLAYING)
+        GLib.timeout_add(33, self.check_video_progress)
+
+    def on_pipeline_error(self, bus, message):
+        err, debug = message.parse_error()
+        print(f"GStreamer Error: {err.message}")
+        self.trigger_transition()
+
     def on_new_sample(self, sink):
         sample = sink.emit('pull-sample')
         if not sample:
@@ -124,18 +137,48 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
 
         caps = sample.get_caps()
         struct = caps.get_structure(0)
-        width = struct.get_value('width')
-        height = struct.get_value('height')
+        video_w = struct.get_value('width')
+        video_h = struct.get_value('height')
+
+        # handle scaling/cropping on the first valid frame
+        if self.cropper and video_w > 0:
+            display_w = self.get_width()
+            display_h = self.get_height()
+
+            if display_w > 0 and display_h > 0:
+                self.apply_center_crop(video_w, video_h, display_w, display_h)
+                self.cropper = None # only do this once
 
         buffer = sample.get_buffer()
         success, map_info = buffer.map(Gst.MapFlags.READ)
         if success:
             bytes_data = GLib.Bytes.new(map_info.data)
             buffer.unmap(map_info)
-            # punt the frame update back to the main UI thread
-            GLib.idle_add(self.update_frame, bytes_data, width, height)
+            GLib.idle_add(self.update_frame, bytes_data, video_w, video_h)
 
         return Gst.FlowReturn.OK
+
+    def apply_center_crop(self, vw, vh, dw, dh):
+        video_aspect = vw / vh
+        display_aspect = dw / dh
+
+        left = right = top = bottom = 0
+
+        if video_aspect > display_aspect:
+            # video is wider than display, crop left/right
+            target_width = vh * display_aspect
+            crop_amount = int((vw - target_width) / 2)
+            left = right = crop_amount
+        else:
+            # display is taller than video, crop top/bottom
+            target_height = vw / display_aspect
+            crop_amount = int((vh - target_height) / 2)
+            top = bottom = crop_amount
+
+        self.cropper.set_property("left", left)
+        self.cropper.set_property("right", right)
+        self.cropper.set_property("top", top)
+        self.cropper.set_property("bottom", bottom)
 
     def update_frame(self, bytes_data, width, height):
         if self.transition_started:
@@ -154,7 +197,6 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
         GLib.idle_add(self.trigger_transition)
 
     def set_global_anims(self, state):
-        print("changing anims to: ", state)
         self.settings.set_boolean('enable-animations', state)
         Gio.Settings.sync()
         if self.ext_proxy:
@@ -175,16 +217,11 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
 
     def step_two_enable_anims_and_bg(self):
         self.set_global_anims(True)
-
-        # don't rely on os.path.exists here, just blast the uri string
         target_uri = f"file://{self.wallpaper_path}"
-        print(target_uri)
-
         self.bg_settings.set_string('picture-options', 'zoom')
         self.bg_settings.set_string('picture-uri', target_uri)
         self.bg_settings.set_string('picture-uri-dark', target_uri)
         Gio.Settings.sync()
-
         return False
 
     def check_video_progress(self):
@@ -194,7 +231,6 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
         success_pos, pos = self.pipeline.query_position(Gst.Format.TIME)
         success_dur, dur = self.pipeline.query_duration(Gst.Format.TIME)
 
-        # gstreamer time is in nanoseconds, so 166ms is ~166,666,000 ns
         if success_pos and success_dur and dur > 0 and pos > 0 and (dur - pos) < 166666000:
             if not self.anims_killed_for_end:
                 self.set_global_anims(False)

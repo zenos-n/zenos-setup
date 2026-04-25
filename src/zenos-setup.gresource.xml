@@ -54,6 +54,8 @@
     <file alias="wallpapers/orange.png">../data/wallpapers/orange.png</file>
     <file alias="wallpapers/yellow.png">../data/wallpapers/yellow.png</file>
     <file alias="wallpapers/red.png">../data/wallpapers/red.png</file>
+
+    <file alias="intro.webm">../data/intro.webm</file>
   </gresource>
 
   <gresource prefix="/com/negzero/zenos/icons">

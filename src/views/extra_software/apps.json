@@ -1,0 +1,1017 @@
+{
+    "browsers": {
+        "title": "Web Browsers",
+        "subtitle": "Browse the internet with your favorite browser.",
+        "apps": [
+        {
+            "id": "firefox",
+            "name": "Mozilla Firefox",
+            "icon": "firefox",
+            "version": "125.0.1",
+            "license": "MPL-2.0",
+            "description": "A fast, reliable and private web browser from the non-profit Mozilla organization.",
+            "extraOptions": [
+                {
+                    "id": "gnome_theme",
+                    "title": "GNOME Theme",
+                    "subtitle": "Make Firefox look like a GNOME-native app thanks to the Firefox GNOME theme by rafaelmardojai"
+                },
+                {
+                    "id": "wayland-native",
+                    "title": "Native Wayland Rendering",
+                    "subtitle": "Launches Firefox with MOZ_ENABLE_WAYLAND=1 for proper scaling and input handling"
+                },
+                {
+                    "id": "privacy-hardening",
+                    "title": "Privacy Hardening",
+                    "subtitle": "Applies a user.js based on arkenfox to disable telemetry and harden fingerprinting resistance"
+                }
+            ]
+        },
+        {
+            "id": "librewolf",
+            "name": "LibreWolf",
+            "icon": "librewolf",
+            "version": "125.0.1",
+            "license": "MPL-2.0",
+            "description": "A Firefox fork focused on privacy, security, and freedom — ships hardened by default.",
+            "extraOptions": [
+                {
+                    "id": "gnome-theme",
+                    "title": "GNOME Theme",
+                    "subtitle": "Apply the Firefox GNOME theme for a native-feeling look"
+                }
+            ]
+        },
+        {
+            "id": "zen-browser",
+            "name": "Zen Browser",
+            "icon": "zen-browser",
+            "version": "1.19.8b",
+            "license": "MPL-2.0",
+            "description": "Experience tranquility while browsing the internet with Zen.",
+            "extraOptions": [
+                {
+                    "id": "wayland-native",
+                    "title": "Native Wayland Rendering",
+                    "subtitle": "Launches Zen with MOZ_ENABLE_WAYLAND=1 for proper scaling and input handling"
+                }
+            ]
+        },
+        {
+            "id": "helium-browser",
+            "name": "Helium Browser",
+            "icon": "helium-browser",
+            "version": "0.11.3",
+            "license": "GPL-3.0",
+            "description": "The Chromium-based web browser made for people, with love.",
+            "extraOptions": []
+        },
+        {
+            "id": "ungoogled-chromium",
+            "name": "Ungoogled Chromium",
+            "icon": "chromium",
+            "version": "124.0.0",
+            "license": "BSD",
+            "description": "Chromium stripped of all Google integration and telemetry.",
+            "extraOptions": [
+                {
+                    "id": "wayland-native",
+                    "title": "Native Wayland Rendering",
+                    "subtitle": "Launches Chromium with Ozone/Wayland flags for crisp rendering and proper scaling"
+                }
+            ]
+        },
+        {
+            "id": "brave-browser",
+            "name": "Brave",
+            "icon": "brave-browser",
+            "version": "1.89.132",
+            "license": "MPL-2.0",
+            "description": "Chromium-based browser focused on privacy with built-in ad blocking.",
+            "extraOptions": [
+                {
+                    "id": "wayland-native",
+                    "title": "Native Wayland Rendering",
+                    "subtitle": "Launches Brave with Ozone/Wayland flags for crisp rendering and proper scaling"
+                }
+            ]
+        },
+        {
+            "id": "epiphany",
+            "name": "GNOME Web",
+            "icon": "org.gnome.Epiphany",
+            "version": "46.1",
+            "license": "GPL-3.0",
+            "description": "The GNOME-native browser. Clean, fast, and deeply integrated with the desktop.",
+            "extraOptions": []
+        },
+        {
+            "id": "tor-browser",
+            "name": "Tor Browser",
+            "icon": "tor-browser",
+            "version": "13.0.14",
+            "license": "MPL-2.0",
+            "description": "Browse the internet anonymously and bypass censorship via the Tor network.",
+            "extraOptions": []
+        }
+    ]
+    },
+    "gaming": {
+        "title": "Gaming",
+        "subtitle": "Game launchers, emulators, and gaming tools.",
+        "apps": [
+        {
+            "id": "steam",
+            "name": "Steam",
+            "icon": "steam",
+            "version": "latest",
+            "license": "Proprietary",
+            "description": "Steam is the ultimate destination for playing, discussing, and creating games.",
+            "extraOptions": [
+                {
+                    "id": "proton-ge",
+                    "title": "GE-Proton",
+                    "subtitle": "Installs ProtonUp-Qt for managing custom Proton-GE builds with better game compatibility"
+                },
+                {
+                    "id": "gamemode",
+                    "title": "GameMode",
+                    "subtitle": "Installs Feral GameMode to automatically optimize system performance while gaming"
+                },
+                {
+                    "id": "mangohud",
+                    "title": "MangoHud",
+                    "subtitle": "Installs MangoHud for an in-game overlay showing FPS, temps, and GPU/CPU stats"
+                }
+            ]
+        },
+        {
+            "id": "heroic",
+            "name": "Heroic Games Launcher",
+            "icon": "heroic",
+            "version": "2.21.0",
+            "license": "GPL-3.0",
+            "description": "Free and open source Epic, GOG, and Amazon Prime Games launcher.",
+            "extraOptions": [
+                {
+                    "id": "gamemode",
+                    "title": "GameMode",
+                    "subtitle": "Installs Feral GameMode to automatically optimize system performance while gaming"
+                },
+                {
+                    "id": "mangohud",
+                    "title": "MangoHud",
+                    "subtitle": "Installs MangoHud for an in-game overlay showing FPS, temps, and GPU/CPU stats"
+                }
+            ]
+        },
+        {
+            "id": "lutris",
+            "name": "Lutris",
+            "icon": "lutris",
+            "version": "0.5.17",
+            "license": "GPL-3.0",
+            "description": "Open gaming platform for Linux. Manages Wine, emulators, and native games in one place.",
+            "extraOptions": [
+                {
+                    "id": "wine",
+                    "title": "Wine",
+                    "subtitle": "Installs Wine for running Windows games and apps not covered by Proton"
+                },
+                {
+                    "id": "gamemode",
+                    "title": "GameMode",
+                    "subtitle": "Installs Feral GameMode to automatically optimize system performance while gaming"
+                }
+            ]
+        },
+        {
+            "id": "bottles",
+            "name": "Bottles",
+            "icon": "com.usebottles.bottles",
+            "version": "51.16",
+            "license": "GPL-3.0",
+            "description": "Run Windows software and games on Linux easily with preconfigured Wine environments.",
+            "extraOptions": [
+                {
+                    "id": "gamemode",
+                    "title": "GameMode",
+                    "subtitle": "Installs Feral GameMode for automatic performance optimization in Bottles environments"
+                }
+            ]
+        },
+        {
+            "id": "prism-launcher",
+            "name": "Prism Launcher",
+            "icon": "prism-launcher",
+            "version": "11.0.2",
+            "license": "GPL-3.0",
+            "description": "Open-source Minecraft launcher with support for multiple instances, accounts, and mods.",
+            "extraOptions": [
+                {
+                    "id": "mangohud",
+                    "title": "MangoHud",
+                    "subtitle": "Installs MangoHud for an FPS and performance overlay while playing Minecraft"
+                }
+            ]
+        },
+        {
+            "id": "retroarch",
+            "name": "RetroArch",
+            "icon": "retroarch",
+            "version": "1.19.1",
+            "license": "GPL-3.0",
+            "description": "The all-in-one emulator frontend. Runs cores for hundreds of retro consoles and systems.",
+            "extraOptions": [
+                {
+                    "id": "common-cores",
+                    "title": "Common Cores Bundle",
+                    "subtitle": "Pre-installs cores for SNES, GBA, NES, PS1, N64, and Sega systems"
+                }
+            ]
+        }
+    ]
+    },
+    "dev": {
+        "title": "Development",
+        "subtitle": "Editors, IDEs, and developer tools.",
+        "apps": [
+        {
+            "id": "vscode",
+            "name": "Visual Studio Code",
+            "icon": "code",
+            "version": "1.89.0",
+            "license": "MIT / Proprietary",
+            "description": "Visual Studio Code is a free and open-source(ish) code editor developed by Microsoft.",
+            "extraOptions": [
+                {
+                    "id": "wayland-native",
+                    "title": "Native Wayland Rendering",
+                    "subtitle": "Launches VSCode with Ozone/Wayland flags for crisp rendering and proper scaling"
+                },
+                {
+                    "id": "vim-mode",
+                    "title": "Vim Keybindings",
+                    "subtitle": "Installs VSCodeVim for modal editing"
+                },
+                {
+                    "id": "python-ext",
+                    "title": "Python Extension Pack",
+                    "subtitle": "Installs the Microsoft Python extension with Pylance and debugger"
+                },
+                {
+                    "id": "rust-ext",
+                    "title": "Rust Extension Pack",
+                    "subtitle": "Installs rust-analyzer and Even Better TOML"
+                },
+                {
+                    "id": "cpp-ext",
+                    "title": "C/C++ Extension Pack",
+                    "subtitle": "Installs the Microsoft C/C++ extension with IntelliSense"
+                },
+                {
+                    "id": "nix-ext",
+                    "title": "Nix Support",
+                    "subtitle": "Installs nix-ide and pairs it with nil or nixd as the language server"
+                },
+                {
+                    "id": "web-ext",
+                    "title": "Web Extension Pack",
+                    "subtitle": "Installs ESLint, Prettier, CSS/HTML tools, and Tailwind IntelliSense"
+                },
+                {
+                    "id": "svelte-ext",
+                    "title": "Svelte Support",
+                    "subtitle": "Installs the official Svelte for VS Code extension"
+                },
+                {
+                    "id": "gitlens",
+                    "title": "GitLens",
+                    "subtitle": "Supercharged Git tooling — blame, history, and more inline"
+                },
+                {
+                    "id": "remote-ssh",
+                    "title": "Remote SSH",
+                    "subtitle": "Installs Microsoft's Remote SSH extension for editing on remote machines (proprietary)"
+                },
+                {
+                    "id": "docker-ext",
+                    "title": "Docker / Compose Support",
+                    "subtitle": "Installs the Docker extension for managing containers and images"
+                }
+            ]
+        },
+        {
+            "id": "zed",
+            "name": "Zed",
+            "icon": "zed",
+            "version": "0.233.5",
+            "license": "AGPL-3.0",
+            "description": "Zed is a minimal code editor crafted for speed and collaboration with humans.",
+            "extraOptions": [
+                {
+                    "id": "vim-mode",
+                    "title": "Vim Mode",
+                    "subtitle": "Enables Zed's built-in modal editing mode"
+                },
+                {
+                    "id": "python-support",
+                    "title": "Python Support",
+                    "subtitle": "Installs pyright and the Zed Python extension"
+                },
+                {
+                    "id": "rust-support",
+                    "title": "Rust Support",
+                    "subtitle": "Installs rust-analyzer for Rust language intelligence"
+                },
+                {
+                    "id": "cpp-support",
+                    "title": "C/C++ Support",
+                    "subtitle": "Installs clangd for C and C++ language intelligence"
+                },
+                {
+                    "id": "nix-support",
+                    "title": "Nix Support",
+                    "subtitle": "Installs nil as the Nix language server alongside the Zed Nix extension"
+                },
+                {
+                    "id": "web-support",
+                    "title": "Web Support",
+                    "subtitle": "Installs language servers for TypeScript, HTML, CSS, and JSON"
+                },
+                {
+                    "id": "svelte-support",
+                    "title": "Svelte Support",
+                    "subtitle": "Installs the Zed Svelte extension with svelte-language-server"
+                },
+                {
+                    "id": "collaboration",
+                    "title": "Zed Collaboration",
+                    "subtitle": "Enables real-time multiplayer editing via zed.dev (requires account)"
+                }
+            ]
+        },
+        {
+            "id": "gnome-builder",
+            "name": "GNOME Builder",
+            "icon": "gnome-builder",
+            "version": "49.1",
+            "license": "GPL-3.0",
+            "description": "The integrated development environment for the GNOME desktop.",
+            "extraOptions": [
+                {
+                    "id": "python-support",
+                    "title": "Python Support",
+                    "subtitle": "Installs the Python language server for GNOME Builder"
+                },
+                {
+                    "id": "rust-support",
+                    "title": "Rust Support",
+                    "subtitle": "Installs rust-analyzer for Rust language intelligence"
+                },
+                {
+                    "id": "cpp-support",
+                    "title": "C/C++ Support",
+                    "subtitle": "Installs clangd for C and C++ language intelligence"
+                },
+                {
+                    "id": "typescript-support",
+                    "title": "TypeScript / JavaScript Support",
+                    "subtitle": "Installs the TypeScript language server"
+                },
+                {
+                    "id": "vala-support",
+                    "title": "Vala Support",
+                    "subtitle": "Installs the Vala language server (great for GNOME app development)"
+                },
+                {
+                    "id": "go-support",
+                    "title": "Go Support",
+                    "subtitle": "Installs gopls, the official Go language server"
+                },
+                {
+                    "id": "java-support",
+                    "title": "Java Support",
+                    "subtitle": "Installs Eclipse JDT language server for Java"
+                },
+                {
+                    "id": "zig-support",
+                    "title": "Zig Support",
+                    "subtitle": "Installs ZLS, the Zig language server"
+                },
+                {
+                    "id": "lua-support",
+                    "title": "Lua Support",
+                    "subtitle": "Installs lua-language-server"
+                },
+                {
+                    "id": "bash-support",
+                    "title": "Shell / Bash Support",
+                    "subtitle": "Installs bash-language-server for shell script editing"
+                },
+                {
+                    "id": "web-support",
+                    "title": "Web Support",
+                    "subtitle": "Installs language servers for HTML, CSS, and JSON"
+                },
+                {
+                    "id": "flatpak-support",
+                    "title": "Flatpak Build Support",
+                    "subtitle": "Installs flatpak-builder for building and testing Flatpak apps"
+                },
+                {
+                    "id": "haskell-support",
+                    "title": "Haskell Support",
+                    "subtitle": "Installs haskell-language-server"
+                },
+                {
+                    "id": "vim-mode",
+                    "title": "Vim-Like Behavior",
+                    "subtitle": "Sets the default keyboard flavor to Vim"
+                }
+            ]
+        },
+        {
+            "id": "neovim",
+            "name": "Neovim",
+            "icon": "nvim",
+            "version": "0.10.0",
+            "license": "Apache-2.0",
+            "description": "Hyperextensible Vim-based text editor built for the terminal.",
+            "extraOptions": [
+                {
+                    "id": "lazyvim",
+                    "title": "LazyVim Starter",
+                    "subtitle": "Bootstraps LazyVim as your Neovim config — batteries-included plugin setup"
+                },
+                {
+                    "id": "nix-lsp",
+                    "title": "Nix LSP",
+                    "subtitle": "Installs nil as a Nix language server alongside nvim-lspconfig"
+                },
+                {
+                    "id": "treesitter",
+                    "title": "Tree-sitter Parsers",
+                    "subtitle": "Pre-installs common tree-sitter grammars for syntax highlighting"
+                },
+                {
+                    "id": "clipboard",
+                    "title": "System Clipboard Integration",
+                    "subtitle": "Installs wl-clipboard so Neovim can read and write the Wayland clipboard"
+                }
+            ]
+        },
+        {
+            "id": "helix",
+            "name": "Helix",
+            "icon": "helix",
+            "version": "24.03",
+            "license": "MPL-2.0",
+            "description": "A post-modern modal text editor with built-in LSP and tree-sitter support. No config needed.",
+            "extraOptions": [
+                {
+                    "id": "nix-lsp",
+                    "title": "Nix LSP",
+                    "subtitle": "Installs nil so Helix has Nix language intelligence out of the box"
+                },
+                {
+                    "id": "rust-lsp",
+                    "title": "Rust LSP",
+                    "subtitle": "Installs rust-analyzer for Rust language intelligence"
+                },
+                {
+                    "id": "python-lsp",
+                    "title": "Python LSP",
+                    "subtitle": "Installs python-lsp-server for Python language intelligence"
+                },
+                {
+                    "id": "web-lsp",
+                    "title": "Web LSP Bundle",
+                    "subtitle": "Installs language servers for TypeScript, HTML, CSS, and JSON"
+                }
+            ]
+        },
+        {
+            "id": "gitg",
+            "name": "GitG",
+            "icon": "gitg",
+            "version": "44",
+            "license": "GPL-2.0",
+            "description": "GNOME's native Git repository viewer. Browse history, diffs, and branches with a clean UI.",
+            "extraOptions": []
+        },
+        {
+            "id": "github-cli",
+            "name": "GitHub CLI",
+            "icon": "github",
+            "version": "2.49.0",
+            "license": "MIT",
+            "description": "GitHub on the command line. Manage PRs, issues, and repos without leaving your terminal.",
+            "extraOptions": [
+                {
+                    "id": "gh-copilot",
+                    "title": "GitHub Copilot in the CLI",
+                    "subtitle": "Installs the gh-copilot extension for AI-assisted command suggestions in the terminal"
+                }
+            ]
+        },
+        {
+            "id": "docker",
+            "name": "Docker",
+            "icon": "docker",
+            "version": "26.1.0",
+            "license": "Apache-2.0",
+            "description": "Build, ship, and run containerized applications. Includes the Docker CLI and daemon.",
+            "extraOptions": [
+                {
+                    "id": "compose",
+                    "title": "Docker Compose",
+                    "subtitle": "Installs docker-compose for managing multi-container applications"
+                },
+                {
+                    "id": "lazydocker",
+                    "title": "LazyDocker",
+                    "subtitle": "Installs the lazydocker TUI for managing containers and images interactively"
+                }
+            ]
+        },
+        {
+            "id": "jetbrains-toolbox",
+            "name": "JetBrains Toolbox",
+            "icon": "jetbrains-toolbox",
+            "version": "2.3.2",
+            "license": "Proprietary",
+            "description": "Manage and launch JetBrains IDEs (IntelliJ, CLion, PyCharm, etc.) from one place.",
+            "extraOptions": []
+        }
+    ]
+    },
+    "core-gnome": {
+        "title": "GNOME Core Apps",
+        "subtitle": "Essential GNOME desktop utilities and tools.",
+        "apps": [
+            {
+                "id": "nautilus",
+                "name": "Files (Nautilus)",
+                "icon": "org.gnome.Nautilus",
+                "version": "46.0",
+                "license": "GPL-3.0",
+                "description": "The GNOME file manager. Browse and organize your files with ease.",
+                "extraOptions": []
+            },
+            {
+                "id": "gnome-console",
+                "name": "GNOME Console",
+                "icon": "org.gnome.Console",
+                "version": "46.0",
+                "license": "GPL-3.0",
+                "description": "The simple, clean GNOME terminal. Minimal by design, integrates well with the desktop.",
+                "extraOptions": []
+            },
+            {
+                "id": "gnome-system-monitor",
+                "name": "GNOME System Monitor",
+                "icon": "org.gnome.SystemMonitor",
+                "version": "46.0",
+                "license": "GPL-3.0",
+                "description": "Monitor system resources and processes in a GNOME-native interface.",
+                "extraOptions": []
+            },
+            {
+                "id": "gnome-extensions-app",
+                "name": "Extension Manager",
+                "icon": "com.mattjakeman.ExtensionManager",
+                "version": "0.5.1",
+                "license": "GPL-3.0",
+                "description": "Browse, install, and manage GNOME Shell extensions without a web browser.",
+                "extraOptions": []
+            },
+            {
+                "id": "gnome-tweaks",
+                "name": "GNOME Tweaks",
+                "icon": "org.gnome.tweaks",
+                "version": "46.0",
+                "license": "GPL-3.0",
+                "description": "Expose advanced GNOME settings not available in the standard Settings app.",
+                "extraOptions": []
+            }
+        ]
+    },
+    "core-generic": {
+        "title": "Core Utilities (Generic)",
+        "subtitle": "Essential system tools and shells for all desktops.",
+        "apps": [
+            {
+                "id": "kitty",
+                "name": "Kitty",
+                "icon": "kitty",
+                "version": "0.35.1",
+                "license": "GPL-3.0",
+                "description": "Fast, feature-rich, GPU-accelerated terminal emulator. Highly scriptable and extensible.",
+                "extraOptions": [
+                    {
+                        "id": "shell-integration",
+                        "title": "Shell Integration",
+                        "subtitle": "Enables kitty's built-in Zsh/Bash shell integration for better prompt and history support"
+                    }
+                ]
+            },
+            {
+                "id": "btop",
+                "name": "btop++",
+                "icon": "btop",
+                "version": "1.3.2",
+                "license": "Apache-2.0",
+                "description": "A beautiful, responsive resource monitor for CPU, memory, disk, network, and processes.",
+                "extraOptions": []
+            },
+            {
+                "id": "fish",
+                "name": "Fish Shell",
+                "icon": "fish",
+                "version": "3.7.1",
+                "license": "GPL-2.0",
+                "description": "The friendly interactive shell. Autosuggestions, syntax highlighting, and tab completion out of the box.",
+                "extraOptions": [
+                    {
+                        "id": "fisher",
+                        "title": "Fisher Plugin Manager",
+                        "subtitle": "Installs Fisher for managing Fish plugins declaratively"
+                    }
+                ]
+            },
+            {
+                "id": "zsh",
+                "name": "Zsh",
+                "icon": "terminal",
+                "version": "5.9",
+                "license": "MIT",
+                "description": "Extended Bourne shell with powerful completion, history, and plugin support.",
+                "extraOptions": [
+                    {
+                        "id": "oh-my-zsh",
+                        "title": "Oh My Zsh",
+                        "subtitle": "Installs Oh My Zsh as a plugin and theme framework for Zsh"
+                    },
+                    {
+                        "id": "starship",
+                        "title": "Starship Prompt",
+                        "subtitle": "Installs Starship for a fast, minimal, and informative shell prompt"
+                    }
+                ]
+            }
+        ]
+    },
+    "utilities": {
+        "title": "Utilities",
+        "subtitle": "Handy tools for productivity and system management.",
+        "apps": [
+        {
+            "id": "flatseal",
+            "name": "Flatseal",
+            "icon": "com.github.tchx84.Flatseal",
+            "version": "2.3.0",
+            "license": "GPL-3.0",
+            "description": "Manage Flatpak permissions visually. Review and override app sandbox settings.",
+            "extraOptions": []
+        },
+        {
+            "id": "pika-backup",
+            "name": "Pika Backup",
+            "icon": "org.gnome.World.PikaBackup",
+            "version": "0.7.2",
+            "license": "GPL-3.0",
+            "description": "Simple, GNOME-native backup tool powered by BorgBackup. Set it and forget it.",
+            "extraOptions": []
+        },
+        {
+            "id": "metadata-cleaner",
+            "name": "Metadata Cleaner",
+            "icon": "fr.romainvigier.MetadataCleaner",
+            "version": "2.5.2",
+            "license": "GPL-3.0",
+            "description": "Strip metadata from images, PDFs, and documents before sharing them.",
+            "extraOptions": []
+        },
+        {
+            "id": "curtail",
+            "name": "Curtail",
+            "icon": "com.github.huluti.Curtail",
+            "version": "1.5.0",
+            "license": "GPL-3.0",
+            "description": "Simple image compressor for PNG, JPEG, and WebP. Drag, drop, shrink.",
+            "extraOptions": []
+        },
+        {
+            "id": "gnome-boxes",
+            "name": "GNOME Boxes",
+            "icon": "org.gnome.Boxes",
+            "version": "46.0",
+            "license": "GPL-2.0",
+            "description": "Manage virtual machines and remote desktops. Simple front-end for QEMU/KVM.",
+            "extraOptions": []
+        },
+        {
+            "id": "file-roller",
+            "name": "Archive Manager",
+            "icon": "org.gnome.FileRoller",
+            "version": "44.2",
+            "license": "GPL-2.0",
+            "description": "GNOME's archive manager. Open, create, and extract zip, tar, 7z, and more.",
+            "extraOptions": []
+        },
+        {
+            "id": "impression",
+            "name": "Impression",
+            "icon": "io.gitlab.adhami3310.Impression",
+            "version": "3.6.0",
+            "license": "GPL-3.0",
+            "description": "Flash Linux ISOs to USB drives. Simple, fast, and GNOME-native.",
+            "extraOptions": []
+        },
+        {
+            "id": "cipher",
+            "name": "Decoder",
+            "icon": "com.belmoussaoui.Decoder",
+            "version": "0.4.1",
+            "license": "GPL-3.0",
+            "description": "Scan and generate QR codes straight from the GNOME desktop.",
+            "extraOptions": []
+        },
+        {
+            "id": "resources",
+            "name": "Resources",
+            "icon": "net.nokyan.Resources",
+            "version": "1.6.0",
+            "license": "GPL-3.0",
+            "description": "A modern, GNOME-native system monitor. Monitor CPU, GPU, memory, network, and processes.",
+            "extraOptions": []
+        },
+        {
+            "id": "mission-center",
+            "name": "Mission Center",
+            "icon": "io.missioncenter.MissionCenter",
+            "version": "0.5.3",
+            "license": "GPL-3.0",
+            "description": "Monitor CPU, memory, disk, and network usage in a Task Manager-style interface.",
+            "extraOptions": []
+        }
+    ]
+    },
+    "office": {
+        "title": "Office & Productivity",
+        "subtitle": "Office suites, note-taking, and document tools.",
+        "apps": [
+        {
+            "id": "libreoffice",
+            "name": "LibreOffice",
+            "icon": "libreoffice-startcenter",
+            "version": "24.2.3",
+            "license": "MPL-2.0",
+            "description": "The full-featured, free office suite. Covers documents, spreadsheets, presentations, and more.",
+            "extraOptions": [
+                {
+                    "id": "fresh",
+                    "title": "Fresh Channel",
+                    "subtitle": "Installs LibreOffice Fresh (latest features) instead of the Still (stable LTS) channel"
+                },
+                {
+                    "id": "gnome-integration",
+                    "title": "GNOME Integration",
+                    "subtitle": "Applies the LibreOffice GNOME theme and uses the GTK file picker"
+                },
+                {
+                    "id": "ms-compat-fonts",
+                    "title": "Microsoft-Compatible Fonts",
+                    "subtitle": "Installs Liberation fonts for better compatibility with .docx and .xlsx files"
+                }
+            ]
+        },
+        {
+            "id": "onlyoffice",
+            "name": "ONLYOFFICE",
+            "icon": "onlyoffice-desktopeditors",
+            "version": "8.0.1",
+            "license": "AGPL-3.0",
+            "description": "A polished office suite with excellent Microsoft Office format compatibility.",
+            "extraOptions": []
+        },
+        {
+            "id": "thunderbird",
+            "name": "Thunderbird",
+            "icon": "thunderbird",
+            "version": "115.10.1",
+            "license": "MPL-2.0",
+            "description": "Mozilla's free email and calendar client. Powerful, extensible, and privacy-respecting.",
+            "extraOptions": [
+                {
+                    "id": "gnome-theme",
+                    "title": "GNOME Theme",
+                    "subtitle": "Applies the Thunderbird GNOME theme for a more native-looking UI"
+                }
+            ]
+        },
+        {
+            "id": "obsidian",
+            "name": "Obsidian",
+            "icon": "obsidian",
+            "version": "1.6.3",
+            "license": "Proprietary",
+            "description": "A powerful knowledge base on top of a local folder of Markdown files.",
+            "extraOptions": [
+                {
+                    "id": "wayland-native",
+                    "title": "Native Wayland Rendering",
+                    "subtitle": "Launches Obsidian with Ozone/Wayland flags for crisp rendering and proper scaling"
+                }
+            ]
+        },
+        {
+            "id": "apostrophe",
+            "name": "Apostrophe",
+            "icon": "org.gnome.gitlab.somas.Apostrophe",
+            "version": "2.6.3",
+            "license": "GPL-3.0",
+            "description": "A distraction-free GNOME Markdown editor with live preview.",
+            "extraOptions": []
+        },
+        {
+            "id": "foliate",
+            "name": "Foliate",
+            "icon": "com.github.johnfactotum.Foliate",
+            "version": "3.1.1",
+            "license": "GPL-3.0",
+            "description": "A beautiful ebook reader for GNOME. Supports EPUB, Mobi, PDF, and more.",
+            "extraOptions": []
+        },
+        {
+            "id": "papers",
+            "name": "Papers",
+            "icon": "org.gnome.Papers",
+            "version": "46.1",
+            "license": "GPL-2.0",
+            "description": "GNOME's document viewer (formerly Evince). View PDFs, PostScript, and more.",
+            "extraOptions": []
+        }
+    ]
+    },
+    "advanced": {
+        "title": "Advanced Tools",
+        "subtitle": "Virtualization, security, and power user utilities.",
+        "apps": [
+        {
+            "id": "virt-manager",
+            "name": "Virtual Machine Manager",
+            "icon": "virt-manager",
+            "version": "4.1.0",
+            "license": "GPL-2.0",
+            "description": "Desktop UI for managing QEMU/KVM virtual machines. Full control over VM configuration, snapshots, and networking.",
+            "extraOptions": [
+                {
+                    "id": "uefi-support",
+                    "title": "UEFI / Secure Boot Support",
+                    "subtitle": "Installs OVMF to run VMs with UEFI firmware instead of legacy BIOS"
+                },
+                {
+                    "id": "windows-drivers",
+                    "title": "VirtIO Windows Drivers",
+                    "subtitle": "Includes the VirtIO driver ISO for better performance in Windows guest VMs"
+                }
+            ]
+        },
+        {
+            "id": "gnome-boxes",
+            "name": "GNOME Boxes",
+            "icon": "org.gnome.Boxes",
+            "version": "46.0",
+            "license": "GPL-2.0",
+            "description": "Simple VM and remote desktop manager. Great for quickly spinning up distros without complex configuration.",
+            "extraOptions": []
+        },
+        {
+            "id": "podman-desktop",
+            "name": "Podman Desktop",
+            "icon": "podman-desktop",
+            "version": "1.10.3",
+            "license": "Apache-2.0",
+            "description": "Manage containers and pods with a rootless, daemon-free alternative to Docker Desktop.",
+            "extraOptions": [
+                {
+                    "id": "compose-support",
+                    "title": "Compose Support",
+                    "subtitle": "Installs podman-compose for running docker-compose.yml files with Podman"
+                },
+                {
+                    "id": "kubernetes",
+                    "title": "Kubernetes / Kind",
+                    "subtitle": "Installs kubectl and kind for running local Kubernetes clusters inside containers"
+                }
+            ]
+        },
+        {
+            "id": "wireshark",
+            "name": "Wireshark",
+            "icon": "wireshark",
+            "version": "4.2.4",
+            "license": "GPL-2.0",
+            "description": "The world's leading network protocol analyzer. Capture and inspect network traffic at packet level.",
+            "extraOptions": [
+                {
+                    "id": "capture-without-root",
+                    "title": "Capture Without Root",
+                    "subtitle": "Adds your user to the wireshark group so you can capture packets without sudo"
+                }
+            ]
+        },
+        {
+            "id": "gparted",
+            "name": "GParted",
+            "icon": "gparted",
+            "version": "1.6.0",
+            "license": "GPL-2.0",
+            "description": "GNOME Partition Editor. Create, resize, move, and format disk partitions visually.",
+            "extraOptions": [
+                {
+                    "id": "extra-fs",
+                    "title": "Extra Filesystem Support",
+                    "subtitle": "Installs tools for exFAT, NTFS, Btrfs, F2FS, and other filesystems"
+                }
+            ]
+        },
+        {
+            "id": "keepassxc",
+            "name": "KeePassXC",
+            "icon": "keepassxc",
+            "version": "2.7.7",
+            "license": "GPL-3.0",
+            "description": "Offline, encrypted password manager. Your vault stays local — no cloud, no accounts.",
+            "extraOptions": [
+                {
+                    "id": "browser-integration",
+                    "title": "Browser Integration",
+                    "subtitle": "Installs the KeePassXC browser extension connector for autofill in Firefox and Chromium"
+                },
+                {
+                    "id": "secret-service",
+                    "title": "Secret Service Integration",
+                    "subtitle": "Exposes KeePassXC as a libsecret provider so GNOME apps can use it as a keyring"
+                }
+            ]
+        },
+        {
+            "id": "bitwarden",
+            "name": "Bitwarden",
+            "icon": "bitwarden",
+            "version": "2024.4.0",
+            "license": "GPL-3.0",
+            "description": "Open-source cloud password manager. Sync your vault across devices with end-to-end encryption.",
+            "extraOptions": [
+                {
+                    "id": "wayland-native",
+                    "title": "Native Wayland Rendering",
+                    "subtitle": "Launches Bitwarden with Ozone/Wayland flags for crisp rendering and proper scaling"
+                }
+            ]
+        },
+        {
+            "id": "cockpit",
+            "name": "Cockpit",
+            "icon": "cockpit",
+            "version": "314",
+            "license": "LGPL-2.1",
+            "description": "Web-based server admin panel. Monitor and manage your machine or home server from a browser.",
+            "extraOptions": [
+                {
+                    "id": "cockpit-machines",
+                    "title": "VM Management",
+                    "subtitle": "Adds the Cockpit Machines plugin for managing QEMU/KVM VMs through the web UI"
+                },
+                {
+                    "id": "cockpit-podman",
+                    "title": "Podman Plugin",
+                    "subtitle": "Adds the Cockpit Podman plugin for managing containers through the web UI"
+                }
+            ]
+        },
+        {
+            "id": "ventoy",
+            "name": "Ventoy",
+            "icon": "ventoy",
+            "version": "1.0.97",
+            "license": "GPL-3.0",
+            "description": "Create a bootable USB drive that can hold multiple ISOs at once. Just copy and boot.",
+            "extraOptions": []
+        },
+        {
+            "id": "nmap",
+            "name": "Nmap + Zenmap",
+            "icon": "zenmap",
+            "version": "7.95",
+            "license": "NPSL",
+            "description": "Network scanner and security auditing tool. Zenmap provides a GUI frontend for Nmap.",
+            "extraOptions": []
+        }
+    ]
+    }
+}

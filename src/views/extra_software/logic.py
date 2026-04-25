@@ -1,104 +1,31 @@
+import json
+from pathlib import Path
+
 import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, GObject, Gtk
+from gi.repository import Adw, GObject, Gtk, GLib
 
-APPS = {
-    "browsers": [
-        {
-            "id": "firefox",
-            "name": "Mozilla Firefox",
-            "icon": "firefox",
-            "version": "125.0.1-stable",
-            "license": "MPL-2.0",
-            "description": "A fast, reliable and private web browser from the non-profit Mozilla organization.",
-            "extraOptions": [
-                {
-                    "id": "gnome_theme",
-                    "title": "Gnome Theme",
-                    "subtitle": "Make Firefox look like a gnome-native app thanks to the firefox gnome theme, made by rafaelmardojai",
-                }
-            ],
-        },
-        {
-            "id": "helium-browser",
-            "name": "Helium Browser",
-            "icon": "helium-browser",
-            "version": "0.11.3",
-            "license": "GPL-3.0",
-            "description": "The Chromium-based web browser made for people, with love.",
-            "extraOptions": [],
-        },
-        {
-            "id": "zen-browser",
-            "name": "Zen Browser",
-            "icon": "zen-browser",
-            "version": "1.19.8b",
-            "license": "MPL-2.0",
-            "description": "Experience tranquility while browsing the internet with Zen.",
-            "extraOptions": [],
-        },
-        {
-            "id": "ungoogled-chromium",
-            "name": "Ungoogled Chromium",
-            "icon": "chromium",
-            "version": "124.0.0",
-            "license": "BSD",
-            "description": "Chromium-based browser that is ungoogled, meaning it does not track your browsing history or send data to Google.",
-            "extraOptions": [],
-        },
-    ],
-    "gaming": [
-        {
-            "id": "steam",
-            "name": "Steam",
-            "icon": "steam",
-            "version": "latest",
-            "license": "Proprietary",
-            "description": "Steam is the ultimate destination for playing, discussing, and creating games.",
-            "extraOptions": [],
-        },
-        {
-            "id": "heroic",
-            "name": "Heroic Games Launcher",
-            "icon": "heroic",
-            "version": "2.21.0",
-            "license": "GPL-3.0",
-            "description": "Heroic is a Free and Open Source Epic, GOG and Amazon Prime Games launcher.",
-            "extraOptions": [],
-        },
-        {
-            "id": "prism-launcher",
-            "name": "Prism Launcher",
-            "icon": "prism-launcher",
-            "version": "11.0.2",
-            "license": "GPL-3.0",
-            "description": "An open-source Minecraft launcher with the ability to manage multiple instances, accounts and mods.",
-            "extraOptions": [],
-        },
-    ],
-    "dev": [
-        {
-            "id": "vscode",
-            "name": "Visual Studio Code",
-            "icon": "code",
-            "version": "1.89.0",
-            "license": "MIT / Proprietary",
-            "description": "Visual Studio Code is a free and open-source(ish) code editor developed by Microsoft.",
-            "extraOptions": [],
-        },
-        {
-            "id": "zed",
-            "name": "Zed",
-            "icon": "zed",
-            "version": "0.233.5",
-            "license": "AGPL-3.0",
-            "description": "Zed is a minimal code editor crafted for speed and collaboration with humans.",
-            "extraOptions": [],
-        },
-    ],
-}
+with open(Path(__file__).parent / "apps.json", encoding="utf-8") as _f:
+    APPS = json.load(_f)
+
+
+def get_desktop_from_state(router):
+    """
+    Attempts to get the selected desktop from the router's install state.
+    Returns the desktop id (e.g., 'gnome', 'kde', etc.) or None if not found.
+    """
+    try:
+        router.collect_state()
+        state = router.install_state
+        desktop_data = state.get_page("desktop")
+        # The correct key is 'desktop_environment' (see desktop_picker/logic.py)
+        if desktop_data and "desktop_environment" in desktop_data:
+            return desktop_data["desktop_environment"]
+    except Exception as e:
+        print(f"[!] Could not determine selected desktop: {e}")
+    return None
 
 
 @Gtk.Template(resource_path="/com/negzero/zenos/setup/views/extra_software/popup.ui")
@@ -109,50 +36,43 @@ class AppsPopup(Adw.Window):
     apply_button = Gtk.Template.Child()
 
     def __init__(
-        self, category_name, category_apps, current_choices, apply_cb, **kwargs
+        self, category_name, category_apps, current_choices, apply_cb, category_id, **kwargs
     ):
         super().__init__(**kwargs)
         self.apply_cb = apply_cb
+        self.category_id = category_id
         self.set_title(f"Select {category_name.capitalize()}")
 
-        # we hold state locally for the popup so if they just close the window
-        # without hitting apply, it discards their changes.
         self.local_choices = {c["app"]: c for c in current_choices}
         self.row_widgets = {}
 
         for app in category_apps:
             app_id = app["id"]
 
-            # default to checked if it's the first time they see it, otherwise grab saved state
             existing = self.local_choices.get(
                 app_id, {"app": app_id, "enabled": True, "extraOptions": []}
             )
 
-            # the main expander row
-            row = Adw.ExpanderRow(title=app["name"], icon_name=app["icon"])
+            row = Adw.ExpanderRow(title=app["name"], icon_name=app.get("icon", ""))
 
-            # prefix checkbutton
             check = Gtk.CheckButton(valign=Gtk.Align.CENTER, can_focus=False)
             check.set_active(existing["enabled"])
             row.add_prefix(check)
 
             extras_switches = {}
 
-            # append the extra toggles if the app has any
             for opt in app.get("extraOptions", []):
                 opt_row = Adw.ActionRow(
-                    title=opt["title"], subtitle=opt["subtitle"], activatable=True
+                    title=opt["title"], subtitle=opt.get("subtitle", ""), activatable=True
                 )
                 opt_switch = Gtk.Switch(
                     valign=Gtk.Align.CENTER, halign=Gtk.Align.CENTER
                 )
                 opt_switch.set_active(opt["id"] in existing["extraOptions"])
 
-                # actually add the switch to the row this time
                 opt_row.add_suffix(opt_switch)
                 opt_row.set_activatable_widget(opt_switch)
 
-                # bind the extra option's interactability to the main app's checkbutton
                 check.bind_property(
                     "active", opt_row, "sensitive", GObject.BindingFlags.SYNC_CREATE
                 )
@@ -160,25 +80,21 @@ class AppsPopup(Adw.Window):
                 row.add_row(opt_row)
                 extras_switches[opt["id"]] = opt_switch
 
-            # simple metadata rows using the property style class
-            v_row = Adw.ActionRow(title="Version", subtitle=app["version"])
+            v_row = Adw.ActionRow(title="Version", subtitle=app.get("version", "Unknown"))
             v_row.add_css_class("property")
             row.add_row(v_row)
 
-            l_row = Adw.ActionRow(title="License", subtitle=app["license"])
+            l_row = Adw.ActionRow(title="License", subtitle=app.get("license", "Unknown"))
             l_row.add_css_class("property")
             row.add_row(l_row)
 
-            # description row
-            d_row = Adw.ActionRow(title=app["description"])
+            d_row = Adw.ActionRow(title=app.get("description", ""))
             d_row.set_halign(Gtk.Align.START)
             d_row.set_title_lines(0)
             d_row.add_css_class("dim-label")
             row.add_row(d_row)
 
             self.applications_group.add(row)
-
-            # store references to the widgets so we can pull their state on apply
             self.row_widgets[app_id] = {"check": check, "extras": extras_switches}
 
         self.apply_button.connect("clicked", self._on_apply)
@@ -195,7 +111,7 @@ class AppsPopup(Adw.Window):
                 {"app": app_id, "enabled": is_enabled, "extraOptions": active_extras}
             )
 
-        self.apply_cb(results)
+        self.apply_cb(results, self.category_id)
         self.close()
 
 
@@ -203,94 +119,140 @@ class AppsPopup(Adw.Window):
 class Page(Adw.Bin):
     __gtype_name__ = "ZenOSLayoutApplications"
 
-    # buttons
-    core_button = Gtk.Template.Child()
-    browsers_button = Gtk.Template.Child()
-    utilities_button = Gtk.Template.Child()
-    gaming_button = Gtk.Template.Child()
-    dev_button = Gtk.Template.Child()
-    office_button = Gtk.Template.Child()
-
-    # checkbuttons for the categories
-    core_check = Gtk.Template.Child()
-    browsers_switch = Gtk.Template.Child()
-    utilities_switch = Gtk.Template.Child()
-    gaming_switch = Gtk.Template.Child()
-    dev_switch = Gtk.Template.Child()
-    office_switch = Gtk.Template.Child()
+    bundles_list = Gtk.Template.Child()
 
     def __init__(self, router, **kwargs):
         super().__init__(**kwargs)
         self.router = router
-        self.MANIFEST = {"gated": False}
         self.user_choices = []
-
-        # lock flag so we don't trigger mass-toggles when updating ui programmatically
+        self.cat_checks = {}
         self._updating_ui = False
+        self.selected_desktop = None
+        self._built_once = False
+        self._added_rows = []
 
-        self.cat_checks = {
-            "core": self.core_check,
-            "browsers": self.browsers_switch,
-            "utilities": self.utilities_switch,
-            "gaming": self.gaming_switch,
-            "dev": self.dev_switch,
-            "office": self.office_switch,
-        }
+        self.router.carousel.connect("page-changed", self._on_page_changed)
 
-        btn_map = {
-            self.core_button: "core",
-            self.browsers_button: "browsers",
-            self.utilities_button: "utilities",
-            self.gaming_button: "gaming",
-            self.dev_button: "dev",
-            self.office_button: "office",
-        }
+        # fire immediately in case we load directly into view
+        GLib.idle_add(self._check_if_active)
 
-        # wire up popups
-        for btn, cat in btn_map.items():
-            btn.connect("clicked", lambda _, c=cat: self.open_category_popup(c))
+    def _check_if_active(self):
+        position = self.router.carousel.get_position()
+        index = round(position)
+        if index < len(self.router.carousel_steps):
+            step_id = self.router.carousel_steps[index]
+            target_bin = self.router.step_bins.get(step_id)
+            if target_bin and self.get_parent() == target_bin:
+                self._rebuild_ui()
 
-        # wire up mass toggles
-        for cat, checkbtn in self.cat_checks.items():
-            checkbtn.connect("toggled", lambda cb, c=cat: self.on_cat_toggled(cb, c))
+    def _on_page_changed(self, carousel, index):
+        if index < len(self.router.carousel_steps):
+            step_id = self.router.carousel_steps[index]
+            target_bin = self.router.step_bins.get(step_id)
+            if target_bin and self.get_parent() == target_bin:
+                self._rebuild_ui()
 
-            # prepopulate choices based on the initial xml state so we don't start empty
-            is_active = checkbtn.get_active()
-            for app in APPS.get(cat, []):
+    def _rebuild_ui(self):
+        new_desktop = get_desktop_from_state(self.router)
+
+        # skip rebuild if they just navigated back/forward without changing desktop
+        if self._built_once and new_desktop == self.selected_desktop:
+            return
+
+        self.selected_desktop = new_desktop
+        self._built_once = True
+
+        # nuke the old ui and reset choices if we actually need a rebuild
+        for row in self._added_rows:
+            self.bundles_list.remove(row)
+        self._added_rows.clear()
+
+        self.cat_checks.clear()
+        self.user_choices.clear()
+
+        for cat_id, cat_data in APPS.items():
+            if '-' in cat_id:
+                base_cat, desktop_name = cat_id.rsplit('-', 1)
+                if not self.selected_desktop or self.selected_desktop != desktop_name:
+                    continue
+            else:
+                base_cat = cat_id
+
+            if isinstance(cat_data, list):
+                apps_list = cat_data
+                title = base_cat.capitalize()
+                subtitle = ""
+            else:
+                apps_list = cat_data.get("apps", [])
+                title = cat_data.get("title", base_cat.capitalize()).replace("&", "&amp;")
+                subtitle = cat_data.get("subtitle", "").replace("&", "&amp;")
+
+            row = Adw.ActionRow(title=title, subtitle=subtitle)
+
+            check = Gtk.CheckButton(valign=Gtk.Align.CENTER)
+            check.connect("toggled", self.on_category_toggled, cat_id)
+            self.cat_checks[cat_id] = check
+            row.add_prefix(check)
+
+            btn = Gtk.Button(
+                icon_name="go-next-symbolic",
+                valign=Gtk.Align.CENTER,
+                has_frame=False,
+                tooltip_text=f"Customize {title}"
+            )
+            btn.add_css_class("flat")
+            btn.connect("clicked", self.on_category_configure_clicked, cat_id)
+
+            row.add_suffix(btn)
+            row.set_activatable_widget(btn)
+
+            self.bundles_list.add(row)
+            self._added_rows.append(row)
+
+            is_active = check.get_active()
+            for app in apps_list:
+                enabled = app.get("default", is_active)
                 self.user_choices.append(
-                    {"app": app["id"], "enabled": is_active, "extraOptions": []}
+                    {"app": app["id"], "enabled": enabled, "extraOptions": []}
                 )
 
-    def on_cat_toggled(self, checkbtn, category_name):
+    def get_finals(self):
+        return {"apps": list(self.user_choices)}
+
+    def on_category_toggled(self, checkbtn, cat_id):
         if self._updating_ui:
             return
 
         is_active = checkbtn.get_active()
+        cat_data = APPS[cat_id]
+        apps_in_cat = cat_data if isinstance(cat_data, list) else cat_data.get("apps", [])
+        app_ids = {a["id"] for a in apps_in_cat}
 
-        # clear the dash state if they manually clicked it
-        self._updating_ui = True
-        checkbtn.set_inconsistent(False)
-        self._updating_ui = False
-
-        # blast the new state to all apps in the category
-        app_ids = {a["id"] for a in APPS.get(category_name, [])}
         for choice in self.user_choices:
             if choice["app"] in app_ids:
                 choice["enabled"] = is_active
 
-        print(f"[+] mass toggled {category_name} to {is_active}")
+        print(f"[+] mass toggled {cat_id} -> {is_active}")
 
-    def open_category_popup(self, category_name):
-        apps_for_cat = APPS.get(category_name, [])
-        if not apps_for_cat:
-            print(f"[-] no apps defined in APPS dict for category: {category_name}")
-            return
+        self._updating_ui = True
+        checkbtn.set_inconsistent(False)
+        self._updating_ui = False
+
+    def on_category_configure_clicked(self, btn, cat_id):
+        cat_data = APPS[cat_id]
+        if isinstance(cat_data, list):
+            category_apps = cat_data
+            category_name = cat_id.capitalize()
+        else:
+            category_apps = cat_data.get("apps", [])
+            category_name = cat_data.get("title", cat_id)
 
         popup = AppsPopup(
             category_name=category_name,
-            category_apps=apps_for_cat,
+            category_apps=category_apps,
             current_choices=self.user_choices,
-            apply_cb=lambda results: self.update_choices(results, category_name),
+            apply_cb=self.update_choices,
+            category_id=cat_id
         )
 
         parent_window = self.get_root()
@@ -298,19 +260,20 @@ class Page(Adw.Bin):
         popup.set_modal(True)
         popup.present()
 
-    def update_choices(self, category_results, category_name):
-        # strip old states and inject new
+    def update_choices(self, category_results, category_id):
         updated_app_ids = {r["app"] for r in category_results}
         self.user_choices = [
             c for c in self.user_choices if c["app"] not in updated_app_ids
         ]
         self.user_choices.extend(category_results)
 
-        self.refresh_ui_for_category(category_name)
+        self.refresh_ui_for_category(category_id)
         print(f"[+] current software selections: {self.user_choices}")
 
-    def refresh_ui_for_category(self, category_name):
-        apps_in_cat = APPS.get(category_name, [])
+    def refresh_ui_for_category(self, category_id):
+        cat_data = APPS.get(category_id, {})
+        apps_in_cat = cat_data if isinstance(cat_data, list) else cat_data.get("apps", [])
+
         if not apps_in_cat:
             return
 
@@ -319,9 +282,10 @@ class Page(Adw.Bin):
             1 for c in self.user_choices if c["app"] in app_ids and c["enabled"]
         )
 
-        checkbtn = self.cat_checks[category_name]
+        checkbtn = self.cat_checks[category_id]
 
         self._updating_ui = True
+
         if enabled_count == 0:
             checkbtn.set_inconsistent(False)
             checkbtn.set_active(False)
@@ -333,6 +297,3 @@ class Page(Adw.Bin):
             checkbtn.set_active(True)
 
         self._updating_ui = False
-
-    def get_finals(self):
-        return {"apps": list(self.user_choices)}
