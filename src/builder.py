@@ -214,12 +214,13 @@ def build_config_tree(
         _set_path(tree, (*base, "isNormalUser"), True)
         _set_path(tree, (*base, "uid"), 1000)
         _set_path(tree, (*base, "description"), user.get("fullname") or username)
+        _set_path(tree, (*base, "home"), f"/Users/{username}")
         _set_path(tree, (*base, "initialHashedPassword"), hashed)
         _set_path(tree, (*base, "extraGroups"), ["networkmanager", "video", "wheel"])
         _set_path(
             tree,
             ("legacy", "zenfs", "users", username, "home"),
-            f"/home/{username}",
+            f"/Users/{username}",
         )
         _set_path(tree, ("legacy", "zenfs", "users", username, "group"), "users")
 

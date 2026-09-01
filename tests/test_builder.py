@@ -64,6 +64,8 @@ class BuilderTests(unittest.TestCase):
         self.assertNotIn("software", tree["system"])
         self.assertTrue(tree["legacy"]["users"]["users"]["zen"]["isNormalUser"])
         self.assertEqual(tree["legacy"]["users"]["users"]["zen"]["uid"], 1000)
+        self.assertEqual(tree["legacy"]["users"]["users"]["zen"]["home"], "/Users/zen")
+        self.assertEqual(tree["legacy"]["zenfs"]["users"]["zen"]["home"], "/Users/zen")
         self.assertTrue(tree["legacy"]["programs"]["firefox"]["enable"])
         self.assertTrue(
             tree["desktops"]["gnome"]["tweaks"]["firefoxTheming"]["enable"]
