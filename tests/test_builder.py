@@ -125,6 +125,50 @@ class BuilderTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unavailable"):
             build_config_tree(payload)
 
+    def test_unknown_application_is_rejected_before_nix_evaluation(self):
+        payload = {
+            "pages": [
+                {
+                    "id": "software",
+                    "apps": [{"app": "unknown-editor", "enabled": True}],
+                }
+            ]
+        }
+        with self.assertRaisesRegex(ValueError, "unknown application"):
+            build_config_tree(payload)
+
+    def test_unimplemented_application_option_is_rejected(self):
+        payload = {
+            "pages": [
+                {
+                    "id": "software",
+                    "apps": [
+                        {
+                            "app": "firefox",
+                            "enabled": True,
+                            "extraOptions": ["privacy-hardening"],
+                        }
+                    ],
+                }
+            ]
+        }
+        with self.assertRaisesRegex(ValueError, "unsupported options"):
+            build_config_tree(payload)
+
+    def test_unknown_gnome_extension_is_rejected(self):
+        payload = {
+            "pages": [
+                {
+                    "id": "desktop",
+                    "install_de": True,
+                    "desktop_environment": "gnome",
+                    "gnome_options": {"extension_ids": ["unknown-extension"]},
+                }
+            ]
+        }
+        with self.assertRaisesRegex(ValueError, "unknown GNOME extension"):
+            build_config_tree(payload)
+
     def test_desktop_owned_core_apps_are_not_emitted_twice(self):
         payload = {
             "pages": [

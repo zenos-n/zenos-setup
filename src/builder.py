@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+from pathlib import Path
 import re
 import subprocess
 from typing import Any, Callable
@@ -31,6 +32,31 @@ DESKTOP_OPTIONS = {
 }
 
 UNAVAILABLE_PACKAGES = {"flatseal", "helium-browser", "ventoy", "zen-browser"}
+SUPPORTED_APP_OPTIONS = {"firefox": {"gnome_theme"}}
+
+
+def _catalog_ids(path: Path, category_key: str) -> set[str]:
+    with path.open(encoding="utf-8") as catalog_file:
+        catalog = json.load(catalog_file)
+    if category_key == "apps":
+        categories = catalog.values()
+        entries = []
+        for category in categories:
+            entries.extend(
+                category if isinstance(category, list) else category.get("apps", [])
+            )
+    else:
+        entries = catalog
+    return {entry["id"] for entry in entries}
+
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+SOFTWARE_APP_IDS = _catalog_ids(
+    _PROJECT_ROOT / "src/views/extra_software/apps.json", "apps"
+)
+GNOME_EXTENSION_IDS = _catalog_ids(
+    _PROJECT_ROOT / "data/gnome-extensions.json", "extensions"
+)
 
 CORE_EXCLUDE_OPTIONS = {
     "gnome": ("legacy", "environment", "gnome", "excludePackages"),
@@ -224,6 +250,11 @@ def build_config_tree(
                     for extension_id in extension_ids
                 ):
                     raise ValueError("GNOME extension ids must be valid identifiers")
+                unknown_extensions = set(extension_ids) - GNOME_EXTENSION_IDS
+                if unknown_extensions:
+                    raise ValueError(
+                        f"unknown GNOME extension ids: {sorted(unknown_extensions)}"
+                    )
                 _set_path(
                     tree,
                     ("gnomeProfile", "extensionIds"),
@@ -244,9 +275,24 @@ def build_config_tree(
     firefox_enabled = False
     firefox_gnome_theme = False
     for app in pages.get("software", {}).get("apps", []):
+        app_id = app.get("app", "")
+        _validate_identifier(app_id, "application id")
+        if app_id not in SOFTWARE_APP_IDS:
+            raise ValueError(f"unknown application: {app_id!r}")
+        extra_options = app.get("extraOptions", [])
+        if not isinstance(extra_options, list) or not all(
+            isinstance(option, str) for option in extra_options
+        ):
+            raise ValueError(f"invalid application options for {app_id!r}")
+        unsupported_options = set(extra_options) - SUPPORTED_APP_OPTIONS.get(
+            app_id, set()
+        )
+        if app.get("enabled") and unsupported_options:
+            raise ValueError(
+                f"unsupported options for {app_id!r}: {sorted(unsupported_options)}"
+            )
         if app.get("includedByDesktop"):
             if not app.get("enabled"):
-                app_id = app.get("app", "")
                 package_path = CORE_PACKAGE_PATHS.get(app_id)
                 if package_path is None:
                     raise ValueError(f"unknown desktop core application: {app_id!r}")
@@ -254,13 +300,11 @@ def build_config_tree(
             continue
         if not app.get("enabled"):
             continue
-        app_id = app.get("app", "")
-        _validate_identifier(app_id, "application id")
         if app_id in UNAVAILABLE_PACKAGES:
             raise ValueError(f"application is unavailable in the current ZenPkgs registry: {app_id}")
         if app_id == "firefox":
             firefox_enabled = True
-            firefox_gnome_theme = "gnome_theme" in app.get("extraOptions", [])
+            firefox_gnome_theme = "gnome_theme" in extra_options
         if app_id != "firefox":
             packages.append(PkgsRef(("catalog", app_id)))
     if firefox_enabled:

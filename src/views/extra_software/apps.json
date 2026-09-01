@@ -14,6 +14,7 @@
             "extraOptions": [
                 {
                     "id": "gnome_theme",
+                    "implemented": true,
                     "default": true,
                     "title": "GNOME Theme",
                     "subtitle": "Make Firefox look like a GNOME-native app thanks to the Firefox GNOME theme by rafaelmardojai"
@@ -47,6 +48,7 @@
         },
         {
             "id": "zen-browser",
+            "available": false,
             "name": "Zen Browser",
             "icon": "zen-browser",
             "version": "1.19.8b",
@@ -62,6 +64,7 @@
         },
         {
             "id": "helium-browser",
+            "available": false,
             "name": "Helium Browser",
             "icon": "helium-browser",
             "version": "0.11.3",
@@ -705,6 +708,7 @@
         "apps": [
         {
             "id": "flatseal",
+            "available": false,
             "name": "Flatseal",
             "icon": "com.github.tchx84.Flatseal",
             "version": "2.3.0",
@@ -1024,6 +1028,7 @@
         },
         {
             "id": "ventoy",
+            "available": false,
             "name": "Ventoy",
             "icon": "ventoy",
             "version": "1.0.97",

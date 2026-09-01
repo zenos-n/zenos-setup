@@ -65,6 +65,28 @@ class ProgressTourTests(unittest.TestCase):
         self.assertTrue(apps["browsers"]["apps"][0]["default"])
         resources = next(app for app in apps["utilities"]["apps"] if app["id"] == "resources")
         self.assertTrue(resources["default"])
+        catalog_apps = [
+            app
+            for category in apps.values()
+            for app in (
+                category if isinstance(category, list) else category.get("apps", [])
+            )
+        ]
+        unavailable = {"flatseal", "helium-browser", "ventoy", "zen-browser"}
+        self.assertTrue(
+            all(
+                not app.get("available", True)
+                for app in catalog_apps
+                if app["id"] in unavailable
+            )
+        )
+        implemented_options = {
+            (app["id"], option["id"])
+            for app in catalog_apps
+            for option in app.get("extraOptions", [])
+            if option.get("implemented", False)
+        }
+        self.assertEqual({("firefox", "gnome_theme")}, implemented_options)
         for desktop in ("gnome", "kde", "xfce", "cinnamon", "budgie", "mate"):
             self.assertTrue(apps[f"core-{desktop}"]["includedByDesktop"])
 

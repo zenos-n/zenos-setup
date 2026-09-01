@@ -14,7 +14,8 @@ DESKTOP_IDS = {"budgie", "cinnamon", "gnome", "ii", "kde", "mate", "xfce"}
 
 
 def _category_apps(category):
-    return category if isinstance(category, list) else category.get("apps", [])
+    apps = category if isinstance(category, list) else category.get("apps", [])
+    return [app for app in apps if app.get("available", True)]
 
 
 def _initial_choices():
@@ -30,7 +31,8 @@ def _initial_choices():
                     "extraOptions": [
                         option["id"]
                         for option in app.get("extraOptions", [])
-                        if option.get("default", False)
+                        if option.get("implemented", False)
+                        and option.get("default", False)
                     ],
                     "includedByDesktop": included,
                 },
@@ -99,6 +101,8 @@ class AppsPopup(Adw.Window):
             extras_switches = {}
 
             for opt in app.get("extraOptions", []):
+                if not opt.get("implemented", False):
+                    continue
                 opt_row = Adw.ActionRow(
                     title=opt["title"], subtitle=opt.get("subtitle", ""), activatable=True
                 )
@@ -215,11 +219,11 @@ class Page(Adw.Bin):
                 base_cat = cat_id
 
             if isinstance(cat_data, list):
-                apps_list = cat_data
+                apps_list = _category_apps(cat_data)
                 title = base_cat.capitalize()
                 subtitle = ""
             else:
-                apps_list = cat_data.get("apps", [])
+                apps_list = _category_apps(cat_data)
                 title = cat_data.get("title", base_cat.capitalize()).replace("&", "&amp;")
                 subtitle = cat_data.get("subtitle", "").replace("&", "&amp;")
 
@@ -256,7 +260,7 @@ class Page(Adw.Bin):
 
         is_active = checkbtn.get_active()
         cat_data = APPS[cat_id]
-        apps_in_cat = cat_data if isinstance(cat_data, list) else cat_data.get("apps", [])
+        apps_in_cat = _category_apps(cat_data)
         app_ids = {a["id"] for a in apps_in_cat}
 
         for choice in self.user_choices:
@@ -272,10 +276,10 @@ class Page(Adw.Bin):
     def on_category_configure_clicked(self, btn, cat_id):
         cat_data = APPS[cat_id]
         if isinstance(cat_data, list):
-            category_apps = cat_data
+            category_apps = _category_apps(cat_data)
             category_name = cat_id.capitalize()
         else:
-            category_apps = cat_data.get("apps", [])
+            category_apps = _category_apps(cat_data)
             category_name = cat_data.get("title", cat_id)
 
         popup = AppsPopup(
@@ -307,7 +311,7 @@ class Page(Adw.Bin):
 
     def refresh_ui_for_category(self, category_id):
         cat_data = APPS.get(category_id, {})
-        apps_in_cat = cat_data if isinstance(cat_data, list) else cat_data.get("apps", [])
+        apps_in_cat = _category_apps(cat_data)
 
         if not apps_in_cat:
             return
