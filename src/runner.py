@@ -178,28 +178,30 @@ def build_disko_zcfg(device: str) -> str:
     name = device.removeprefix("/dev/")
     if device != f"/dev/{name}" or not _WHOLE_DISK_NAME.fullmatch(name):
         raise ValueError("Disko device must be a supported whole disk")
-    return f'''legacy.disko.devices.disk.main = {{
-  type = "disk";
-  device = {json.dumps(device)};
-  content = {{
-    type = "gpt";
-    partitions = {{
-      ESP = {{
-        size = "1G";
-        type = "EF00";
-        content = {{
-          type = "filesystem";
-          format = "vfat";
-          mountpoint = "/boot";
-          mountOptions = [ "umask=0077" ];
+    return f'''system.disks = {{
+  disk.main = {{
+    type = "disk";
+    device = {json.dumps(device)};
+    content = {{
+      type = "gpt";
+      partitions = {{
+        ESP = {{
+          size = "1G";
+          type = "EF00";
+          content = {{
+            type = "filesystem";
+            format = "vfat";
+            mountpoint = "/boot";
+            mountOptions = [ "umask=0077" ];
+          }};
         }};
-      }};
-      root = {{
-        size = "100%";
-        content = {{
-          type = "filesystem";
-          format = "ext4";
-          mountpoint = "/";
+        root = {{
+          size = "100%";
+          content = {{
+            type = "filesystem";
+            format = "ext4";
+            mountpoint = "/";
+          }};
         }};
       }};
     }};

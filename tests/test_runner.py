@@ -69,7 +69,8 @@ class RunnerSafetyTests(unittest.TestCase):
         self.assertNotIn("sgdisk", config)
 
         zcfg = runner.build_disko_zcfg("/dev/nvme0n1")
-        self.assertIn('legacy.disko.devices.disk.main = {', zcfg)
+        self.assertIn('system.disks = {', zcfg)
+        self.assertIn('disk.main = {', zcfg)
         self.assertIn('device = "/dev/nvme0n1";', zcfg)
 
     def test_config_layout_allows_only_flake_lock_and_host_files(self):
