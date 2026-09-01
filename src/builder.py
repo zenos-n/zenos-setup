@@ -50,12 +50,16 @@ def _catalog_ids(path: Path, category_key: str) -> set[str]:
     return {entry["id"] for entry in entries}
 
 
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+_MODULE_ROOT = Path(__file__).resolve().parent
+_PROJECT_ROOT = _MODULE_ROOT.parent
+_GNOME_EXTENSION_CATALOG = _MODULE_ROOT / "data/gnome-extensions.json"
+if not _GNOME_EXTENSION_CATALOG.is_file():
+    _GNOME_EXTENSION_CATALOG = _PROJECT_ROOT / "data/gnome-extensions.json"
 SOFTWARE_APP_IDS = _catalog_ids(
-    _PROJECT_ROOT / "src/views/extra_software/apps.json", "apps"
+    _MODULE_ROOT / "views/extra_software/apps.json", "apps"
 )
 GNOME_EXTENSION_IDS = _catalog_ids(
-    _PROJECT_ROOT / "data/gnome-extensions.json", "extensions"
+    _GNOME_EXTENSION_CATALOG, "extensions"
 )
 
 CORE_EXCLUDE_OPTIONS = {

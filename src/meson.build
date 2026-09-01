@@ -39,6 +39,10 @@ zenos_setup_sources = [
 ]
 
 install_data(zenos_setup_sources, install_dir: moduledir)
+install_data(
+  '../data/gnome-extensions.json',
+  install_dir: moduledir / 'data',
+)
 
 # IMPORTANT: tell meson to install your new views python files
 install_subdir('views', install_dir: moduledir)
