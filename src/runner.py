@@ -38,6 +38,7 @@ _HOST_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_-]{0,62}")
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 _ROOT_ENTRIES = {"flake.nix", "flake.lock", "hosts"}
 _HOST_FILES = {
+    ".hidden",
     "apps.zcfg",
     "desktop.zcfg",
     "drives.zcfg",
@@ -458,6 +459,7 @@ def _write_host_documents(
     for name, contents in documents.items():
         if name != "host.zcfg":
             _write_text(os.path.join(host_dir, name), contents)
+    _write_text(os.path.join(host_dir, ".hidden"), "host.nix\n")
     host = "".join(f"import ./{name};\n" for name in names)
     return _write_text(os.path.join(host_dir, "host.zcfg"), host)
 

@@ -129,6 +129,7 @@ class InitialInstallTests(unittest.TestCase):
             self.assertEqual(
                 set(os.listdir(host_dir)),
                 {
+                    ".hidden",
                     "desktop.zcfg",
                     "drives.zcfg",
                     "graphics.zcfg",
