@@ -66,6 +66,7 @@ class BuilderTests(unittest.TestCase):
             [PkgsRef(("catalog", "firefox"))],
         )
         self.assertTrue(tree["legacy"]["users"]["users"]["zen"]["isNormalUser"])
+        self.assertEqual(tree["legacy"]["users"]["users"]["zen"]["uid"], 1000)
         self.assertTrue(tree["legacy"]["programs"]["firefox"]["enable"])
         self.assertNotIn("disks", tree)
 

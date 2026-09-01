@@ -186,6 +186,7 @@ def build_config_tree(
             raise ValueError("password_hash must be a modular crypt hash")
         base = ("legacy", "users", "users", username)
         _set_path(tree, (*base, "isNormalUser"), True)
+        _set_path(tree, (*base, "uid"), 1000)
         _set_path(tree, (*base, "description"), user.get("fullname") or username)
         _set_path(tree, (*base, "initialHashedPassword"), hashed)
         _set_path(tree, (*base, "extraGroups"), ["networkmanager", "video", "wheel"])

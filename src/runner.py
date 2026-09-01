@@ -28,8 +28,8 @@ DRY_RUN = os.environ.get("ZENOS_SETUP_DRY_RUN", "1") != "0"
 
 ISO_CONFIG_TEMPLATE = "/iso-config-template/flake.nix"
 MOUNT_ROOT = "/mnt"
-TARGET_CONFIG_ROOT = "/mnt/etc/ZenOS/Flake"
-OOBE_CONFIG_ROOT = "/Config/ZenOS/Flake"
+TARGET_CONFIG_ROOT = "/mnt/etc/ZenOS"
+OOBE_CONFIG_ROOT = "/Config/ZenOS"
 
 _WHOLE_DISK_NAME = re.compile(
     r"(?:[hsv]d[a-z]+|xvd[a-z]+|nvme\d+n\d+|mmcblk\d+)"
@@ -578,7 +578,7 @@ def _validate_config_layout(config_dir: str) -> None:
 
 
 def _dry_config_root(work_dir: str) -> str:
-    return os.path.join(work_dir, "Config", "ZenOS", "Flake")
+    return os.path.join(work_dir, "Config", "ZenOS")
 
 
 def _initialize_target_config(work_dir: str, log_fn=None) -> str:
@@ -947,10 +947,6 @@ def _run_oobe(
             os.path.join(final_dir, "oobe-complete.json"), completion, atomic=True
         )
         _validate_config_layout(config_dir)
-        _run(
-            ["sudo", "-n", "chown", "-R", "root:root", "--", config_dir],
-            log_fn,
-        )
         _remove_config_tree(temporary_dir, log_fn)
         completed = True
         progress_fn(1.0)

@@ -178,7 +178,7 @@ class InitialInstallTests(unittest.TestCase):
             joined.index("nixos-install --flake"),
         ]
         self.assertEqual(positions, sorted(positions))
-        self.assertIn("/Config/ZenOS/Flake#nixosConfigurations.oobe-abc123", joined)
+        self.assertIn("/Config/ZenOS#nixosConfigurations.oobe-abc123", joined)
 
     def test_long_install_has_no_oobe_marker_or_plaintext_password(self):
         password = "very-secret-password"
@@ -319,16 +319,12 @@ class OobeTests(unittest.TestCase):
         joined = "\n".join(logs)
         self.assertIn("nixos-rebuild boot --flake", joined)
         self.assertNotIn("nixos-rebuild switch", joined)
-        self.assertIn("chown -R root:root --", joined)
+        self.assertNotIn("chown -R root:root --", joined)
         self.assertNotIn("systemctl reboot", joined)
 
-    def test_chown_follows_rebuild_and_atomic_completion_write(self):
+    def test_completion_follows_rebuild_and_is_atomic(self):
         events = []
         data, pages = self._payload()
-
-        def record_run(command, _log_fn=None, **_kwargs):
-            if command[:4] == ["sudo", "-n", "chown", "-R"]:
-                events.append("chown")
 
         original_write_json = runner._write_json
 
@@ -347,10 +343,9 @@ class OobeTests(unittest.TestCase):
                         side_effect=lambda *_args, **_kwargs: events.append("rebuild"),
                     ):
                         with mock.patch("src.runner._write_json", side_effect=record_json):
-                            with mock.patch("src.runner._run", side_effect=record_run):
-                                runner._run_oobe(data, pages, work_dir, _progress, None)
+                            runner._run_oobe(data, pages, work_dir, _progress, None)
 
-        self.assertEqual(events[:3], ["rebuild", "completion", "chown"])
+        self.assertEqual(events[:2], ["rebuild", "completion"])
 
     def test_rebuild_failure_retains_marker_and_temporary_host(self):
         data, pages = self._payload()
@@ -368,39 +363,6 @@ class OobeTests(unittest.TestCase):
             self.assertTrue(os.path.isdir(temporary_dir))
             self.assertTrue(os.path.isfile(marker_path))
             self.assertFalse(os.path.exists(os.path.join(config_dir, "hosts", "zen-final")))
-
-    def test_chown_failure_restores_writable_pending_state(self):
-        commands = []
-        data, pages = self._payload()
-
-        def fail_final_chown(command, _log_fn=None, **_kwargs):
-            commands.append(command)
-            if "root:root" in command:
-                raise RuntimeError("chown failed")
-
-        with tempfile.TemporaryDirectory() as work_dir:
-            config_dir, temporary_dir, _hardware = self._seed_pending(work_dir)
-            marker_path = os.path.join(temporary_dir, "oobe.json")
-            with mock.patch("src.runner._read_current_host", return_value="oobe-abc123"):
-                with mock.patch("src.builder.hash_password", return_value="$6$test$hash"):
-                    with mock.patch("src.runner._run", side_effect=fail_final_chown):
-                        with self.assertRaisesRegex(RuntimeError, "chown failed"):
-                            runner._run_oobe(data, pages, work_dir, _progress, None)
-
-            self.assertTrue(os.path.isdir(temporary_dir))
-            self.assertTrue(os.path.isfile(marker_path))
-            self.assertFalse(os.path.exists(os.path.join(config_dir, "hosts", "zen-final")))
-
-        final_chown = next(i for i, command in enumerate(commands) if "root:root" in command)
-        restore_chown = next(
-            i
-            for i, command in enumerate(commands)
-            if command[:4] == ["sudo", "-n", "chown", "-R"]
-            and "root:root" not in command
-        )
-        restore_chmod = next(i for i, command in enumerate(commands) if "chmod" in command)
-        self.assertLess(final_chown, restore_chown)
-        self.assertLess(restore_chown, restore_chmod)
 
     def test_oobe_requires_unique_marker_for_current_host(self):
         data, pages = self._payload()
