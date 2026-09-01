@@ -109,8 +109,7 @@ class Page(Gtk.Box):
         if success:
             self._set_status("Installation complete")
             self.progressbar.set_fraction(1.0)
-            self.router.set_next_visible(True, caller=self)
-            self.router.set_next_enabled(True, caller=self)
+            self.router.navigate_next()
         else:
             self._set_status("Installation failed")
             self._append_log(f"\n[fatal] {error}")

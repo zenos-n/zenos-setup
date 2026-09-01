@@ -68,6 +68,10 @@ class RunnerSafetyTests(unittest.TestCase):
         self.assertNotIn("wipefs", config)
         self.assertNotIn("sgdisk", config)
 
+        zcfg = runner.build_disko_zcfg("/dev/nvme0n1")
+        self.assertIn('legacy.disko.devices.disk.main = {', zcfg)
+        self.assertIn('device = "/dev/nvme0n1";', zcfg)
+
     def test_config_layout_allows_only_flake_lock_and_host_files(self):
         with tempfile.TemporaryDirectory() as work_dir:
             root = runner._dry_config_root(work_dir)
@@ -125,13 +129,15 @@ class InitialInstallTests(unittest.TestCase):
             self.assertEqual(
                 set(os.listdir(host_dir)),
                 {
-                    "disko.nix",
-                    "graphics.nix",
+                    "desktop.zcfg",
+                    "drives.zcfg",
+                    "graphics.zcfg",
                     "hardware-configuration.nix",
                     "host.nix",
                     "host.zcfg",
                     "install-plan.json",
                     "oobe.json",
+                    "system.zcfg",
                 },
             )
             with open(os.path.join(host_dir, "oobe.json"), encoding="utf-8") as file:
@@ -233,9 +239,9 @@ class OobeTests(unittest.TestCase):
         disko = b"disko-config-from-install\n"
         with open(os.path.join(host_dir, "hardware-configuration.nix"), "wb") as file:
             file.write(hardware)
-        with open(os.path.join(host_dir, "graphics.nix"), "wb") as file:
+        with open(os.path.join(host_dir, "graphics.zcfg"), "wb") as file:
             file.write(graphics)
-        with open(os.path.join(host_dir, "disko.nix"), "wb") as file:
+        with open(os.path.join(host_dir, "drives.zcfg"), "wb") as file:
             file.write(disko)
         runner._write_text(os.path.join(host_dir, "host.zcfg"), "temporary\n")
         runner._write_text(os.path.join(host_dir, "host.nix"), "temporary\n")
@@ -247,8 +253,8 @@ class OobeTests(unittest.TestCase):
             os.path.join(host_dir, "oobe.json"),
             {
                 "artifacts": {
-                    "disko": {"file": "disko.nix", "sha256": hashlib.sha256(disko).hexdigest()},
-                    "graphics": {"file": "graphics.nix", "sha256": hashlib.sha256(graphics).hexdigest()},
+                    "disko": {"file": "drives.zcfg", "sha256": hashlib.sha256(disko).hexdigest()},
+                    "graphics": {"file": "graphics.zcfg", "sha256": hashlib.sha256(graphics).hexdigest()},
                     "hardware": {
                         "file": "hardware-configuration.nix",
                         "sha256": hashlib.sha256(hardware).hexdigest(),
@@ -260,8 +266,8 @@ class OobeTests(unittest.TestCase):
             },
         )
         return config_dir, host_dir, {
-            "disko.nix": disko,
-            "graphics.nix": graphics,
+            "drives.zcfg": disko,
+            "graphics.zcfg": graphics,
             "hardware-configuration.nix": hardware,
         }
 
@@ -423,8 +429,8 @@ class GraphicsConfigTests(unittest.TestCase):
         config = runner.build_graphics_config(
             [{"address": "0000:03:00.0", "bootVga": True, "vendor": 0x1002}]
         )
-        self.assertIn('services.xserver.videoDrivers = [ "amdgpu" ];', config)
-        self.assertIn('boot.initrd.kernelModules = lib.mkAfter [ "amdgpu" ];', config)
+        self.assertIn('legacy.services.xserver.videoDrivers = [ "amdgpu" ];', config)
+        self.assertIn('legacy.boot.initrd.kernelModules = [ "amdgpu" ];', config)
         self.assertNotIn("hardware.nvidia", config)
 
     def test_intel_nvidia_hybrid_enables_prime_offload(self):
@@ -434,7 +440,7 @@ class GraphicsConfigTests(unittest.TestCase):
                 {"address": "0000:01:00.0", "bootVga": False, "vendor": 0x10DE},
             ]
         )
-        self.assertIn('services.xserver.videoDrivers = [ "modesetting" "nvidia" ];', config)
+        self.assertIn('legacy.services.xserver.videoDrivers = [ "modesetting" "nvidia" ];', config)
         self.assertIn('intelBusId = "PCI:0:2:0";', config)
         self.assertIn('nvidiaBusId = "PCI:1:0:0";', config)
         self.assertIn("offload.enableOffloadCmd = true", config)
@@ -443,7 +449,7 @@ class GraphicsConfigTests(unittest.TestCase):
         config = runner.build_graphics_config(
             [{"address": "0000:00:01.0", "bootVga": True, "vendor": 0x1AF4}]
         )
-        self.assertIn("hardware.graphics.enable = true", config)
+        self.assertIn("legacy.hardware.graphics.enable = true", config)
         self.assertNotIn("videoDrivers", config)
 
 

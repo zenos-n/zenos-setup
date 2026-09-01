@@ -10,6 +10,8 @@ from gi.repository import Gtk, Gio, GLib, Adw, GObject
 from mpv import MPV, MpvGlGetProcAddressFn, MpvRenderContext
 from OpenGL import GL
 
+from .oobe_timing import reached_wallpaper_switch
+
 
 def get_proc_address_wrapper():
     def egl_impl(name):
@@ -314,6 +316,9 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
 
         position = self.video.property_value("time-pos", 0) or 0
         duration = self.video.property_value("duration", 0) or 0
+        if not self.wallpaper_applied and reached_wallpaper_switch(position, duration):
+            self.apply_wallpaper()
+
         if duration > 0 and position > 0 and (duration - position) < 0.17:
             if not self.anims_killed_for_end:
                 self.set_global_anims(False)

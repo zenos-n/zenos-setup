@@ -16,9 +16,9 @@ import threading
 from datetime import datetime, timezone
 
 from .builder import (
+    build_config_documents,
     build_execution_plan,
     format_nix,
-    process_installer_payload,
     strip_disko_config,
 )
 
@@ -28,7 +28,7 @@ DRY_RUN = os.environ.get("ZENOS_SETUP_DRY_RUN", "1") != "0"
 
 ISO_CONFIG_TEMPLATE = "/iso-config-template/flake.nix"
 MOUNT_ROOT = "/mnt"
-TARGET_CONFIG_ROOT = "/mnt/Config/ZenOS/Flake"
+TARGET_CONFIG_ROOT = "/mnt/etc/ZenOS/Flake"
 OOBE_CONFIG_ROOT = "/Config/ZenOS/Flake"
 
 _WHOLE_DISK_NAME = re.compile(
@@ -38,14 +38,18 @@ _HOST_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_-]{0,62}")
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 _ROOT_ENTRIES = {"flake.nix", "flake.lock", "hosts"}
 _HOST_FILES = {
-    "disko.nix",
-    "graphics.nix",
+    "apps.zcfg",
+    "desktop.zcfg",
+    "drives.zcfg",
+    "graphics.zcfg",
     "hardware-configuration.nix",
     "host.nix",
     "host.zcfg",
     "install-plan.json",
     "oobe-complete.json",
     "oobe.json",
+    "system.zcfg",
+    "users.zcfg",
 }
 
 
@@ -167,6 +171,42 @@ def build_disko_config(device: str) -> str:
 '''
 
 
+def build_disko_zcfg(device: str) -> str:
+    if not isinstance(device, str) or not device.startswith("/dev/"):
+        raise ValueError("Disko device must be an absolute /dev path")
+    name = device.removeprefix("/dev/")
+    if device != f"/dev/{name}" or not _WHOLE_DISK_NAME.fullmatch(name):
+        raise ValueError("Disko device must be a supported whole disk")
+    return f'''legacy.disko.devices.disk.main = {{
+  type = "disk";
+  device = {json.dumps(device)};
+  content = {{
+    type = "gpt";
+    partitions = {{
+      ESP = {{
+        size = "1G";
+        type = "EF00";
+        content = {{
+          type = "filesystem";
+          format = "vfat";
+          mountpoint = "/boot";
+          mountOptions = [ "umask=0077" ];
+        }};
+      }};
+      root = {{
+        size = "100%";
+        content = {{
+          type = "filesystem";
+          format = "ext4";
+          mountpoint = "/";
+        }};
+      }};
+    }};
+  }};
+}};
+'''
+
+
 def detect_graphics_devices(sysfs_root: str = "/sys/bus/pci/devices") -> list[dict]:
     """Read display-class PCI devices from sysfs without relying on lspci output."""
     devices = []
@@ -238,24 +278,19 @@ def build_graphics_config(devices: list[dict]) -> str:
     if has_nvidia:
         drivers.append("nvidia")
 
-    lines = [
-        "{ config, lib, ... }:",
-        "{",
-        "  hardware.graphics.enable = true;",
-    ]
+    lines = ["legacy.hardware.graphics.enable = true;"]
     if drivers:
         rendered_drivers = " ".join(json.dumps(driver) for driver in drivers)
-        lines.append(f"  services.xserver.videoDrivers = [ {rendered_drivers} ];")
+        lines.append(f"legacy.services.xserver.videoDrivers = [ {rendered_drivers} ];")
     if has_amd:
-        lines.append('  boot.initrd.kernelModules = lib.mkAfter [ "amdgpu" ];')
+        lines.append('legacy.boot.initrd.kernelModules = [ "amdgpu" ];')
     if has_nvidia:
         lines.extend(
             [
-                "  hardware.nvidia = {",
-                "    modesetting.enable = true;",
-                "    nvidiaSettings = true;",
-                "    open = false;",
-                "    package = config.boot.kernelPackages.nvidiaPackages.stable;",
+                "legacy.hardware.nvidia = {",
+                "  modesetting.enable = true;",
+                "  nvidiaSettings = true;",
+                "  open = false;",
             ]
         )
         nvidia = next((device for device in devices if device["vendor"] == 0x10DE), None)
@@ -272,20 +307,19 @@ def build_graphics_config(devices: list[dict]) -> str:
         if nvidia_bus and primary_bus:
             lines.extend(
                 [
-                    "    prime = {",
-                    "      offload.enable = true;",
-                    "      offload.enableOffloadCmd = true;",
-                    f"      nvidiaBusId = {json.dumps(nvidia_bus)};",
+                    "  prime = {",
+                    "    offload.enable = true;",
+                    "    offload.enableOffloadCmd = true;",
+                    f"    nvidiaBusId = {json.dumps(nvidia_bus)};",
                     (
-                        f"      intelBusId = {json.dumps(primary_bus)};"
+                        f"    intelBusId = {json.dumps(primary_bus)};"
                         if primary["vendor"] == 0x8086
-                        else f"      amdgpuBusId = {json.dumps(primary_bus)};"
+                        else f"    amdgpuBusId = {json.dumps(primary_bus)};"
                     ),
-                    "    };",
+                    "  };",
                 ]
             )
-        lines.append("  };")
-    lines.append("}")
+        lines.append("};")
     return "\n".join(lines) + "\n"
 
 
@@ -414,8 +448,18 @@ def _host_dir(config_dir: str, host_name: str) -> str:
     return os.path.join(config_dir, "hosts", _validate_host_name(host_name))
 
 
-def _write_host(config_dir: str, host_name: str, config_str: str) -> str:
-    return _write_text(os.path.join(_host_dir(config_dir, host_name), "host.zcfg"), config_str)
+def _write_host_documents(
+    host_dir: str,
+    documents: dict[str, str],
+    *,
+    extra_imports: tuple[str, ...] = (),
+) -> str:
+    names = sorted((set(documents) - {"host.zcfg"}) | set(extra_imports))
+    for name, contents in documents.items():
+        if name != "host.zcfg":
+            _write_text(os.path.join(host_dir, name), contents)
+    host = "".join(f"import ./{name};\n" for name in names)
+    return _write_text(os.path.join(host_dir, "host.zcfg"), host)
 
 
 def _write_plan(config_dir: str, host_name: str, plan: dict) -> str:
@@ -468,7 +512,7 @@ def _generate_hardware_config(
 
 
 def _generate_graphics_config(config_dir: str, host_name: str, log_fn=None) -> str:
-    output = os.path.join(_host_dir(config_dir, host_name), "graphics.nix")
+    output = os.path.join(_host_dir(config_dir, host_name), "graphics.zcfg")
     devices = detect_graphics_devices()
     summary = ", ".join(
         f"{device['address']} vendor=0x{device['vendor']:04x}"
@@ -680,13 +724,15 @@ def _install_local(
         payload = data
         _emit(log_fn, f"permanent host: {host_name}")
 
-    config_str = process_installer_payload(payload)
+    documents = build_config_documents(payload)
     plan = build_execution_plan(payload)
     disko_text = None
+    drives_text = None
     disko_staging_path = None
     if disk["mode"] == "auto":
         device = _selected_auto_disk(disk)
         disko_text = build_disko_config(device)
+        drives_text = build_disko_zcfg(device)
         disko_staging_path = _write_text(
             os.path.join(work_dir, "hosts", host_name, "disko.nix"), disko_text
         )
@@ -704,24 +750,29 @@ def _install_local(
         progress_fn(0.25)
 
         config_dir = _initialize_target_config(work_dir, log_fn)
-        zcfg_path = _write_host(config_dir, host_name, config_str)
+        host_dir = _host_dir(config_dir, host_name)
+        graphics_path = _generate_graphics_config(config_dir, host_name, log_fn)
+        extra_imports = ["graphics.zcfg"]
+        if drives_text is not None:
+            _write_text(os.path.join(host_dir, "drives.zcfg"), drives_text)
+            extra_imports.append("drives.zcfg")
+        zcfg_path = _write_host_documents(
+            host_dir,
+            documents,
+            extra_imports=tuple(extra_imports),
+        )
         _compile_host(zcfg_path, log_fn)
         _write_plan(config_dir, host_name, plan)
-        if disko_text is not None:
-            _write_text(
-                os.path.join(_host_dir(config_dir, host_name), "disko.nix"),
-                disko_text,
-            )
         hardware_path = _generate_hardware_config(
             config_dir,
             host_name,
             log_fn,
             include_filesystems=disko_text is None,
         )
-        graphics_path = _generate_graphics_config(config_dir, host_name, log_fn)
         # Popcorn is disabled until its binary cache can be consumed reliably.
         # kernel_path = _generate_kernel_config(config_dir, host_name, log_fn)
-        _print_config(log_fn, zcfg_path, config_str)
+        with open(zcfg_path, encoding="utf-8") as host_file:
+            _print_config(log_fn, zcfg_path, host_file.read())
 
         if short:
             artifacts = {
@@ -730,7 +781,7 @@ def _install_local(
             }
             if disko_text is not None:
                 artifacts["disko"] = _artifact_metadata(
-                    os.path.join(_host_dir(config_dir, host_name), "disko.nix")
+                    os.path.join(host_dir, "drives.zcfg")
                 )
             marker = {
                 "artifacts": artifacts,
@@ -803,8 +854,8 @@ def _find_pending_oobe(config_dir: str, current_host: str) -> tuple[str, dict]:
     ):
         raise RuntimeError("pending OOBE marker has invalid artifact metadata")
     expected_files = {
-        "disko": "disko.nix",
-        "graphics": "graphics.nix",
+        "disko": "drives.zcfg",
+        "graphics": "graphics.zcfg",
         "hardware": "hardware-configuration.nix",
     }
     for name, metadata in artifacts.items():
@@ -845,7 +896,7 @@ def _run_oobe(
             raise RuntimeError(f"temporary {name} configuration checksum mismatch")
         source_artifacts[name] = source
 
-    config_str = process_installer_payload(data)
+    documents = build_config_documents(data)
     stage_dir = tempfile.mkdtemp(prefix=f".{final_host}.staging-", dir=hosts_dir)
     published = False
     completed = False
@@ -857,14 +908,24 @@ def _run_oobe(
             if _sha256(staged) != metadata["sha256"]:
                 raise RuntimeError(f"copied {name} configuration checksum mismatch")
 
-        zcfg_path = _write_text(os.path.join(stage_dir, "host.zcfg"), config_str)
+        imported_artifacts = tuple(
+            metadata["file"]
+            for metadata in marker["artifacts"].values()
+            if metadata["file"].endswith(".zcfg")
+        )
+        zcfg_path = _write_host_documents(
+            stage_dir,
+            documents,
+            extra_imports=imported_artifacts,
+        )
         final_plan = build_execution_plan(data)
         with open(os.path.join(temporary_dir, "install-plan.json"), encoding="utf-8") as file:
             initial_plan = json.load(file)
         final_plan["disk"] = initial_plan.get("disk", final_plan["disk"])
         _write_json(os.path.join(stage_dir, "install-plan.json"), final_plan)
         _compile_host(zcfg_path, log_fn)
-        _print_config(log_fn, zcfg_path, config_str)
+        with open(zcfg_path, encoding="utf-8") as host_file:
+            _print_config(log_fn, zcfg_path, host_file.read())
         os.replace(stage_dir, final_dir)
         published = True
         _validate_config_layout(config_dir)

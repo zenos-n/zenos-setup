@@ -4,6 +4,7 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 from src.views.progress import next_tour_index
+from src.oobe_timing import reached_wallpaper_switch
 
 
 class ProgressTourTests(unittest.TestCase):
@@ -16,6 +17,12 @@ class ProgressTourTests(unittest.TestCase):
     def test_tour_ignores_zero_or_one_page(self):
         self.assertIsNone(next_tour_index(0.0, 0))
         self.assertIsNone(next_tour_index(0.0, 1))
+
+    def test_wallpaper_switches_once_playback_reaches_halfway(self):
+        self.assertFalse(reached_wallpaper_switch(4.99, 10.0))
+        self.assertTrue(reached_wallpaper_switch(5.0, 10.0))
+        self.assertTrue(reached_wallpaper_switch(9.0, 10.0))
+        self.assertFalse(reached_wallpaper_switch(0.0, 0.0))
 
     def test_layout_bundles_three_distinct_slides(self):
         layout = Path(__file__).parents[1] / "src/views/progress/layout.ui"
@@ -43,6 +50,7 @@ class ProgressTourTests(unittest.TestCase):
         source = logic.read_text(encoding="utf-8")
         self.assertIn('"hide_next_while_gated": True', source)
         self.assertIn("self.live_mode_button.set_visible(True)", source)
+        self.assertIn("self.router.navigate_next()", source)
 
     def test_extension_manifest_and_default_apps(self):
         project = Path(__file__).parents[1]
@@ -73,6 +81,8 @@ class ProgressTourTests(unittest.TestCase):
         configured_gnome_apps = {
             app["id"] for app in apps["core-gnome"]["apps"]
         }
+        epiphany = next(app for app in apps["core-gnome"]["apps"] if app["id"] == "epiphany")
+        self.assertFalse(epiphany["default"])
         self.assertTrue(upstream_gnome_apps <= configured_gnome_apps)
         self.assertFalse(upstream_gnome_apps & {
             app["id"] for app in apps["browsers"]["apps"]

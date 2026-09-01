@@ -189,6 +189,12 @@ def build_config_tree(
         _set_path(tree, (*base, "description"), user.get("fullname") or username)
         _set_path(tree, (*base, "initialHashedPassword"), hashed)
         _set_path(tree, (*base, "extraGroups"), ["networkmanager", "video", "wheel"])
+        _set_path(
+            tree,
+            ("legacy", "zenfs", "users", username, "home"),
+            f"/home/{username}",
+        )
+        _set_path(tree, ("legacy", "zenfs", "users", username, "group"), "users")
 
     desktop = pages.get("desktop", {})
     if desktop.get("install_de"):
@@ -348,6 +354,54 @@ def serialize_zcfg(tree: dict[str, Any]) -> str:
         lines.append(f"{key} = {_serialize_value(tree[key], 0)};")
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
+
+
+def build_config_documents(
+    payload: dict[str, Any],
+    *,
+    password_hash: str | None = None,
+) -> dict[str, str]:
+    tree = build_config_tree(payload, password_hash=password_hash)
+    documents: dict[str, dict[str, Any]] = {}
+
+    desktop = {}
+    for key in ("desktops", "gnomeProfile"):
+        if key in tree:
+            desktop[key] = tree.pop(key)
+    if desktop:
+        documents["desktop.zcfg"] = desktop
+
+    users = {}
+    legacy = tree.get("legacy", {})
+    legacy_users = {}
+    for key in ("users", "zenfs"):
+        if key in legacy:
+            legacy_users[key] = legacy.pop(key)
+    if legacy_users:
+        users["legacy"] = legacy_users
+    if users:
+        documents["users.zcfg"] = users
+
+    apps = {}
+    system = tree.get("system", {})
+    if "software" in system:
+        apps["system"] = {"software": system.pop("software")}
+    legacy_apps = {}
+    for key in ("environment", "programs"):
+        if key in legacy:
+            legacy_apps[key] = legacy.pop(key)
+    if legacy_apps:
+        apps["legacy"] = legacy_apps
+    if apps:
+        documents["apps.zcfg"] = apps
+
+    if not legacy:
+        tree.pop("legacy", None)
+    documents["system.zcfg"] = tree
+
+    rendered = {name: serialize_zcfg(value) for name, value in documents.items()}
+    imports = "".join(f"import ./{name};\n" for name in sorted(rendered))
+    return {"host.zcfg": imports, **rendered}
 
 
 def process_installer_payload(

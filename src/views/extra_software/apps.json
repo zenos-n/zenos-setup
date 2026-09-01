@@ -546,7 +546,7 @@
         "apps": [
             {"id": "baobab", "name": "Disk Usage Analyzer", "icon": "org.gnome.baobab", "description": "Inspect disk usage by folder and device.", "extraOptions": []},
             {"id": "decibels", "name": "Decibels", "icon": "org.gnome.Decibels", "description": "Play audio files in a focused GNOME player.", "extraOptions": []},
-            {"id": "epiphany", "name": "GNOME Web", "icon": "org.gnome.Epiphany", "description": "Browse the web with GNOME's native browser.", "extraOptions": []},
+            {"id": "epiphany", "default": false, "name": "GNOME Web", "icon": "org.gnome.Epiphany", "description": "Browse the web with GNOME's native browser.", "extraOptions": []},
             {"id": "gnome-text-editor", "name": "Text Editor", "icon": "org.gnome.TextEditor", "description": "Edit plain-text files with the GNOME text editor.", "extraOptions": []},
             {"id": "gnome-calculator", "name": "Calculator", "icon": "org.gnome.Calculator", "description": "Perform basic, scientific, and financial calculations.", "extraOptions": []},
             {"id": "gnome-calendar", "name": "Calendar", "icon": "org.gnome.Calendar", "description": "Manage appointments and online calendars.", "extraOptions": []},

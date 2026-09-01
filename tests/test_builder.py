@@ -2,6 +2,7 @@ import unittest
 
 from src.builder import (
     PkgsRef,
+    build_config_documents,
     build_config_tree,
     build_execution_plan,
     process_installer_payload,
@@ -79,6 +80,24 @@ class BuilderTests(unittest.TestCase):
         self.assertIn("$pkgs.catalog.firefox", first)
         self.assertNotIn("zenos = {", first)
         self.assertNotIn("$pkgs.zenos", first)
+
+    def test_generated_config_is_split_into_zcfg_documents(self):
+        documents = build_config_documents(FULL_PAYLOAD, password_hash="$6$test$hash")
+
+        self.assertEqual(
+            set(documents),
+            {
+                "apps.zcfg",
+                "desktop.zcfg",
+                "host.zcfg",
+                "system.zcfg",
+                "users.zcfg",
+            },
+        )
+        self.assertIn("import ./apps.zcfg;", documents["host.zcfg"])
+        self.assertIn("legacy = {", documents["users.zcfg"])
+        self.assertIn("zenfs = {", documents["users.zcfg"])
+        self.assertIn("software = {", documents["apps.zcfg"])
 
     def test_execution_plan_owns_disk_and_network_state(self):
         plan = build_execution_plan(FULL_PAYLOAD)
