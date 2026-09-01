@@ -5,6 +5,7 @@
         "apps": [
         {
             "id": "firefox",
+            "default": true,
             "name": "Mozilla Firefox",
             "icon": "firefox",
             "version": "125.0.1",
@@ -96,15 +97,6 @@
                     "subtitle": "Launches Brave with Ozone/Wayland flags for crisp rendering and proper scaling"
                 }
             ]
-        },
-        {
-            "id": "epiphany",
-            "name": "GNOME Web",
-            "icon": "org.gnome.Epiphany",
-            "version": "46.1",
-            "license": "GPL-3.0",
-            "description": "The GNOME-native browser. Clean, fast, and deeply integrated with the desktop.",
-            "extraOptions": []
         },
         {
             "id": "tor-browser",
@@ -549,53 +541,96 @@
     },
     "core-gnome": {
         "title": "GNOME Core Apps",
-        "subtitle": "Essential GNOME desktop utilities and tools.",
+        "subtitle": "Applications included with the GNOME desktop.",
+        "includedByDesktop": true,
         "apps": [
-            {
-                "id": "nautilus",
-                "name": "Files (Nautilus)",
-                "icon": "org.gnome.Nautilus",
-                "version": "46.0",
-                "license": "GPL-3.0",
-                "description": "The GNOME file manager. Browse and organize your files with ease.",
-                "extraOptions": []
-            },
-            {
-                "id": "gnome-console",
-                "name": "GNOME Console",
-                "icon": "org.gnome.Console",
-                "version": "46.0",
-                "license": "GPL-3.0",
-                "description": "The simple, clean GNOME terminal. Minimal by design, integrates well with the desktop.",
-                "extraOptions": []
-            },
-            {
-                "id": "gnome-system-monitor",
-                "name": "GNOME System Monitor",
-                "icon": "org.gnome.SystemMonitor",
-                "version": "46.0",
-                "license": "GPL-3.0",
-                "description": "Monitor system resources and processes in a GNOME-native interface.",
-                "extraOptions": []
-            },
-            {
-                "id": "gnome-extensions-app",
-                "name": "Extension Manager",
-                "icon": "com.mattjakeman.ExtensionManager",
-                "version": "0.5.1",
-                "license": "GPL-3.0",
-                "description": "Browse, install, and manage GNOME Shell extensions without a web browser.",
-                "extraOptions": []
-            },
-            {
-                "id": "gnome-tweaks",
-                "name": "GNOME Tweaks",
-                "icon": "org.gnome.tweaks",
-                "version": "46.0",
-                "license": "GPL-3.0",
-                "description": "Expose advanced GNOME settings not available in the standard Settings app.",
-                "extraOptions": []
-            }
+            {"id": "baobab", "name": "Disk Usage Analyzer", "icon": "org.gnome.baobab", "description": "Inspect disk usage by folder and device.", "extraOptions": []},
+            {"id": "decibels", "name": "Decibels", "icon": "org.gnome.Decibels", "description": "Play audio files in a focused GNOME player.", "extraOptions": []},
+            {"id": "epiphany", "name": "GNOME Web", "icon": "org.gnome.Epiphany", "description": "Browse the web with GNOME's native browser.", "extraOptions": []},
+            {"id": "gnome-text-editor", "name": "Text Editor", "icon": "org.gnome.TextEditor", "description": "Edit plain-text files with the GNOME text editor.", "extraOptions": []},
+            {"id": "gnome-calculator", "name": "Calculator", "icon": "org.gnome.Calculator", "description": "Perform basic, scientific, and financial calculations.", "extraOptions": []},
+            {"id": "gnome-calendar", "name": "Calendar", "icon": "org.gnome.Calendar", "description": "Manage appointments and online calendars.", "extraOptions": []},
+            {"id": "gnome-characters", "name": "Characters", "icon": "org.gnome.Characters", "description": "Find and insert symbols and special characters.", "extraOptions": []},
+            {"id": "gnome-clocks", "name": "Clocks", "icon": "org.gnome.clocks", "description": "Use world clocks, alarms, timers, and a stopwatch.", "extraOptions": []},
+            {"id": "gnome-console", "name": "Console", "icon": "org.gnome.Console", "description": "Run commands in GNOME's terminal emulator.", "extraOptions": []},
+            {"id": "gnome-contacts", "name": "Contacts", "icon": "org.gnome.Contacts", "description": "Manage local and online contacts.", "extraOptions": []},
+            {"id": "gnome-font-viewer", "name": "Fonts", "icon": "org.gnome.font-viewer", "description": "Preview fonts installed on the system.", "extraOptions": []},
+            {"id": "gnome-logs", "name": "Logs", "icon": "org.gnome.Logs", "description": "Inspect systemd journal entries.", "extraOptions": []},
+            {"id": "gnome-maps", "name": "Maps", "icon": "org.gnome.Maps", "description": "Browse maps and plan routes.", "extraOptions": []},
+            {"id": "gnome-music", "name": "Music", "icon": "org.gnome.Music", "description": "Browse and play the local music collection.", "extraOptions": []},
+            {"id": "gnome-system-monitor", "name": "System Monitor", "icon": "org.gnome.SystemMonitor", "description": "Monitor processes and system resources.", "extraOptions": []},
+            {"id": "gnome-tecla", "name": "Keyboard Layout Viewer", "icon": "org.gnome.Tecla", "description": "Preview the active keyboard layout.", "extraOptions": []},
+            {"id": "gnome-weather", "name": "Weather", "icon": "org.gnome.Weather", "description": "View current conditions and forecasts.", "extraOptions": []},
+            {"id": "loupe", "name": "Image Viewer", "icon": "org.gnome.Loupe", "description": "View and inspect image files.", "extraOptions": []},
+            {"id": "nautilus", "name": "Files", "icon": "org.gnome.Nautilus", "description": "Browse and organize files and folders.", "extraOptions": []},
+            {"id": "papers", "name": "Papers", "icon": "org.gnome.Papers", "description": "Read PDF and PostScript documents.", "extraOptions": []},
+            {"id": "gnome-connections", "name": "Connections", "icon": "org.gnome.Connections", "description": "Connect to remote desktops.", "extraOptions": []},
+            {"id": "showtime", "name": "Video Player", "icon": "org.gnome.Showtime", "description": "Play local video files.", "extraOptions": []},
+            {"id": "simple-scan", "name": "Document Scanner", "icon": "org.gnome.SimpleScan", "description": "Scan documents and images.", "extraOptions": []},
+            {"id": "snapshot", "name": "Camera", "icon": "org.gnome.Snapshot", "description": "Take photos and videos with a camera.", "extraOptions": []},
+            {"id": "yelp", "name": "Help", "icon": "org.gnome.Yelp", "description": "Read installed GNOME help documentation.", "extraOptions": []},
+            {"id": "gnome-disk-utility", "name": "Disks", "icon": "org.gnome.DiskUtility", "description": "Inspect, format, and benchmark storage devices.", "extraOptions": []},
+            {"id": "seahorse", "name": "Passwords and Keys", "icon": "org.gnome.seahorse.Application", "description": "Manage passwords, keys, and certificates.", "extraOptions": []},
+            {"id": "sushi", "name": "File Previewer", "icon": "org.gnome.Nautilus", "description": "Preview files from Files by pressing Space.", "extraOptions": []},
+            {"id": "gnome-extensions-app", "name": "Extension Manager", "icon": "com.mattjakeman.ExtensionManager", "description": "Browse, install, and manage GNOME Shell extensions.", "extraOptions": []},
+            {"id": "gnome-tweaks", "name": "GNOME Tweaks", "icon": "org.gnome.tweaks", "description": "Configure advanced GNOME appearance and behavior.", "extraOptions": []}
+        ]
+    },
+    "core-kde": {
+        "title": "KDE Plasma Core Apps",
+        "subtitle": "Applications included with KDE Plasma.",
+        "includedByDesktop": true,
+        "apps": [
+            {"id": "dolphin", "name": "Dolphin", "icon": "org.kde.dolphin", "description": "KDE file manager.", "extraOptions": []},
+            {"id": "konsole", "name": "Konsole", "icon": "org.kde.konsole", "description": "KDE terminal emulator.", "extraOptions": []},
+            {"id": "kate", "name": "Kate", "icon": "org.kde.kate", "description": "KDE text editor.", "extraOptions": []},
+            {"id": "spectacle", "name": "Spectacle", "icon": "org.kde.spectacle", "description": "KDE screenshot utility.", "extraOptions": []},
+            {"id": "okular", "name": "Okular", "icon": "org.kde.okular", "description": "KDE document viewer.", "extraOptions": []}
+        ]
+    },
+    "core-xfce": {
+        "title": "Xfce Core Apps",
+        "subtitle": "Applications included with Xfce.",
+        "includedByDesktop": true,
+        "apps": [
+            {"id": "thunar", "name": "Thunar", "icon": "org.xfce.thunar", "description": "Xfce file manager.", "extraOptions": []},
+            {"id": "xfce4-terminal", "name": "Xfce Terminal", "icon": "org.xfce.terminal", "description": "Xfce terminal emulator.", "extraOptions": []},
+            {"id": "mousepad", "name": "Mousepad", "icon": "org.xfce.mousepad", "description": "Xfce text editor.", "extraOptions": []},
+            {"id": "xfce4-taskmanager", "name": "Xfce Task Manager", "icon": "org.xfce.taskmanager", "description": "Xfce process and resource monitor.", "extraOptions": []}
+        ]
+    },
+    "core-cinnamon": {
+        "title": "Cinnamon Core Apps",
+        "subtitle": "Applications included with Cinnamon.",
+        "includedByDesktop": true,
+        "apps": [
+            {"id": "nemo", "name": "Nemo", "icon": "nemo", "description": "Cinnamon file manager.", "extraOptions": []},
+            {"id": "gnome-terminal", "name": "GNOME Terminal", "icon": "org.gnome.Terminal", "description": "Terminal included with Cinnamon.", "extraOptions": []},
+            {"id": "xreader", "name": "Xreader", "icon": "xreader", "description": "Cinnamon document viewer.", "extraOptions": []},
+            {"id": "pix", "name": "Pix", "icon": "pix", "description": "Cinnamon image viewer.", "extraOptions": []}
+        ]
+    },
+    "core-budgie": {
+        "title": "Budgie Core Apps",
+        "subtitle": "Applications included with Budgie.",
+        "includedByDesktop": true,
+        "apps": [
+            {"id": "nemo", "name": "Nemo", "icon": "nemo", "description": "Budgie file manager.", "extraOptions": []},
+            {"id": "gnome-terminal", "name": "GNOME Terminal", "icon": "org.gnome.Terminal", "description": "Terminal included with Budgie.", "extraOptions": []},
+            {"id": "mate-system-monitor", "name": "MATE System Monitor", "icon": "mate-system-monitor", "description": "Budgie process and resource monitor.", "extraOptions": []},
+            {"id": "atril", "name": "Atril", "icon": "atril", "description": "Budgie document viewer.", "extraOptions": []}
+        ]
+    },
+    "core-mate": {
+        "title": "MATE Core Apps",
+        "subtitle": "Applications included with MATE.",
+        "includedByDesktop": true,
+        "apps": [
+            {"id": "caja", "name": "Caja", "icon": "system-file-manager", "description": "MATE file manager.", "extraOptions": []},
+            {"id": "mate-terminal", "name": "MATE Terminal", "icon": "utilities-terminal", "description": "MATE terminal emulator.", "extraOptions": []},
+            {"id": "mate-system-monitor", "name": "MATE System Monitor", "icon": "mate-system-monitor", "description": "MATE process and resource monitor.", "extraOptions": []},
+            {"id": "atril", "name": "Atril", "icon": "atril", "description": "MATE document viewer.", "extraOptions": []},
+            {"id": "pluma", "name": "Pluma", "icon": "accessories-text-editor", "description": "MATE text editor.", "extraOptions": []}
         ]
     },
     "core-generic": {
@@ -741,6 +776,7 @@
         },
         {
             "id": "resources",
+            "default": true,
             "name": "Resources",
             "icon": "net.nokyan.Resources",
             "version": "1.6.0",
@@ -843,15 +879,6 @@
             "version": "3.1.1",
             "license": "GPL-3.0",
             "description": "A beautiful ebook reader for GNOME. Supports EPUB, Mobi, PDF, and more.",
-            "extraOptions": []
-        },
-        {
-            "id": "papers",
-            "name": "Papers",
-            "icon": "org.gnome.Papers",
-            "version": "46.1",
-            "license": "GPL-2.0",
-            "description": "GNOME's document viewer (formerly Evince). View PDFs, PostScript, and more.",
             "extraOptions": []
         }
     ]

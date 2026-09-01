@@ -11,6 +11,8 @@ import gi
 gi.require_version('GWeather', '4.0')
 from gi.repository import Adw, GLib, Gtk, GWeather
 
+from zenos_setup.views.timezone.runtime import apply_runtime_timezone
+
 logger = logging.getLogger("ZenOSInstaller::Timezone")
 
 # --- locale.py dump ---
@@ -166,6 +168,7 @@ class Page(Adw.Bin):
         self.__tz_entries = []
         self._cancel_load = False
         self._populate_iter = None
+        self._timezone_apply_serial = 0
 
         self.entry_search_timezone.connect("changed", self.__on_search)
         self.router.set_next_enabled(False, caller=self)
@@ -243,7 +246,7 @@ class Page(Adw.Bin):
             if self.detected_tz and tzname == self.detected_tz:
                 timezone_row.select_button.set_active(True)
                 self._update_selection_labels(timezone_row)
-                self.router.set_next_enabled(True, caller=self)
+                self._apply_runtime_timezone(timezone_row.tz_name)
 
             expander.add_row(timezone_row)
 
@@ -266,8 +269,8 @@ class Page(Adw.Bin):
                         self._block_signals = True
                         entry.select_button.set_active(True)
                         self._update_selection_labels(entry)
+                        self._apply_runtime_timezone(entry.tz_name)
                         self._block_signals = False
-                        self.router.set_next_enabled(True, caller=self)
                         break
 
         thread = threading.Thread(target=get_location, args=(timezone_verify_callback,))
@@ -287,6 +290,25 @@ class Page(Adw.Bin):
                 "zone": self.selected_timezone["zone"] or "London",
             }
         }
+
+    def _apply_runtime_timezone(self, timezone_name):
+        self._timezone_apply_serial += 1
+        serial = self._timezone_apply_serial
+        self.router.set_next_enabled(False, caller=self)
+
+        def apply_timezone():
+            try:
+                apply_runtime_timezone(timezone_name)
+            except Exception as error:
+                logger.warning("Could not update runtime timezone to %s: %s", timezone_name, error)
+            GLib.idle_add(self._finish_runtime_timezone, serial)
+
+        threading.Thread(target=apply_timezone, daemon=True).start()
+
+    def _finish_runtime_timezone(self, serial):
+        if serial == self._timezone_apply_serial:
+            self.router.set_next_enabled(True, caller=self)
+        return False
 
     def __on_search(self, *args):
         self._block_signals = True
@@ -346,4 +368,4 @@ class Page(Adw.Bin):
             return
         
         self._update_selection_labels(widget)
-        self.router.set_next_enabled(True, caller=self)
+        self._apply_runtime_timezone(widget.tz_name)

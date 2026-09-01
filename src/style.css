@@ -1,5 +1,14 @@
 /* CSS inspired from: Settings Appearance Panel */
 
+.oobe-preroll {
+    background-color: #000000;
+}
+
+.oobe-preroll .card {
+    padding: 12px;
+    background-color: alpha(#000000, 0.78);
+}
+
 .background-preview-button {
     background: none;
     border-radius: 9px;

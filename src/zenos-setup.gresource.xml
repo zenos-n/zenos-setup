@@ -9,6 +9,7 @@
     <file preprocess="xml-stripblanks">views/timezone/layout.ui</file>
     <file preprocess="xml-stripblanks">views/timezone/widget-timezone.ui</file>
     <file preprocess="xml-stripblanks">views/keyboard/layout.ui</file>
+    <file preprocess="xml-stripblanks">views/shortcuts/layout.ui</file>
     <file preprocess="xml-stripblanks">views/internet/wireless-row.ui</file>
     <file preprocess="xml-stripblanks">views/internet/layout.ui</file>
     <file preprocess="xml-stripblanks">views/internet/hidden-network-dialog.ui</file>
@@ -36,6 +37,7 @@
   <gresource prefix="/com/negzero/zenos/setup/assets">
     <file alias="theme-dark.svg">../data/theme/theme-dark.svg</file>
     <file alias="theme-light.svg">../data/theme/theme-light.svg</file>
+    <file alias="gnome-extensions.json">../data/gnome-extensions.json</file>
 
     <file alias="gnome.png">../data/screenshots/gnome.png</file>
     <file alias="kde.png">../data/screenshots/kde.png</file>
@@ -55,7 +57,6 @@
     <file alias="wallpapers/yellow.png">../data/wallpapers/yellow.png</file>
     <file alias="wallpapers/red.png">../data/wallpapers/red.png</file>
 
-    <file alias="intro.webm">../data/intro.webm</file>
   </gresource>
 
   <gresource prefix="/com/negzero/zenos/icons">
@@ -67,4 +68,3 @@
   </gresource>
 
 </gresources>
-

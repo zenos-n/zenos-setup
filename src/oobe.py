@@ -1,11 +1,119 @@
+import ctypes
 import os
+import resource
+import time
 import gi
 
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-gi.require_version('Gst', '1.0')
+from gi.repository import Gtk, Gio, GLib, Adw, GObject
+from mpv import MPV, MpvGlGetProcAddressFn, MpvRenderContext
+from OpenGL import GL
 
-from gi.repository import Gtk, Gdk, Gio, GLib, Adw, GObject, Gst
+
+def get_proc_address_wrapper():
+    def egl_impl(name):
+        from OpenGL import EGL
+        return EGL.eglGetProcAddress(name.decode("utf-8"))
+
+    def glx_impl(name):
+        from OpenGL import GLX
+        return GLX.glXGetProcAddress(name.decode("utf-8"))
+
+    platform_func = egl_impl if os.environ.get("WAYLAND_DISPLAY") else glx_impl
+
+    def wrapper(_context, name):
+        address = platform_func(name)
+        return ctypes.cast(address, ctypes.c_void_p).value
+
+    return wrapper
+
+
+class MpvVideo(Gtk.GLArea):
+    def __init__(self, path, first_frame_callback, end_callback):
+        super().__init__(hexpand=True, vexpand=True)
+        self.set_auto_render(False)
+        self._path = path
+        self._first_frame_callback = first_frame_callback
+        self._end_callback = end_callback
+        self._first_frame_seen = False
+        self.rendered_frames = 0
+        self._ctx = None
+        self._mpv = MPV(
+            vo="libmpv",
+            hwdec="auto-safe",
+            audio="no",
+            panscan=1.0,
+            video_sync="display-resample",
+            interpolation="yes",
+        )
+        self._opengl_params = {
+            "get_proc_address": MpvGlGetProcAddressFn(get_proc_address_wrapper())
+        }
+        self.connect("realize", self._on_realize)
+        self.connect("unrealize", self._on_unrealize)
+
+        @self._mpv.event_callback("end-file")
+        def _on_end(_event):
+            GLib.idle_add(self._end_callback)
+
+    def _on_realize(self, *_args):
+        self.make_current()
+        error = self.get_error()
+        if error:
+            raise RuntimeError(f"could not initialize GTK OpenGL area: {error}")
+        self._ctx = MpvRenderContext(
+            self._mpv,
+            "opengl",
+            opengl_init_params=self._opengl_params,
+        )
+        self._ctx.update_cb = self._on_mpv_update
+        self._mpv.play(self._path)
+
+    def _on_mpv_update(self):
+        GLib.idle_add(self._frame_ready, priority=GLib.PRIORITY_HIGH)
+
+    def _frame_ready(self):
+        if self._ctx and self._ctx.update():
+            self.queue_render()
+        return False
+
+    def do_render(self, _context):
+        if not self._ctx:
+            return False
+        factor = self.get_scale_factor()
+        width = self.get_width() * factor
+        height = self.get_height() * factor
+        framebuffer = GL.glGetIntegerv(GL.GL_DRAW_FRAMEBUFFER_BINDING)
+        self._ctx.render(
+            flip_y=True,
+            opengl_fbo={"w": width, "h": height, "fbo": framebuffer},
+        )
+        self.rendered_frames += 1
+        if not self._first_frame_seen:
+            self._first_frame_seen = True
+            GLib.idle_add(self._first_frame_callback)
+        return True
+
+    def _on_unrealize(self, *_args):
+        if self._ctx:
+            self._ctx.free()
+            self._ctx = None
+
+    def property_value(self, name, default=None):
+        try:
+            return getattr(self._mpv, name.replace("-", "_"))
+        except Exception:
+            return default
+
+    def stop(self):
+        if self._ctx:
+            self.make_current()
+            self._ctx.free()
+            self._ctx = None
+        if self._mpv:
+            self._mpv.terminate()
+            self._mpv = None
 
 class ZenAnimatedButton(Gtk.Button):
     def __init__(self, **kwargs):
@@ -38,15 +146,23 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
         self.timer_id = 0
         self.transition_started = False
         self.anims_killed_for_end = False
+        self.wallpaper_applied = False
+        self.video_debug = os.environ.get("ZENOS_OOBE_VIDEO_DEBUG") == "1"
+        self.debug_frames = 0
+        self.debug_qos_drops = 0
+        self.debug_last_time = time.monotonic()
+        usage = resource.getrusage(resource.RUSAGE_SELF)
+        self.debug_last_cpu = usage.ru_utime + usage.ru_stime
 
-        # set gresource path for the intro video
-        self.video_uri = "resource:///com/negzero/zenos/setup/assets/intro.webm"
+        self.video_path = os.environ.get("ZENOS_VIDEO_PATH")
+        if not self.video_path:
+            raise RuntimeError("ZENOS_VIDEO_PATH is required for OOBE playback")
 
         # fix wallpaper pathing logic for themes
         base_wallpaper = os.environ.get("ZENOS_WALLPAPER_PATH", "/run/current-system/sw/share/zenos/")
         if not base_wallpaper.endswith('/'):
             base_wallpaper += '/'
-        self.wallpaper_path = base_wallpaper + "purple.png"
+        self.wallpaper_path = os.environ.get("ZENOS_WALLPAPER_FILE", base_wallpaper + "purple.png")
 
         # setup dconf BEFORE gstreamer touches anything
         self.settings = Gio.Settings.new('org.gnome.desktop.interface')
@@ -71,22 +187,32 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
         self.connect("map", self.on_window_mapped)
 
         self.overlay = Gtk.Overlay()
+        self.overlay.add_css_class("oobe-preroll")
         self.set_content(self.overlay)
 
-        self.video = Gtk.Picture()
-        self.video.set_hexpand(True)
-        self.video.set_vexpand(True)
-        self.video.set_content_fit(Gtk.ContentFit.FILL)
+        self.video = MpvVideo(
+            self.video_path,
+            first_frame_callback=self.reveal_video,
+            end_callback=self.trigger_transition,
+        )
         self.video.set_can_focus(False)
         self.overlay.set_child(self.video)
 
-        self.pipeline = None
-
-        # initialize gstreamer
-        if not Gst.is_initialized():
-            Gst.init(None)
-
-        self.setup_video_pipeline()
+        self.debug_label = Gtk.Label(
+            visible=self.video_debug,
+            selectable=True,
+            xalign=0,
+            yalign=0,
+            margin_top=24,
+            margin_start=24,
+            width_chars=54,
+        )
+        self.debug_label.add_css_class("monospace")
+        self.debug_label.add_css_class("card")
+        self.debug_label.set_label("Video diagnostics: waiting for mpv...")
+        self.debug_label.set_halign(Gtk.Align.START)
+        self.debug_label.set_valign(Gtk.Align.START)
+        self.overlay.add_overlay(self.debug_label)
 
         self.skip_button = ZenAnimatedButton(label="Skip Intro")
         self.skip_button.add_css_class("pill")
@@ -102,99 +228,54 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
         self.animation = Adw.SpringAnimation.new(self.skip_button, 0.0, 1.0, params, target)
 
         self.setup_input_tracking()
+        self.set_cursor_from_name("none")
         self.fullscreen()
 
-    def setup_video_pipeline(self):
-        # build the playback pipeline manually for fine control over scaling/cropping
-        self.pipeline = Gst.parse_launch(
-            f'urisourcebin uri={self.video_uri} name=src ! '
-            'decodebin ! videoconvert ! videoscale ! videocrop name=crop ! '
-            'appsink name=sink emit-signals=true caps="video/x-raw, format=RGBA"'
-        )
-
-        self.appsink = self.pipeline.get_by_name("sink")
-        self.appsink.connect("new-sample", self.on_new_sample)
-
-        self.cropper = self.pipeline.get_by_name("crop")
-
-        bus = self.pipeline.get_bus()
-        bus.add_signal_watch()
-        bus.connect("message::eos", self.on_eos)
-        bus.connect("message::error", self.on_pipeline_error)
-
-        self.pipeline.set_state(Gst.State.PLAYING)
         GLib.timeout_add(33, self.check_video_progress)
+        if self.video_debug:
+            self.debug_timer_id = GLib.timeout_add_seconds(1, self.update_video_debug)
 
-    def on_pipeline_error(self, bus, message):
-        err, debug = message.parse_error()
-        print(f"GStreamer Error: {err.message}")
-        self.trigger_transition()
-
-    def on_new_sample(self, sink):
-        sample = sink.emit('pull-sample')
-        if not sample:
-            return Gst.FlowReturn.ERROR
-
-        caps = sample.get_caps()
-        struct = caps.get_structure(0)
-        video_w = struct.get_value('width')
-        video_h = struct.get_value('height')
-
-        # handle scaling/cropping on the first valid frame
-        if self.cropper and video_w > 0:
-            display_w = self.get_width()
-            display_h = self.get_height()
-
-            if display_w > 0 and display_h > 0:
-                self.apply_center_crop(video_w, video_h, display_w, display_h)
-                self.cropper = None # only do this once
-
-        buffer = sample.get_buffer()
-        success, map_info = buffer.map(Gst.MapFlags.READ)
-        if success:
-            bytes_data = GLib.Bytes.new(map_info.data)
-            buffer.unmap(map_info)
-            GLib.idle_add(self.update_frame, bytes_data, video_w, video_h)
-
-        return Gst.FlowReturn.OK
-
-    def apply_center_crop(self, vw, vh, dw, dh):
-        video_aspect = vw / vh
-        display_aspect = dw / dh
-
-        left = right = top = bottom = 0
-
-        if video_aspect > display_aspect:
-            # video is wider than display, crop left/right
-            target_width = vh * display_aspect
-            crop_amount = int((vw - target_width) / 2)
-            left = right = crop_amount
-        else:
-            # display is taller than video, crop top/bottom
-            target_height = vw / display_aspect
-            crop_amount = int((vh - target_height) / 2)
-            top = bottom = crop_amount
-
-        self.cropper.set_property("left", left)
-        self.cropper.set_property("right", right)
-        self.cropper.set_property("top", top)
-        self.cropper.set_property("bottom", bottom)
-
-    def update_frame(self, bytes_data, width, height):
-        if self.transition_started:
+    def update_video_debug(self):
+        if self.video is None or self.transition_started:
             return False
 
-        texture = Gdk.MemoryTexture.new(
-            width, height,
-            Gdk.MemoryFormat.R8G8B8A8,
-            bytes_data,
-            width * 4
+        now = time.monotonic()
+        elapsed = max(now - self.debug_last_time, 0.001)
+        rendered_frames = self.video.rendered_frames
+        fps = (rendered_frames - self.debug_frames) / elapsed
+        self.debug_frames = rendered_frames
+        self.debug_last_time = now
+
+        usage = resource.getrusage(resource.RUSAGE_SELF)
+        cpu_now = usage.ru_utime + usage.ru_stime
+        cpu_percent = ((cpu_now - self.debug_last_cpu) / elapsed) * 100
+        self.debug_last_cpu = cpu_now
+
+        position_seconds = self.video.property_value("time-pos", 0) or 0
+        duration_seconds = self.video.property_value("duration", 0) or 0
+        source_fps = self.video.property_value("container-fps", 0) or 0
+        estimated_fps = self.video.property_value("estimated-vf-fps", 0) or 0
+        codec = self.video.property_value("video-codec", "unknown")
+        pixel_format = self.video.property_value("video-format", "unknown")
+        hwdec = self.video.property_value("hwdec-current", "none") or "none"
+        drops = self.video.property_value("vo-drop-frame-count", 0) or 0
+        rss_mib = usage.ru_maxrss / 1024
+
+        self.debug_label.set_label(
+            "OOBE MPV DEBUG\n"
+            f"Rendered:  {fps:5.1f} fps   Source: {source_fps:5.1f}   Filtered: {estimated_fps:5.1f}\n"
+            f"Playback:  {position_seconds:5.1f} / {duration_seconds:5.1f} s\n"
+            f"Process:   {cpu_percent:5.1f}% CPU   {rss_mib:6.1f} MiB max RSS\n"
+            f"Decoder:   {codec}   hwdec={hwdec}   drops={drops}\n"
+            f"Format:    {pixel_format}"
         )
-        self.video.set_paintable(texture)
+        return not self.transition_started
+
+    def reveal_video(self):
+        if not self.transition_started:
+            self.set_cursor(None)
         return False
 
-    def on_eos(self, bus, message):
-        GLib.idle_add(self.trigger_transition)
 
     def set_global_anims(self, state):
         self.settings.set_boolean('enable-animations', state)
@@ -213,28 +294,33 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
                 pass
 
     def on_window_mapped(self, *args):
-        GLib.timeout_add(50, self.step_two_enable_anims_and_bg)
+        GLib.timeout_add(50, self.enable_anims)
 
-    def step_two_enable_anims_and_bg(self):
+    def enable_anims(self):
         self.set_global_anims(True)
+        return False
+
+    def apply_wallpaper(self):
         target_uri = f"file://{self.wallpaper_path}"
         self.bg_settings.set_string('picture-options', 'zoom')
         self.bg_settings.set_string('picture-uri', target_uri)
         self.bg_settings.set_string('picture-uri-dark', target_uri)
         Gio.Settings.sync()
-        return False
+        self.wallpaper_applied = True
 
     def check_video_progress(self):
-        if self.transition_started or not self.pipeline:
+        if self.transition_started or not self.video:
             return False
 
-        success_pos, pos = self.pipeline.query_position(Gst.Format.TIME)
-        success_dur, dur = self.pipeline.query_duration(Gst.Format.TIME)
-
-        if success_pos and success_dur and dur > 0 and pos > 0 and (dur - pos) < 166666000:
+        position = self.video.property_value("time-pos", 0) or 0
+        duration = self.video.property_value("duration", 0) or 0
+        if duration > 0 and position > 0 and (duration - position) < 0.17:
             if not self.anims_killed_for_end:
                 self.set_global_anims(False)
                 self.anims_killed_for_end = True
+            if position >= duration - 0.05:
+                self.trigger_transition()
+                return False
 
         return True
 
@@ -248,6 +334,7 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
         self.add_controller(click)
 
     def on_input_detected(self, *args):
+        self.set_cursor(None)
         self.animation.set_value_from(self.skip_button.progress)
         self.animation.set_value_to(1.0)
         self.animation.play()
@@ -272,10 +359,11 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
     def trigger_transition(self):
         if self.transition_started: return False
         self.transition_started = True
+        self.set_cursor(None)
 
-        if self.pipeline:
-            self.pipeline.set_state(Gst.State.NULL)
-            self.pipeline = None
+        if self.video:
+            self.video.stop()
+            self.video = None
 
         self.can_close = True
 
@@ -289,9 +377,16 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
 
     def _phase2_enable_anims(self):
         self.set_global_anims(True)
+        if not self.wallpaper_applied:
+            self.apply_wallpaper()
         GLib.timeout_add(150, self._phase3_open_window)
         return False
 
     def _phase3_open_window(self):
+        runtime_dir = os.environ.get("XDG_RUNTIME_DIR")
+        if runtime_dir:
+            marker = os.path.join(runtime_dir, "zenos-oobe-intro-complete")
+            with open(marker, "w", encoding="utf-8"):
+                pass
         self.emit('intro-skipped')
         return False

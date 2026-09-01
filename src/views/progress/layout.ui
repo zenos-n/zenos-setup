@@ -27,12 +27,107 @@
                 <property name="allow-scroll-wheel">false</property>
                 <property name="allow-mouse-drag">false</property>
                 <property name="allow-long-swipes">false</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">1</property>
+                    <property name="spacing">12</property>
+                    <property name="margin-start">12</property>
+                    <property name="margin-end">12</property>
+                    <child>
+                      <object class="GtkAspectFrame">
+                        <property name="ratio">1.777778</property>
+                        <property name="obey-child">false</property>
+                        <property name="hexpand">true</property>
+                        <property name="vexpand">true</property>
+                        <child>
+                          <object class="GtkPicture">
+                            <property name="can-shrink">true</property>
+                            <property name="content-fit">2</property>
+                            <property name="file">resource:///com/negzero/zenos/setup/assets/gnome.png</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">A focused desktop</property>
+                        <style>
+                          <class name="title-3"/>
+                        </style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">1</property>
+                    <property name="spacing">12</property>
+                    <property name="margin-start">12</property>
+                    <property name="margin-end">12</property>
+                    <child>
+                      <object class="GtkAspectFrame">
+                        <property name="ratio">1.777778</property>
+                        <property name="obey-child">false</property>
+                        <property name="hexpand">true</property>
+                        <property name="vexpand">true</property>
+                        <child>
+                          <object class="GtkPicture">
+                            <property name="can-shrink">true</property>
+                            <property name="content-fit">2</property>
+                            <property name="file">resource:///com/negzero/zenos/setup/assets/kde.png</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">Your system, your way</property>
+                        <style>
+                          <class name="title-3"/>
+                        </style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">1</property>
+                    <property name="spacing">12</property>
+                    <property name="margin-start">12</property>
+                    <property name="margin-end">12</property>
+                    <child>
+                      <object class="GtkAspectFrame">
+                        <property name="ratio">1.777778</property>
+                        <property name="obey-child">false</property>
+                        <property name="hexpand">true</property>
+                        <property name="vexpand">true</property>
+                        <child>
+                          <object class="GtkPicture">
+                            <property name="can-shrink">true</property>
+                            <property name="content-fit">2</property>
+                            <property name="file">resource:///com/negzero/zenos/setup/assets/xfce.png</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">Ready for everyday work</property>
+                        <style>
+                          <class name="title-3"/>
+                        </style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
               </object>
             </child>
             <child>
               <object class="AdwCarouselIndicatorDots">
                 <property name="carousel">carousel_tour</property>
                 <property name="orientation">0</property>
+                <property name="halign">3</property>
+                <property name="hexpand">true</property>
                 <property name="margin-bottom">18</property>
               </object>
             </child>
@@ -86,6 +181,18 @@
           </object>
         </child>
         <child>
+          <object class="GtkButton" id="live_mode_button">
+            <property name="visible">false</property>
+            <property name="label" translatable="yes">Enter Live Mode</property>
+            <property name="tooltip-text" translatable="yes">Close Setup and continue using the live desktop</property>
+            <property name="margin-end">12</property>
+            <property name="valign">3</property>
+            <style>
+              <class name="suggested-action"/>
+            </style>
+          </object>
+        </child>
+        <child>
           <object class="GtkButton" id="console_button">
             <property name="visible">true</property>
             <property name="margin-end">40</property>
@@ -124,4 +231,3 @@
     </child>
   </template>
 </interface>
-

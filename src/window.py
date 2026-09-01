@@ -59,11 +59,12 @@ FLOWS = {
                 "view": "desktop_picker",
                 "routes": {
                     "next": [
-                        {"target": "theme", "condition": "is_gnome"},
+                        {"target": "shortcuts", "condition": "is_gnome"},
                         {"target": "extra_software"}
                     ]
                 }
             },
+            "shortcuts": {"view": "shortcuts", "routes": {"next": "theme"}},
             "theme": {"view": "theme", "routes": {"next": "extra_software"}},
             "extra_software": {"view": "extra_software", "routes": {"next": "run_rebuild"}},
             "run_rebuild": {"view": "progress", "routes": {"next": "last_reboot"}},
@@ -137,6 +138,16 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
             return
 
         self.btn_next.set_sensitive(enabled)
+
+    def set_next_visible(self, visible: bool, caller=None):
+        if caller == "router":
+            self.btn_next.set_visible(visible)
+            return
+
+        current_node = FLOWS[self.active_flow_id]["steps"].get(self.current_step_id, {})
+        current_page_widget = self.loaded_pages.get(current_node.get("view", ""))
+        if caller == current_page_widget:
+            self.btn_next.set_visible(visible)
 
     def _get_path_segment(self, start_step_id):
         segment = [start_step_id]
@@ -309,7 +320,8 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
         self.btn_back.set_visible(not is_welcome and len(self.history) > 0)
 
         current_node = FLOWS[self.active_flow_id]["steps"].get(self.current_step_id, {})
-        self.btn_next.set_visible("next" in current_node.get("routes", {}))
+        has_next = "next" in current_node.get("routes", {})
+        self.btn_next.set_visible(has_next and not manifest.get("hide_next_while_gated", False))
 
     def navigate_to_step(self, step_id, is_back=False, force=False):
         if step_id == self.current_step_id or step_id == self.pending_step_id:
@@ -429,6 +441,7 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
             path.append(self.current_step_id)
 
         collected_views = set()
+        collected_state = InstallState(oobe=self.install_state.oobe)
 
         for step_id in path:
             step_config = FLOWS[self.active_flow_id]["steps"].get(step_id)
@@ -448,12 +461,13 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
 
             try:
                 data = page.get_finals()
-                self.install_state.set_page(page_id, data)
+                collected_state.set_page(page_id, data)
                 collected_views.add(view_name)
             except Exception as e:
                 print(f"[-] collect_state: {view_name} raised {e}")
 
-        return self.install_state
+        self.install_state = collected_state
+        return collected_state
 
     def navigate_back(self):
         if self.history:

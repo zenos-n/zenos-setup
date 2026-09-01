@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <template class="ZenOSShortcutPreferences" parent="AdwBin">
+    <property name="hexpand">true</property>
+    <property name="vexpand">true</property>
+    <child>
+      <object class="AdwStatusPage">
+        <property name="icon-name">preferences-desktop-keyboard-shortcuts-symbolic</property>
+        <property name="title" translatable="yes">Keyboard Shortcuts</property>
+        <property name="description" translatable="yes">Choose how navigation and common window actions behave.</property>
+        <child>
+          <object class="AdwClamp">
+            <property name="maximum-size">640</property>
+            <child>
+              <object class="GtkBox">
+                <property name="orientation">1</property>
+                <property name="spacing">24</property>
+                <child>
+                  <object class="AdwPreferencesGroup">
+                    <property name="title" translatable="yes">Directions</property>
+                    <property name="description" translatable="yes">Used for focusing, moving, workspaces, and monitors.</property>
+                    <child>
+                      <object class="AdwActionRow">
+                        <property name="title" translatable="yes">Vim</property>
+                        <property name="subtitle">H, J, K, and L</property>
+                        <property name="activatable-widget">directions_vim</property>
+                        <child type="prefix">
+                          <object class="GtkCheckButton" id="directions_vim">
+                            <property name="active">true</property>
+                            <property name="valign">3</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow">
+                        <property name="title" translatable="yes">Standard</property>
+                        <property name="subtitle" translatable="yes">Arrow keys</property>
+                        <property name="activatable-widget">directions_standard</property>
+                        <child type="prefix">
+                          <object class="GtkCheckButton" id="directions_standard">
+                            <property name="group">directions_vim</property>
+                            <property name="valign">3</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwPreferencesGroup">
+                    <property name="title" translatable="yes">Actions</property>
+                    <property name="description" translatable="yes">Used for closing, maximizing, launching apps, and locking.</property>
+                    <child>
+                      <object class="AdwActionRow">
+                        <property name="title" translatable="yes">ZenOS</property>
+                        <property name="subtitle">Super+Q, Super+W, Super+E</property>
+                        <property name="activatable-widget">actions_zenos</property>
+                        <child type="prefix">
+                          <object class="GtkCheckButton" id="actions_zenos">
+                            <property name="active">true</property>
+                            <property name="valign">3</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow">
+                        <property name="title" translatable="yes">Traditional</property>
+                        <property name="subtitle" translatable="yes">Stock GNOME shortcuts, including Alt+F4</property>
+                        <property name="activatable-widget">actions_traditional</property>
+                        <child type="prefix">
+                          <object class="GtkCheckButton" id="actions_traditional">
+                            <property name="group">actions_zenos</property>
+                            <property name="valign">3</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

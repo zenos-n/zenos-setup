@@ -1,0 +1,154 @@
+[
+  {
+    "id": "compiz-alike-magic-lamp-effect",
+    "name": "Compiz Magic Lamp Effect",
+    "description": "Animates window minimize and restore transitions.",
+    "packagePath": ["zenos", "apps", "gnome-extensions", "compiz-alike-magic-lamp-effect"],
+    "liveEnabled": true,
+    "recommended": true
+  },
+  {
+    "id": "compiz-windows-effect",
+    "name": "Compiz Windows Effect",
+    "description": "Adds responsive window movement and resize effects.",
+    "packagePath": ["zenos", "apps", "gnome-extensions", "compiz-windows-effect"],
+    "liveEnabled": true,
+    "recommended": true
+  },
+  {
+    "id": "coverflow-alt-tab",
+    "name": "Coverflow Alt-Tab",
+    "description": "Provides a visual application switcher.",
+    "packagePath": ["zenos", "apps", "gnome-extensions", "coverflow-alt-tab"],
+    "liveEnabled": true,
+    "recommended": true
+  },
+  {
+    "id": "date-menu-formatter",
+    "name": "Date Menu Formatter",
+    "description": "Formats the panel clock for the ZenOS layout.",
+    "packagePath": ["zenos", "apps", "gnome-extensions", "date-menu-formatter"],
+    "liveEnabled": true,
+    "recommended": true
+  },
+  {
+    "id": "gsconnect",
+    "name": "GSConnect",
+    "description": "Integrates phones and other KDE Connect devices.",
+    "packagePath": ["zenos", "apps", "gnome-extensions", "gsconnect"],
+    "liveEnabled": true,
+    "recommended": true
+  },
+  {
+    "id": "hide-cursor",
+    "name": "Hide Cursor",
+    "description": "Hides an idle pointer until it is used again.",
+    "packagePath": ["zenos", "apps", "gnome-extensions", "hide-cursor"],
+    "liveEnabled": true,
+    "recommended": true
+  },
+  {
+    "id": "hide-minimized",
+    "name": "Hide Minimized",
+    "description": "Keeps minimized windows out of overview results.",
+    "packagePath": ["zenos", "apps", "gnome-extensions", "hide-minimized"],
+    "liveEnabled": true,
+    "recommended": true
+  },
+  {
+    "id": "mouse-tail",
+    "name": "Mouse Tail",
+    "description": "Improves pointer visibility during movement.",
+    "packagePath": ["zenos", "apps", "gnome-extensions", "mouse-tail"],
+    "liveEnabled": true,
+    "recommended": true
+  },
+  {
+    "id": "notification-timeout",
+    "name": "Notification Timeout",
+    "description": "Keeps notification timing predictable.",
+    "packagePath": ["zenos", "apps", "gnome-extensions", "notification-timeout"],
+    "liveEnabled": true,
+    "recommended": true
+  },
+  {
+    "id": "rounded-window-corners-reborn",
+    "name": "Rounded Window Corners Reborn",
+    "description": "Applies consistent rounded corners to windows.",
+    "packagePath": ["zenos", "apps", "gnome-extensions", "rounded-window-corners-reborn"],
+    "liveEnabled": true,
+    "recommended": true
+  },
+  {
+    "id": "user-themes",
+    "name": "User Themes",
+    "description": "Loads the ZenOS GNOME Shell theme.",
+    "packagePath": ["zenos", "apps", "gnome-extensions", "user-themes"],
+    "liveEnabled": true,
+    "recommended": true
+  },
+  {
+    "id": "window-is-ready-remover",
+    "name": "Window Is Ready Remover",
+    "description": "Prevents redundant window-ready notifications.",
+    "packagePath": ["zenos", "apps", "gnome-extensions", "window-is-ready-remover"],
+    "liveEnabled": true,
+    "recommended": true
+  },
+  {
+    "id": "alphabetical-app-grid",
+    "name": "Alphabetical App Grid",
+    "description": "Keeps the application grid alphabetically ordered.",
+    "packagePath": ["zenos", "apps", "gnome-extensions", "alphabetical-app-grid"],
+    "liveEnabled": false,
+    "recommended": true
+  },
+  {
+    "id": "app-hider",
+    "name": "App Hider",
+    "description": "Can hide selected entries from the application grid.",
+    "packagePath": ["zenos", "apps", "gnome-extensions", "app-hider"],
+    "liveEnabled": false,
+    "recommended": false
+  },
+  {
+    "id": "burn-my-windows",
+    "name": "Burn My Windows",
+    "description": "Provides optional window opening and closing effects.",
+    "packagePath": ["zenos", "apps", "gnome-extensions", "burn-my-windows"],
+    "liveEnabled": false,
+    "recommended": false
+  },
+  {
+    "id": "clipboard-indicator",
+    "name": "Clipboard Indicator",
+    "description": "Adds clipboard history to the top panel.",
+    "packagePath": ["zenos", "apps", "gnome-extensions", "clipboard-indicator"],
+    "liveEnabled": false,
+    "recommended": true
+  },
+  {
+    "id": "hide-top-bar",
+    "name": "Hide Top Bar",
+    "description": "Can hide the panel when windows overlap it.",
+    "packagePath": ["zenos", "apps", "gnome-extensions", "hide-top-bar"],
+    "liveEnabled": false,
+    "recommended": false
+  },
+  {
+    "id": "dash-stacks",
+    "name": "Dash Stacks",
+    "description": "Adds folder stacks for common locations to the dash.",
+    "packagePath": ["zenos", "desktops", "gnome", "extensions", "dash-stacks"],
+    "liveEnabled": false,
+    "recommended": true
+  },
+  {
+    "id": "forge",
+    "name": "Forge",
+    "description": "Adds keyboard-driven window tiling.",
+    "packagePath": ["zenos", "desktops", "gnome", "extensions", "forge"],
+    "liveEnabled": false,
+    "recommended": true
+  }
+]

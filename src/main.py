@@ -5,7 +5,7 @@ import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 
-from gi.repository import Gtk, Gio, Adw
+from gi.repository import Gtk, Gio, GLib, Adw
 from gettext import gettext as _
 
 from .window import ZenosSetupWindow
@@ -20,13 +20,71 @@ class ZenosSetupApplication(Adw.Application):
                          resource_base_path='/com/negzero/zenos/setup')
         self.start_in_oobe = start_in_oobe
         self.intro_played = False
+        self.close_dialog = None
 
     def on_close(self, window):
-        # if we've flagged the window as unclosable, block the shutdown call entirely
         if not window.get_deletable():
             return True
 
-        # trigger the gnome shutdown dialog
+        if self.close_dialog:
+            self.close_dialog.present()
+            return True
+
+        dialog = Adw.MessageDialog(
+            heading="Leave ZenOS Setup?",
+            body="You can continue into the live desktop or shut this computer down.",
+            transient_for=window,
+        )
+        dialog.add_response("live", "Try Live Mode")
+        dialog.add_response("shutdown", "Shut Down")
+        dialog.set_response_appearance("shutdown", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.set_default_response("live")
+        dialog.set_close_response("cancel")
+        dialog.connect("response", self.on_close_response, window)
+        self.close_dialog = dialog
+        dialog.present()
+        return True
+
+    def on_close_response(self, dialog, response, window):
+        self.close_dialog = None
+
+        if response == "live":
+            self.disable_oobe_mode()
+            window.destroy()
+            self.quit()
+        elif response == "shutdown":
+            self.trigger_shutdown()
+
+    def disable_oobe_mode(self):
+        try:
+            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+            proxy = Gio.DBusProxy.new_sync(
+                bus,
+                Gio.DBusProxyFlags.NONE,
+                None,
+                "org.gnome.Shell.Extensions",
+                "/org/gnome/Shell/Extensions",
+                "org.gnome.Shell.Extensions",
+                None,
+            )
+            for method, uuid in (
+                ("DisableExtension", "zenos-oobe-mode@neg-zero.com"),
+                ("EnableExtension", "forge@jmmaranan.com"),
+                ("EnableExtension", "AlphabeticalAppGrid@stuarthayhurst"),
+                ("EnableExtension", "dash-stacks@neg-zero.com"),
+                ("EnableExtension", "clipboard-indicator@tudmotu.com"),
+            ):
+                proxy.call_sync(
+                    method,
+                    GLib.Variant("(s)", (uuid,)),
+                    Gio.DBusCallFlags.NONE,
+                    -1,
+                    None,
+                )
+        except Exception as error:
+            print(f"failed to disable OOBE mode: {error}")
+
+    def trigger_shutdown(self):
         bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
         proxy = Gio.DBusProxy.new_sync(
             bus,
@@ -40,10 +98,8 @@ class ZenosSetupApplication(Adw.Application):
 
         try:
             proxy.call_sync("Shutdown", None, Gio.DBusCallFlags.NONE, -1, None)
-        except Exception as e:
-            print(f"failed to trigger shutdown: {e}")
-
-        return True # stops the window from closing
+        except Exception as error:
+            print(f"failed to trigger shutdown: {error}")
 
     def do_activate(self):
         # if oobe flag is set and we haven't played the intro yet, show that first

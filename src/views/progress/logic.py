@@ -3,6 +3,7 @@ import threading
 from gi.repository import Gtk, Adw, GObject, GLib
 
 from zenos_setup.runner import run_installer
+from zenos_setup.views.progress import next_tour_index
 
 @Gtk.Template(resource_path='/com/negzero/zenos/setup/views/progress/layout.ui')
 class Page(Gtk.Box):
@@ -15,9 +16,11 @@ class Page(Gtk.Box):
     tour_button      = Gtk.Template.Child()
     progressbar      = Gtk.Template.Child()
     progressbar_text = Gtk.Template.Child()
+    live_mode_button = Gtk.Template.Child()
 
     MANIFEST = {
         "gated": True,
+        "hide_next_while_gated": True,
         "unclosable": True,
     }
 
@@ -29,6 +32,8 @@ class Page(Gtk.Box):
         self.carousel_tour.connect("page-changed", self._update_tour_buttons)
         self.console_button.connect("clicked", self._show_console)
         self.tour_button.connect("clicked", self._show_tour)
+        self.live_mode_button.connect("clicked", self._enter_live_mode)
+        self._tour_timer_id = GLib.timeout_add_seconds(5, self._advance_tour)
 
         # --- build a proper scrolled log view and inject it into console_box ---
         self._log_buffer = Gtk.TextBuffer()
@@ -100,15 +105,24 @@ class Page(Gtk.Box):
         self.progressbar_text.set_label(text)
 
     def _finish(self, success: bool, error: str | None):
+        self._stop_tour()
         if success:
             self._set_status("Installation complete")
             self.progressbar.set_fraction(1.0)
+            self.router.set_next_visible(True, caller=self)
             self.router.set_next_enabled(True, caller=self)
         else:
             self._set_status("Installation failed")
             self._append_log(f"\n[fatal] {error}")
+            if not self.install_state.oobe:
+                self.router.set_deletable(True)
+                self.live_mode_button.set_visible(True)
             # switch to console automatically so the user sees what went wrong
             self._show_console(None)
+
+    def _enter_live_mode(self, _button):
+        self.router.set_deletable(True)
+        self.router.close()
 
     # ------------------------------------------------------------------ tour
 
@@ -116,6 +130,19 @@ class Page(Gtk.Box):
         pos   = int(self.carousel_tour.get_position())
         total = self.carousel_tour.get_n_pages()
         # could hide/show prev-next here when you add carousel pages
+
+    def _advance_tour(self):
+        total = self.carousel_tour.get_n_pages()
+        next_index = next_tour_index(self.carousel_tour.get_position(), total)
+        if next_index is not None:
+            page = self.carousel_tour.get_nth_page(next_index)
+            self.carousel_tour.scroll_to(page, True)
+        return GLib.SOURCE_CONTINUE
+
+    def _stop_tour(self):
+        if self._tour_timer_id is not None:
+            GLib.source_remove(self._tour_timer_id)
+            self._tour_timer_id = None
 
     def _show_console(self, _):
         self.tour_box.set_visible(False)

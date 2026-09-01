@@ -5,10 +5,42 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, GObject, Gtk, GLib
+from gi.repository import Adw, Gdk, GObject, Gtk, GLib
 
 with open(Path(__file__).parent / "apps.json", encoding="utf-8") as _f:
     APPS = json.load(_f)
+
+DESKTOP_IDS = {"budgie", "cinnamon", "gnome", "ii", "kde", "mate", "xfce"}
+
+
+def _category_apps(category):
+    return category if isinstance(category, list) else category.get("apps", [])
+
+
+def _initial_choices():
+    choices = {}
+    for category in APPS.values():
+        included = isinstance(category, dict) and category.get("includedByDesktop", False)
+        for app in _category_apps(category):
+            choices.setdefault(
+                app["id"],
+                {
+                    "app": app["id"],
+                    "enabled": app.get("default", included),
+                    "extraOptions": [],
+                    "includedByDesktop": included,
+                },
+            )
+    return list(choices.values())
+
+
+def _available_icon(icon_name):
+    display = Gdk.Display.get_default()
+    if display:
+        theme = Gtk.IconTheme.get_for_display(display)
+        if icon_name and theme.has_icon(icon_name):
+            return icon_name
+    return "application-x-executable-symbolic"
 
 
 def get_desktop_from_state(router):
@@ -53,11 +85,12 @@ class AppsPopup(Adw.Window):
                 app_id, {"app": app_id, "enabled": True, "extraOptions": []}
             )
 
-            row = Adw.ExpanderRow(title=app["name"], icon_name=app.get("icon", ""))
+            row = Adw.ExpanderRow(title=app["name"])
 
             check = Gtk.CheckButton(valign=Gtk.Align.CENTER, can_focus=False)
             check.set_active(existing["enabled"])
             row.add_prefix(check)
+            row.add_prefix(Gtk.Image(icon_name=_available_icon(app.get("icon", "")), pixel_size=32))
 
             extras_switches = {}
 
@@ -124,7 +157,7 @@ class Page(Adw.Bin):
     def __init__(self, router, **kwargs):
         super().__init__(**kwargs)
         self.router = router
-        self.user_choices = []
+        self.user_choices = _initial_choices()
         self.cat_checks = {}
         self._updating_ui = False
         self.selected_desktop = None
@@ -168,10 +201,9 @@ class Page(Adw.Bin):
         self._added_rows.clear()
 
         self.cat_checks.clear()
-        self.user_choices.clear()
-
         for cat_id, cat_data in APPS.items():
-            if '-' in cat_id:
+            suffix = cat_id.rsplit("-", 1)[-1]
+            if suffix in DESKTOP_IDS:
                 base_cat, desktop_name = cat_id.rsplit('-', 1)
                 if not self.selected_desktop or self.selected_desktop != desktop_name:
                     continue
@@ -209,12 +241,7 @@ class Page(Adw.Bin):
             self.bundles_list.add(row)
             self._added_rows.append(row)
 
-            is_active = check.get_active()
-            for app in apps_list:
-                enabled = app.get("default", is_active)
-                self.user_choices.append(
-                    {"app": app["id"], "enabled": enabled, "extraOptions": []}
-                )
+            self.refresh_ui_for_category(cat_id)
 
     def get_finals(self):
         return {"apps": list(self.user_choices)}
@@ -261,11 +288,15 @@ class Page(Adw.Bin):
         popup.present()
 
     def update_choices(self, category_results, category_id):
+        cat_data = APPS[category_id]
+        included = isinstance(cat_data, dict) and cat_data.get("includedByDesktop", False)
         updated_app_ids = {r["app"] for r in category_results}
         self.user_choices = [
             c for c in self.user_choices if c["app"] not in updated_app_ids
         ]
-        self.user_choices.extend(category_results)
+        self.user_choices.extend(
+            {**result, "includedByDesktop": included} for result in category_results
+        )
 
         self.refresh_ui_for_category(category_id)
         print(f"[+] current software selections: {self.user_choices}")

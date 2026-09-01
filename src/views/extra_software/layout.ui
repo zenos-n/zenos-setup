@@ -13,7 +13,7 @@
         <property name="vexpand">true</property>
         <property name="title" translatable="yes">Applications</property>
         <property name="description" translatable="yes">Choose which applications to install.</property>
-        <property name="icon-name">org.gnome.Software-symbolic</property>
+        <property name="icon-name">zenos-installer-display-with-window-symbolic</property>
         <child>
           <object class="AdwClamp">
             <child>
@@ -29,4 +29,3 @@
     </child>
   </template>
 </interface>
-

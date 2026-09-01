@@ -1,5 +1,6 @@
 import subprocess
 from gi.repository import Adw, Gtk, GObject
+from ...runner import DRY_RUN
 
 @Gtk.Template(resource_path='/com/negzero/zenos/setup/views/reboot/layout.ui')
 class Page(Adw.Bin):
@@ -16,6 +17,9 @@ class Page(Adw.Bin):
 
     @Gtk.Template.Callback()
     def on_reboot_clicked(self, button):
+        if DRY_RUN:
+            print("[dry-run] would reboot system")
+            return
         print("[!] rebooting system...")
         try:
             # use pkexec if you need auth, but usually installers run as root
