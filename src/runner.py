@@ -800,6 +800,8 @@ def _install_local(
         _lock_and_evaluate(config_dir, host_name, log_fn)
         progress_fn(0.75)
         _nixos_install(config_dir, host_name, log_fn)
+        if not short:
+            os.unlink(os.path.join(host_dir, "install-plan.json"))
         progress_fn(1.0)
         _emit(log_fn, f"{mode} install done")
     finally:
@@ -948,6 +950,7 @@ def _run_oobe(
         _write_json(
             os.path.join(final_dir, "oobe-complete.json"), completion, atomic=True
         )
+        os.unlink(os.path.join(final_dir, "install-plan.json"))
         _validate_config_layout(config_dir)
         _remove_config_tree(temporary_dir, log_fn)
         completed = True

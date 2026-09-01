@@ -205,6 +205,7 @@ class InitialInstallTests(unittest.TestCase):
             config_dir = runner._dry_config_root(work_dir)
             host_dir = os.path.join(config_dir, "hosts", "zen-final")
             self.assertNotIn("oobe.json", os.listdir(host_dir))
+            self.assertNotIn("install-plan.json", os.listdir(host_dir))
             for directory, _subdirs, files in os.walk(config_dir):
                 for filename in files:
                     with open(os.path.join(directory, filename), "rb") as file:
@@ -303,10 +304,7 @@ class OobeTests(unittest.TestCase):
             for filename, expected in artifacts.items():
                 with open(os.path.join(final_dir, filename), "rb") as file:
                     self.assertEqual(file.read(), expected)
-            with open(os.path.join(final_dir, "install-plan.json"), encoding="utf-8") as file:
-                final_plan = json.load(file)
-            self.assertEqual(final_plan["disk"]["mode"], "auto")
-            self.assertEqual(final_plan["disk"]["devices"], ["vda"])
+            self.assertFalse(os.path.exists(os.path.join(final_dir, "install-plan.json")))
             with open(os.path.join(final_dir, "oobe-complete.json"), encoding="utf-8") as file:
                 completion = json.load(file)
             self.assertEqual(completion["status"], "complete")
