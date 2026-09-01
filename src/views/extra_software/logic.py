@@ -27,7 +27,11 @@ def _initial_choices():
                 {
                     "app": app["id"],
                     "enabled": app.get("default", included),
-                    "extraOptions": [],
+                    "extraOptions": [
+                        option["id"]
+                        for option in app.get("extraOptions", [])
+                        if option.get("default", False)
+                    ],
                     "includedByDesktop": included,
                 },
             )

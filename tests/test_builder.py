@@ -61,13 +61,13 @@ class BuilderTests(unittest.TestCase):
         self.assertEqual(tree["gnomeProfile"]["directionKeys"], "standard")
         self.assertEqual(tree["gnomeProfile"]["actionKeys"], "traditional")
         self.assertEqual(tree["system"]["release"]["stateVersion"], "26.05")
-        self.assertEqual(
-            tree["system"]["software"]["packages"],
-            [PkgsRef(("catalog", "firefox"))],
-        )
+        self.assertNotIn("software", tree["system"])
         self.assertTrue(tree["legacy"]["users"]["users"]["zen"]["isNormalUser"])
         self.assertEqual(tree["legacy"]["users"]["users"]["zen"]["uid"], 1000)
         self.assertTrue(tree["legacy"]["programs"]["firefox"]["enable"])
+        self.assertTrue(
+            tree["desktops"]["gnome"]["tweaks"]["firefoxTheming"]["enable"]
+        )
         self.assertNotIn("disks", tree)
 
     def test_output_is_deterministic_and_never_contains_plaintext_password(self):
@@ -78,7 +78,8 @@ class BuilderTests(unittest.TestCase):
         self.assertNotIn("not-written-to-config", first)
         self.assertIn('initialHashedPassword = "$6$test$hash";', first)
         self.assertIn("legacy = {", first)
-        self.assertIn("$pkgs.catalog.firefox", first)
+        self.assertNotIn("$pkgs.catalog.firefox", first)
+        self.assertIn("firefoxTheming", first)
         self.assertNotIn("zenos = {", first)
         self.assertNotIn("$pkgs.zenos", first)
 
@@ -98,7 +99,7 @@ class BuilderTests(unittest.TestCase):
         self.assertIn("import ./apps.zcfg;", documents["host.zcfg"])
         self.assertIn("legacy = {", documents["users.zcfg"])
         self.assertIn("zenfs = {", documents["users.zcfg"])
-        self.assertIn("software = {", documents["apps.zcfg"])
+        self.assertIn("firefox = {", documents["apps.zcfg"])
 
     def test_execution_plan_owns_disk_and_network_state(self):
         plan = build_execution_plan(FULL_PAYLOAD)
@@ -141,10 +142,7 @@ class BuilderTests(unittest.TestCase):
             ]
         }
         tree = build_config_tree(payload)
-        self.assertEqual(
-            tree["system"]["software"]["packages"],
-            [PkgsRef(("catalog", "firefox"))],
-        )
+        self.assertNotIn("software", tree["system"])
 
     def test_disabled_desktop_core_app_is_excluded(self):
         payload = {

@@ -242,6 +242,7 @@ def build_config_tree(
     packages = []
     core_exclusions = []
     firefox_enabled = False
+    firefox_gnome_theme = False
     for app in pages.get("software", {}).get("apps", []):
         if app.get("includedByDesktop"):
             if not app.get("enabled"):
@@ -257,10 +258,22 @@ def build_config_tree(
         _validate_identifier(app_id, "application id")
         if app_id in UNAVAILABLE_PACKAGES:
             raise ValueError(f"application is unavailable in the current ZenPkgs registry: {app_id}")
-        firefox_enabled = firefox_enabled or app_id == "firefox"
-        packages.append(PkgsRef(("catalog", app_id)))
+        if app_id == "firefox":
+            firefox_enabled = True
+            firefox_gnome_theme = "gnome_theme" in app.get("extraOptions", [])
+        if app_id != "firefox":
+            packages.append(PkgsRef(("catalog", app_id)))
     if firefox_enabled:
         _set_path(tree, ("legacy", "programs", "firefox", "enable"), True)
+        if (
+            firefox_gnome_theme
+            and pages.get("desktop", {}).get("desktop_environment") == "gnome"
+        ):
+            _set_path(
+                tree,
+                ("desktops", "gnome", "tweaks", "firefoxTheming", "enable"),
+                True,
+            )
     if core_exclusions:
         selected = pages.get("desktop", {}).get("desktop_environment", "")
         option = CORE_EXCLUDE_OPTIONS.get(selected)
