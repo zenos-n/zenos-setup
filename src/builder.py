@@ -178,7 +178,7 @@ def build_config_tree(
 
     _set_path(tree, ("system", "branding", "distroName"), "ZenOS")
     _set_path(tree, ("system", "branding", "distroId"), "zenos")
-    _set_path(tree, ("system", "release", "stateVersion"), "26.05")
+    _set_path(tree, ("system", "release", "stateVersion"), "1.0.0")
     _set_path(tree, ("system", "network", "networkManager"), True)
 
     language = pages.get("language", {})

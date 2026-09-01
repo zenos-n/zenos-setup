@@ -60,7 +60,7 @@ class BuilderTests(unittest.TestCase):
         self.assertTrue(tree["gnomeProfile"]["enableExtensions"])
         self.assertEqual(tree["gnomeProfile"]["directionKeys"], "standard")
         self.assertEqual(tree["gnomeProfile"]["actionKeys"], "traditional")
-        self.assertEqual(tree["system"]["release"]["stateVersion"], "26.05")
+        self.assertEqual(tree["system"]["release"]["stateVersion"], "1.0.0")
         self.assertNotIn("software", tree["system"])
         self.assertTrue(tree["legacy"]["users"]["users"]["zen"]["isNormalUser"])
         self.assertEqual(tree["legacy"]["users"]["users"]["zen"]["uid"], 1000)
