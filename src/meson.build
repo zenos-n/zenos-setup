@@ -35,6 +35,7 @@ zenos_setup_sources = [
   'state.py',
   'window.py',
   'runner.py',
+  'user_sources.py',
   'builder.py'
 ]
 

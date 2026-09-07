@@ -453,11 +453,12 @@
                             <child>
                               <object class="AdwExpanderRow" id="row_ii">
                                 <property name="title">ii</property>
-                                <property name="subtitle" translatable="yes">Dynamic tiling Wayland compositor</property>
+                                <property name="subtitle" translatable="yes">Unavailable: Illogical Impulse is not implemented</property>
                                 <property name="activatable">false</property>
                                 <child type="prefix">
                                   <object class="GtkCheckButton" id="radio_ii">
                                     <property name="group">radio_gnome</property>
+                                    <property name="sensitive">false</property>
                                     <property name="valign">3</property>
                                   </object>
                                 </child>
@@ -525,4 +526,3 @@
     </child>
   </template>
 </interface>
-

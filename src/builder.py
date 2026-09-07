@@ -22,13 +22,33 @@ class PkgsRef:
             raise ValueError(f"invalid package reference: {'.'.join(self.path)}")
 
 
+@dataclass(frozen=True)
+class PackageFile:
+    package: PkgsRef
+    suffix: str
+    uri: bool = False
+
+
+@dataclass(frozen=True)
+class GVariant:
+    kind: str
+    value: int | None = None
+
+
 DESKTOP_OPTIONS = {
     "gnome": ("desktops", "gnome", "enable"),
-    "kde": ("desktops", "plasma", "enable"),
-    "xfce": ("desktops", "xfce", "enable"),
-    "cinnamon": ("desktops", "cinnamon", "enable"),
-    "budgie": ("desktops", "budgie", "enable"),
-    "mate": ("desktops", "mate", "enable"),
+    "kde": ("legacy", "services", "desktopManager", "plasma6", "enable"),
+    "xfce": ("legacy", "services", "xserver", "desktopManager", "xfce", "enable"),
+    "cinnamon": (
+        "legacy",
+        "services",
+        "xserver",
+        "desktopManager",
+        "cinnamon",
+        "enable",
+    ),
+    "budgie": ("legacy", "services", "desktopManager", "budgie", "enable"),
+    "mate": ("legacy", "services", "xserver", "desktopManager", "mate", "enable"),
 }
 
 UNAVAILABLE_PACKAGES = {"flatseal", "helium-browser", "ventoy", "zen-browser"}
@@ -55,12 +75,8 @@ _PROJECT_ROOT = _MODULE_ROOT.parent
 _GNOME_EXTENSION_CATALOG = _MODULE_ROOT / "data/gnome-extensions.json"
 if not _GNOME_EXTENSION_CATALOG.is_file():
     _GNOME_EXTENSION_CATALOG = _PROJECT_ROOT / "data/gnome-extensions.json"
-SOFTWARE_APP_IDS = _catalog_ids(
-    _MODULE_ROOT / "views/extra_software/apps.json", "apps"
-)
-GNOME_EXTENSION_IDS = _catalog_ids(
-    _GNOME_EXTENSION_CATALOG, "extensions"
-)
+SOFTWARE_APP_IDS = _catalog_ids(_MODULE_ROOT / "views/extra_software/apps.json", "apps")
+GNOME_EXTENSION_IDS = _catalog_ids(_GNOME_EXTENSION_CATALOG, "extensions")
 
 CORE_EXCLUDE_OPTIONS = {
     "gnome": ("legacy", "environment", "gnome", "excludePackages"),
@@ -80,14 +96,14 @@ CORE_PACKAGE_PATHS = {
     "gnome-calendar": ("legacy", "gnome-calendar"),
     "gnome-characters": ("legacy", "gnome-characters"),
     "gnome-clocks": ("legacy", "gnome-clocks"),
-    "nautilus": ("catalog", "nautilus"),
-    "gnome-console": ("catalog", "gnome-console"),
+    "nautilus": ("legacy", "nautilus"),
+    "gnome-console": ("legacy", "gnome-console"),
     "gnome-contacts": ("legacy", "gnome-contacts"),
     "gnome-font-viewer": ("legacy", "gnome-font-viewer"),
     "gnome-logs": ("legacy", "gnome-logs"),
     "gnome-maps": ("legacy", "gnome-maps"),
     "gnome-music": ("legacy", "gnome-music"),
-    "gnome-system-monitor": ("catalog", "gnome-system-monitor"),
+    "gnome-system-monitor": ("legacy", "gnome-system-monitor"),
     "gnome-tecla": ("legacy", "gnome-tecla"),
     "gnome-weather": ("legacy", "gnome-weather"),
     "loupe": ("legacy", "loupe"),
@@ -121,6 +137,248 @@ CORE_PACKAGE_PATHS = {
     "mate-terminal": ("legacy", "mate", "mate-terminal"),
     "pluma": ("legacy", "mate", "pluma"),
 }
+
+
+# These are filesystem-derived public package identities, not catalog aliases.
+APP_PACKAGE_PATHS = {
+    app: ("apps", category, app)
+    for category, apps in {
+        "browsers": "firefox librewolf ungoogled-chromium brave-browser tor-browser",
+        "gaming": "steam heroic lutris bottles prism-launcher retroarch",
+        "development": "vscode zed gnome-builder neovim helix gitg github-cli docker jetbrains-toolbox",
+        "system": "kitty btop fish zsh",
+        "utilities": "pika-backup metadata-cleaner curtail gnome-boxes file-roller impression cipher resources mission-center",
+        "office": "libreoffice onlyoffice thunderbird obsidian apostrophe foliate",
+        "advanced": "virt-manager podman-desktop wireshark gparted keepassxc bitwarden cockpit nmap",
+    }.items()
+    for app in apps.split()
+}
+
+
+def _gnome_profile(tree, options, shortcuts, theme, extension_paths):
+    """Lower the a813a8e GNOME profile into existing options, without a profile schema."""
+    directions = shortcuts.get("directions", "vim")
+    actions = shortcuts.get("actions", "zenos")
+    if directions not in {"standard", "vim"}:
+        raise ValueError(f"unsupported shortcut direction mode: {directions!r}")
+    if actions not in {"traditional", "zenos"}:
+        raise ValueError(f"unsupported shortcut action mode: {actions!r}")
+    keys = dict(
+        zip(
+            ("left", "down", "up", "right"),
+            ("h", "j", "k", "l")
+            if directions == "vim"
+            else ("Left", "Down", "Up", "Right"),
+        )
+    )
+    empty = GVariant("empty-string-array")
+    wm = {}
+    for direction in ("left", "right"):
+        key = keys[direction]
+        wm[f"switch-to-workspace-{direction}"] = [f"<Super><Control>{key}"]
+        wm[f"move-to-workspace-{direction}"] = [f"<Super><Control><Shift>{key}"]
+        wm[f"move-to-monitor-{direction}"] = [f"<Super><Alt>{key}"]
+    settings = {
+        "org/gnome/desktop/wm/keybindings": wm,
+        "org/gnome/mutter/keybindings": {
+            "toggle-tiled-left": empty,
+            "toggle-tiled-right": empty,
+        },
+    }
+    if actions == "zenos":
+        wm.update(
+            {
+                "close": ["<Super>q"],
+                "toggle-maximized": ["<Super>w"],
+                "minimize": ["<Super>Page_Down"],
+                "activate-window-menu": ["<Alt>space"],
+                "begin-resize": ["<Control><Super>c"],
+                "switch-input-source": ["<Super>space"],
+                "switch-input-source-backward": ["<Shift><Super>space"],
+            }
+        )
+        media = "org/gnome/settings-daemon/plugins/media-keys"
+        settings[media] = {
+            "maximize": empty,
+            "unmaximize": empty,
+            "screensaver": ["<Super>Escape"],
+            "custom-keybindings": [],
+        }
+        for name, title, command, binding in (
+            ("files", "Files", "nautilus --new-window", "<Super>e"),
+            ("terminal", "Console", "kgx", "<Super>t"),
+            ("resources", "Resources", "resources", "<Control><Shift>Escape"),
+        ):
+            path = f"{media}/custom-keybindings/{name}"
+            settings[media]["custom-keybindings"].append(f"/{path}/")
+            settings[path] = {"name": title, "command": command, "binding": binding}
+    forge_path = ("desktops", "gnome", "extensions", "forge")
+    if forge_path in extension_paths:
+        bindings = {}
+        for direction, key in keys.items():
+            bindings[f"window-focus-{direction}"] = [f"<Super>{key}"]
+            bindings[f"window-move-{direction}"] = [f"<Shift><Super>{key}"]
+        # Forge's defaults otherwise steal workspace shortcuts and Super+W.
+        for direction in keys:
+            bindings[f"window-swap-{direction}"] = empty
+        if actions == "zenos":
+            bindings["prefs-tiling-toggle"] = empty
+        settings["org/gnome/shell/extensions/forge/keybindings"] = bindings
+        settings["org/gnome/shell/extensions/forge"] = {
+            "tiling-mode-enabled": bool(options.get("tiling", True)),
+            "dnd-center-layout": "swap",
+            "float-always-on-top-enabled": False,
+            "focus-border-toggle": False,
+            "quick-settings-enabled": False,
+            "split-border-toggle": False,
+            "stacked-tiling-mode-enabled": False,
+            "tabbed-tiling-mode-enabled": False,
+            "window-gap-size": GVariant("uint32", 4),
+        }
+    selected_names = {path[-1] for path in extension_paths}
+    if "date-menu-formatter" in selected_names:
+        settings["org/gnome/shell/extensions/date-menu-formatter"] = {
+            "font-size": GVariant("int32", 12),
+            "formatter": "01_luxon",
+            "pattern": "dd.MM  HH:mm",
+            "text-align": "center",
+            "update-level": GVariant("int32", 1),
+        }
+    if "coverflow-alt-tab" in selected_names:
+        settings["org/gnome/shell/extensions/coverflowalttab"] = {
+            "desaturate-factor": GVariant("double", 0),
+            "icon-style": "Classic",
+            "use-glitch-effect": True,
+        }
+    if "mouse-tail" in selected_names:
+        settings["org/gnome/shell/extensions/mouse-tail"] = {"render-mode": "precise"}
+    if "notification-timeout" in selected_names:
+        settings["org/gnome/shell/extensions/notification-timeout"] = {
+            "timeout": GVariant("int32", 2000)
+        }
+    if options.get("theme", True):
+        for path in (
+            ("apps", "cursors", "google-dot"),
+            ("apps", "themes", "adw-gtk3"),
+            ("theming", "fonts", "zero", "mono-thin"),
+            ("theming", "fonts", "zero", "regular"),
+            ("theming", "icons", "adwaita-hacks"),
+            ("theming", "wallpapers", "destination-2"),
+        ):
+            _set_path(tree, ("system", "packages", *path), True)
+        _set_path(
+            tree,
+            ("legacy", "fonts", "packages"),
+            [
+                PkgsRef(("legacy", "atkinson-hyperlegible")),
+                PkgsRef(("legacy", "nerd-fonts", "atkynson-mono")),
+                PkgsRef(("theming", "fonts", "zero", "mono-thin")),
+                PkgsRef(("theming", "fonts", "zero", "regular")),
+            ],
+        )
+        dark = theme.get("dark_mode", True)
+        settings["org/gnome/desktop/interface"] = {
+            "cursor-size": GVariant("int32", 24),
+            "cursor-theme": "GoogleDot-Black",
+            "document-font-name": "Atkinson Hyperlegible 11",
+            "font-name": "Atkinson Hyperlegible 11",
+            "gtk-theme": "adw-gtk3-dark" if dark else "adw-gtk3",
+            "icon-theme": "Adwaita-hacks",
+            "monospace-font-name": "AtkynsonMono NF 11",
+        }
+        color = theme.get("accent", "purple")
+        color = "slate" if color == "grey" else color
+        wallpaper = PackageFile(
+            PkgsRef(("theming", "wallpapers", "destination-2")),
+            f"/share/backgrounds/destination-2/{color}{' dark' if dark else ''}.png",
+            True,
+        )
+        settings["org/gnome/desktop/background"] = {
+            "color-shading-type": "solid",
+            "picture-options": "zoom",
+            "picture-uri": wallpaper,
+            "picture-uri-dark": wallpaper,
+            "primary-color": "#000000",
+            "secondary-color": "#000000",
+        }
+        if "user-themes" in selected_names:
+            _set_path(
+                tree,
+                ("desktops", "gnome", "extensions", "user-themes"),
+                {
+                    "enable": True,
+                    "name": "ClockOverride",
+                    "theme": {
+                        "cssOverride": ".clock-display { font-family: 'Zero', sans-serif !important; font-size: 12px; font-style: normal !important; font-weight: normal !important; letter-spacing: 0 !important; }"
+                    },
+                },
+            )
+        if options.get("extensions", True):
+            extension_paths.append(
+                ("legacy", "gnomeExtensions", "customize-clock-on-lock-screen")
+            )
+            _set_path(
+                tree,
+                ("desktops", "gnome", "extensions", "customize-clock-on-lockscreen"),
+                {
+                    "enable": True,
+                    "command": {"enable": False},
+                    "time": {
+                        "text": "%H\n%M",
+                        "font": {
+                            "family": "Zero Mono Thin",
+                            "size": 96,
+                            "weight": "Thin",
+                            "color": "rgba(255, 255, 255, 1.0)",
+                        },
+                    },
+                    "date": {
+                        "text": "%d.%m.%Y",
+                        "font": {
+                            "family": "Zero",
+                            "size": 24,
+                            "color": "rgba(255, 255, 255, 1.0)",
+                        },
+                    },
+                },
+            )
+        _set_path(
+            tree,
+            ("legacy", "programs", "dconf", "profiles", "gdm", "databases"),
+            [
+                {
+                    "settings": {
+                        "org/gnome/login-screen": {
+                            "disable-user-list": False,
+                            "logo": PackageFile(
+                                PkgsRef(("theming", "system", "zenos-plymouth", "src")),
+                                "/icons/zenos.svg",
+                            ),
+                        },
+                        "org/gnome/desktop/lockdown": {"disable-lock-screen": True},
+                        "org/gnome/desktop/session": {
+                            "idle-delay": GVariant("uint32", 0)
+                        },
+                        "org/gnome/settings-daemon/plugins/power": {
+                            "sleep-inactive-ac-type": "nothing",
+                            "sleep-inactive-battery-type": "nothing",
+                        },
+                        "org/gnome/desktop/interface": {
+                            "accent-color": theme.get("accent", "purple"),
+                            "color-scheme": "prefer-dark" if dark else "prefer-light",
+                            "cursor-theme": "GoogleDot-Black",
+                            "font-name": "Atkinson Hyperlegible 11",
+                            "icon-theme": "Adwaita-hacks",
+                        },
+                    }
+                }
+            ],
+        )
+    _set_path(
+        tree,
+        ("legacy", "programs", "dconf", "profiles", "user", "databases"),
+        [{"settings": settings}],
+    )
 
 
 def _pages(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -180,32 +438,43 @@ def build_config_tree(
     pages = _pages(payload)
     tree: dict[str, Any] = {}
 
-    _set_path(tree, ("system", "branding", "distroName"), "ZenOS")
-    _set_path(tree, ("system", "branding", "distroId"), "zenos")
-    _set_path(tree, ("system", "release", "stateVersion"), "1.0.0")
-    _set_path(tree, ("system", "network", "networkManager"), True)
+    # Branding, release state, boot, and ZenFS integration belong to the template.
+    _set_path(tree, ("legacy", "networking", "networkmanager", "enable"), True)
 
     language = pages.get("language", {})
-    _set_path(tree, ("system", "localization", "locale"), language.get("locale") or "en_US.UTF-8")
+    _set_path(
+        tree,
+        ("legacy", "i18n", "defaultLocale"),
+        language.get("locale") or "en_US.UTF-8",
+    )
 
     timezone = pages.get("timezone", {}).get("timezone", {})
     region = timezone.get("region") or "Europe"
     zone = timezone.get("zone") or "London"
-    _set_path(tree, ("system", "localization", "timeZone"), f"{region}/{zone}")
+    _set_path(tree, ("legacy", "time", "timeZone"), f"{region}/{zone}")
 
     keyboards = pages.get("keyboard", {}).get("keyboard", [])
     if keyboards:
         layouts = [item.get("layout", "us") for item in keyboards]
         variants = [item.get("variant", "") for item in keyboards]
         model = keyboards[0].get("model") or "pc105"
-        _set_path(tree, ("system", "keyboard", "layout"), ",".join(layouts))
-        _set_path(tree, ("system", "keyboard", "variant"), ",".join(variants))
-        _set_path(tree, ("system", "keyboard", "model"), model)
+        if any((item.get("model") or "pc105") != model for item in keyboards):
+            raise ValueError("multiple keyboard models are unsupported")
+        _set_path(
+            tree, ("legacy", "services", "xserver", "xkb", "layout"), ",".join(layouts)
+        )
+        _set_path(
+            tree,
+            ("legacy", "services", "xserver", "xkb", "variant"),
+            ",".join(variants),
+        )
+        _set_path(tree, ("legacy", "services", "xserver", "xkb", "model"), model)
+        _set_path(tree, ("legacy", "console", "useXkbConfig"), True)
 
     host_name = pages.get("computer_name", {}).get("hostname")
     if host_name:
         _validate_identifier(host_name, "hostname")
-        _set_path(tree, ("system", "network", "hostName"), host_name)
+        _set_path(tree, ("legacy", "networking", "hostName"), host_name)
 
     user = pages.get("user")
     if user:
@@ -214,39 +483,32 @@ def build_config_tree(
         hashed = password_hash or hash_password(user.get("password", ""))
         if not hashed.startswith("$"):
             raise ValueError("password_hash must be a modular crypt hash")
-        base = ("legacy", "users", "users", username)
+        base = ("users", username, "legacy")
         _set_path(tree, (*base, "isNormalUser"), True)
         _set_path(tree, (*base, "uid"), 1000)
         _set_path(tree, (*base, "description"), user.get("fullname") or username)
         _set_path(tree, (*base, "home"), f"/Users/{username}")
         _set_path(tree, (*base, "initialHashedPassword"), hashed)
         _set_path(tree, (*base, "extraGroups"), ["networkmanager", "video", "wheel"])
-        _set_path(
-            tree,
-            ("legacy", "zenfs", "users", username, "home"),
-            f"/Users/{username}",
-        )
-        _set_path(tree, ("legacy", "zenfs", "users", username, "group"), "users")
 
-    desktop = pages.get("desktop", {})
+    desktop = pages.get("desktop", {"install_de": True, "desktop_environment": "gnome"})
+    selected = (
+        desktop.get("desktop_environment", "") if desktop.get("install_de") else "none"
+    )
+    _set_path(tree, DESKTOP_OPTIONS["gnome"], selected == "gnome")
     if desktop.get("install_de"):
-        selected = desktop.get("desktop_environment", "")
         option = DESKTOP_OPTIONS.get(selected)
         if option is None:
             raise ValueError(f"unsupported desktop environment: {selected!r}")
-        _set_path(tree, option, True)
-        if selected == "gnome":
-            gnome_options = desktop.get("gnome_options", {})
-            _set_path(tree, ("gnomeProfile", "enable"), True)
+        if selected != "gnome":
+            _set_path(tree, option, True)
+            _set_path(tree, ("legacy", "services", "xserver", "enable"), True)
             _set_path(
-                tree,
-                ("gnomeProfile", "enableBranding"),
-                gnome_options.get("theme", True),
+                tree, ("legacy", "services", "displayManager", "sddm", "enable"), True
             )
-            _set_path(
-                tree,
-                ("gnomeProfile", "enableExtensions"),
-                gnome_options.get("extensions", True),
+        if selected == "gnome":
+            gnome_options = desktop.get(
+                "gnome_options", {"theme": False, "extensions": False, "tiling": False}
             )
             extension_ids = gnome_options.get("extension_ids")
             if extension_ids is not None:
@@ -260,20 +522,64 @@ def build_config_tree(
                     raise ValueError(
                         f"unknown GNOME extension ids: {sorted(unknown_extensions)}"
                     )
-                _set_path(
-                    tree,
-                    ("gnomeProfile", "extensionIds"),
-                    sorted(set(extension_ids)),
-                )
-            shortcuts = pages.get("shortcuts", {})
-            directions = shortcuts.get("directions", "vim")
-            actions = shortcuts.get("actions", "zenos")
-            if directions not in {"standard", "vim"}:
-                raise ValueError(f"unsupported shortcut direction mode: {directions!r}")
-            if actions not in {"traditional", "zenos"}:
-                raise ValueError(f"unsupported shortcut action mode: {actions!r}")
-            _set_path(tree, ("gnomeProfile", "directionKeys"), directions)
-            _set_path(tree, ("gnomeProfile", "actionKeys"), actions)
+            elif gnome_options.get("extensions", True):
+                with _GNOME_EXTENSION_CATALOG.open(encoding="utf-8") as file:
+                    extension_ids = [
+                        entry["id"]
+                        for entry in json.load(file)
+                        if entry.get("recommended")
+                    ]
+            enabled_extensions = (
+                set(extension_ids or [])
+                if gnome_options.get("extensions", True)
+                else set()
+            )
+            if gnome_options.get("tiling", True):
+                enabled_extensions.add("forge")
+            extension_paths = [
+                ("desktops", "gnome", "extensions", name)
+                if name in {"forge", "dash-stacks"}
+                else ("apps", "gnome-extensions", name)
+                for name in sorted(enabled_extensions)
+            ]
+            _gnome_profile(
+                tree,
+                gnome_options,
+                pages.get("shortcuts", {}),
+                pages.get("theme", {}),
+                extension_paths,
+            )
+            _set_path(
+                tree,
+                ("desktops", "gnome", "extensionPackages"),
+                [PkgsRef(path) for path in extension_paths],
+            )
+            _set_path(
+                tree,
+                ("desktops", "gnome", "extensionUuids"),
+                [PkgsRef((*path, "extensionUuid")) for path in extension_paths],
+            )
+            theme = pages.get("theme", {})
+            accent = theme.get("accent", "purple")
+            accent = "grey" if accent == "slate" else accent
+            if accent not in {
+                "blue",
+                "teal",
+                "purple",
+                "red",
+                "orange",
+                "yellow",
+                "green",
+                "pink",
+                "grey",
+            }:
+                raise ValueError(f"unsupported GNOME accent: {accent!r}")
+            _set_path(tree, ("desktops", "gnome", "defaultAccentColor"), accent)
+            _set_path(
+                tree,
+                ("desktops", "gnome", "defaultDarkMode"),
+                theme.get("dark_mode", True),
+            )
 
     packages = []
     core_exclusions = []
@@ -306,36 +612,46 @@ def build_config_tree(
         if not app.get("enabled"):
             continue
         if app_id in UNAVAILABLE_PACKAGES:
-            raise ValueError(f"application is unavailable in the current ZenPkgs registry: {app_id}")
+            raise ValueError(
+                f"application is unavailable in the current ZenPkgs registry: {app_id}"
+            )
         if app_id == "firefox":
             firefox_enabled = True
             firefox_gnome_theme = "gnome_theme" in extra_options
         if app_id != "firefox":
-            packages.append(PkgsRef(("catalog", app_id)))
+            package_path = APP_PACKAGE_PATHS.get(app_id) or CORE_PACKAGE_PATHS.get(
+                app_id
+            )
+            if package_path is None:
+                raise ValueError(
+                    f"application is unavailable in the current ZenPkgs registry: {app_id}"
+                )
+            packages.append(package_path)
     if firefox_enabled:
-        _set_path(tree, ("legacy", "programs", "firefox", "enable"), True)
-        if (
-            firefox_gnome_theme
-            and pages.get("desktop", {}).get("desktop_environment") == "gnome"
-        ):
+        packages.append(APP_PACKAGE_PATHS["firefox"])
+        if firefox_gnome_theme and selected == "gnome":
             _set_path(
                 tree,
-                ("desktops", "gnome", "tweaks", "firefoxTheming", "enable"),
+                ("desktops", "gnome", "tweaks", "firefox-theming", "enable"),
                 True,
             )
+        elif firefox_gnome_theme:
+            raise ValueError("Firefox GNOME theme requires the GNOME desktop")
     if core_exclusions:
         selected = pages.get("desktop", {}).get("desktop_environment", "")
         option = CORE_EXCLUDE_OPTIONS.get(selected)
         if option is None:
-            raise ValueError(f"desktop core exclusions are unsupported for: {selected!r}")
+            raise ValueError(
+                f"desktop core exclusions are unsupported for: {selected!r}"
+            )
         _set_path(
             tree,
             option,
             sorted(set(core_exclusions), key=lambda item: item.path),
         )
     if packages:
-        unique_packages = sorted(set(packages), key=lambda item: item.path)
-        _set_path(tree, ("system", "software", "packages"), unique_packages)
+        for path in sorted(set(packages)):
+            _set_path(tree, ("system", "packages", *path), True)
 
     return tree
 
@@ -384,6 +700,35 @@ def _serialize_value(value: Any, indent: int) -> str:
         return _quote(value)
     if isinstance(value, PkgsRef):
         return "$pkgs." + ".".join(value.path)
+    if isinstance(value, PackageFile):
+        suffix = _quote(value.suffix)[1:-1]
+        return (
+            '"'
+            + ("file://" if value.uri else "")
+            + "${"
+            + _serialize_value(value.package, indent)
+            + "}"
+            + suffix
+            + '"'
+        )
+    if isinstance(value, GVariant):
+        # ZCFG forbids calls/lambdas. Nix's standard outPath coercion supplies
+        # the serialized value for the upstream GVariant record, without code.
+        if value.kind == "empty-string-array":
+            return _serialize_value(
+                {"_type": "gvariant", "type": "as", "value": [], "outPath": "@as []"},
+                indent,
+            )
+        code = {"int32": "i", "uint32": "u", "double": "d"}[value.kind]
+        return _serialize_value(
+            {
+                "_type": "gvariant",
+                "type": code,
+                "value": value.value,
+                "outPath": f"@{code} {value.value}",
+            },
+            indent,
+        )
     if isinstance(value, list):
         if not value:
             return "[ ]"
@@ -401,8 +746,10 @@ def _serialize_attr_set(value: dict[str, Any], indent: int) -> str:
     padding = " " * (indent + 2)
     lines = []
     for key in sorted(value):
-        _validate_identifier(key, "configuration key")
-        lines.append(f"{padding}{key} = {_serialize_value(value[key], indent + 2)};")
+        rendered_key = key if IDENTIFIER.fullmatch(key) else _quote(key)
+        lines.append(
+            f"{padding}{rendered_key} = {_serialize_value(value[key], indent + 2)};"
+        )
     return "{\n" + "\n".join(lines) + "\n" + " " * indent + "}"
 
 
@@ -428,27 +775,21 @@ def build_config_documents(
     documents: dict[str, dict[str, Any]] = {}
 
     desktop = {}
-    for key in ("desktops", "gnomeProfile"):
+    for key in ("desktops",):
         if key in tree:
             desktop[key] = tree.pop(key)
     if desktop:
         documents["desktop.zcfg"] = desktop
 
-    users = {}
+    users = tree.pop("users", {})
     legacy = tree.get("legacy", {})
-    legacy_users = {}
-    for key in ("users", "zenfs"):
-        if key in legacy:
-            legacy_users[key] = legacy.pop(key)
-    if legacy_users:
-        users["legacy"] = legacy_users
-    if users:
-        documents["users.zcfg"] = users
+    for username, config in users.items():
+        documents[f"users/{username}/main.zcfg"] = {"users": {username: config}}
 
     apps = {}
     system = tree.get("system", {})
-    if "software" in system:
-        apps["system"] = {"software": system.pop("software")}
+    if "packages" in system:
+        apps["system"] = {"packages": system.pop("packages")}
     legacy_apps = {}
     for key in ("environment", "programs"):
         if key in legacy:
@@ -460,6 +801,8 @@ def build_config_documents(
 
     if not legacy:
         tree.pop("legacy", None)
+    if not system:
+        tree.pop("system", None)
     documents["system.zcfg"] = tree
 
     rendered = {name: serialize_zcfg(value) for name, value in documents.items()}
@@ -491,4 +834,6 @@ BEHAVIORS: dict[str, tuple[()]] = {}
 
 
 def apply_behavior(config_str: str, behavior_key: str, **_kwargs: Any) -> str:
-    raise ValueError(f"legacy configuration behavior is no longer supported: {behavior_key}")
+    raise ValueError(
+        f"legacy configuration behavior is no longer supported: {behavior_key}"
+    )
