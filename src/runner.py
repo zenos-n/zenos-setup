@@ -902,9 +902,14 @@ def _initialize_target_config(
     return config_dir
 
 
-def _lock_and_evaluate(config_dir: str, host_name: str, log_fn=None) -> None:
+def _lock_and_evaluate(
+    config_dir: str, host_name: str, log_fn=None, *, initial_lock: bool = False
+) -> None:
     _validate_config_layout(config_dir)
-    _run(["nix", "flake", "lock", "--offline"], log_fn, cwd=config_dir)
+    lock_command = ["nix", "flake", "lock"]
+    if not initial_lock:
+        lock_command.append("--offline")
+    _run(lock_command, log_fn, cwd=config_dir)
     _run(
         [
             "nix",
@@ -1070,7 +1075,7 @@ def _install_local(
         log_fn,
         "preflight: checking ISO template and generated host before disk operations",
     )
-    _lock_and_evaluate(staged_config, host_name, log_fn)
+    _lock_and_evaluate(staged_config, host_name, log_fn, initial_lock=True)
 
     machine_root = os.path.join(work_dir, "target") if DRY_RUN else MOUNT_ROOT
     user_sources = []
