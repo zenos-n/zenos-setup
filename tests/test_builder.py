@@ -694,6 +694,8 @@ class BuilderTests(unittest.TestCase):
                     }
                 )
                 self.assertEqual(tree["desktops"]["gnome"], {"enable": False})
+                if desktop == "none":
+                    self.assertFalse(tree["system"]["zenfs"]["apps"]["enable"])
 
     def test_final_display_manager_matches_desktop(self):
         expected = {

@@ -580,6 +580,8 @@ def build_config_tree(
     selected = (
         desktop.get("desktop_environment", "") if desktop.get("install_de") else "none"
     )
+    if selected == "none":
+        _set_path(tree, ("system", "zenfs", "apps", "enable"), False)
     _set_path(tree, DESKTOP_OPTIONS["gnome"], selected == "gnome")
     if desktop.get("install_de"):
         option = DESKTOP_OPTIONS.get(selected)
