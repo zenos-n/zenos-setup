@@ -173,6 +173,7 @@ class BuilderTests(unittest.TestCase):
         tree = build_config_tree(default_payload(), password_hash="$6$test$hash")
         user = tree["users"]["zen"]["legacy"]
         self.assertEqual(user["shell"], PkgsRef(("legacy", "zsh")))
+        self.assertEqual(user["packages"], [PkgsRef(("legacy", "zsh"))])
         home = user["homeManager"]
         self.assertTrue(home["programs"]["direnv"]["enable"])
         self.assertTrue(home["programs"]["direnv"]["nix-direnv"]["enable"])

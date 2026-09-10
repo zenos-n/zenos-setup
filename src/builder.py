@@ -506,6 +506,7 @@ def build_config_tree(
         _set_path(tree, (*base, "initialHashedPassword"), hashed)
         _set_path(tree, (*base, "extraGroups"), ["networkmanager", "video", "wheel"])
         _set_path(tree, (*base, "shell"), PkgsRef(("legacy", "zsh")))
+        _set_path(tree, (*base, "packages"), [PkgsRef(("legacy", "zsh"))])
         _set_path(tree, ("legacy", "programs", "zsh", "enable"), True)
         _set_path(
             tree,
