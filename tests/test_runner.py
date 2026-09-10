@@ -357,7 +357,7 @@ class InitialInstallTests(unittest.TestCase):
 
     def test_preflight_failure_never_reaches_disk_or_install(self):
         disk = {"id": "disks", "mode": "auto", "disks": ["vda"]}
-        for failure in ("_compile_host", "_lock_and_evaluate"):
+        for failure in ("_compile_host", "_lock_config"):
             with (
                 self.subTest(failure=failure),
                 tempfile.TemporaryDirectory() as work_dir,
@@ -527,17 +527,18 @@ class InitialInstallTests(unittest.TestCase):
         positions = [
             joined.index("nixos-generate-config"),
             joined.index("nix flake lock"),
-            joined.index("nix eval --offline"),
             joined.index("disko --mode disko"),
             joined.rindex("nixos-generate-config"),
-            joined.rindex("nix eval --offline"),
+            joined.rindex("nix flake lock --offline"),
             joined.index("nixos-install --flake"),
         ]
         self.assertEqual(positions, sorted(positions))
+        self.assertNotIn("nix eval", joined)
         self.assertEqual(joined.count("nix flake lock\n"), 1)
         self.assertGreaterEqual(joined.count("nix flake lock --offline"), 1)
         self.assertRegex(
-            joined, r"config-snapshot-[^\s#]+#nixosConfigurations.oobe-abc123"
+            joined,
+            r"nixos-install --flake [^\s]+/config-snapshot-[^\s#]+#oobe-abc123",
         )
 
     def test_long_install_has_no_oobe_marker_or_plaintext_password(self):

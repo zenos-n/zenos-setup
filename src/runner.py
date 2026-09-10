@@ -932,25 +932,12 @@ def _initialize_target_config(
     return config_dir
 
 
-def _lock_and_evaluate(
-    config_dir: str, host_name: str, log_fn=None, *, initial_lock: bool = False
-) -> None:
+def _lock_config(config_dir: str, log_fn=None, *, initial_lock: bool = False) -> None:
     _validate_config_layout(config_dir)
     lock_command = ["nix", "flake", "lock"]
     if not initial_lock:
         lock_command.append("--offline")
     _run(lock_command, log_fn, cwd=config_dir)
-    _run(
-        [
-            "nix",
-            "eval",
-            "--offline",
-            "--no-write-lock-file",
-            "--raw",
-            f"path:{config_dir}#nixosConfigurations.{host_name}.config.system.build.toplevel.drvPath",
-        ],
-        log_fn,
-    )
 
 
 def _nixos_install(config_dir: str, host_name: str, log_fn=None) -> None:
@@ -1105,7 +1092,7 @@ def _install_local(
         log_fn,
         "preflight: checking ISO template and generated host before disk operations",
     )
-    _lock_and_evaluate(staged_config, host_name, log_fn, initial_lock=True)
+    _lock_config(staged_config, log_fn, initial_lock=True)
 
     machine_root = os.path.join(work_dir, "target") if DRY_RUN else MOUNT_ROOT
     user_sources = []
@@ -1159,7 +1146,7 @@ def _install_local(
             config_dir, host_name, machine_root, log_fn
         )
         snapshot = _config_snapshot(config_dir, work_dir, machine_root, log_fn)
-        _lock_and_evaluate(snapshot, host_name, log_fn)
+        _lock_config(snapshot, log_fn)
         if os.path.isfile(os.path.join(snapshot, "flake.lock")):
             shutil.copyfile(
                 os.path.join(snapshot, "flake.lock"),
@@ -1329,7 +1316,7 @@ def _run_oobe(data: dict, pages: dict, work_dir: str, progress_fn, log_fn) -> No
         _validate_host_name(completion.get("sourceHost"))
         if not complete:
             snapshot = _config_snapshot(config_dir, work_dir, machine_root, log_fn)
-            _lock_and_evaluate(snapshot, final_host, log_fn)
+            _lock_config(snapshot, log_fn)
             _nixos_rebuild_boot(snapshot, final_host, log_fn)
         _finish_oobe(config_dir, completion, progress_fn, log_fn)
         return
@@ -1391,7 +1378,7 @@ def _run_oobe(data: dict, pages: dict, work_dir: str, progress_fn, log_fn) -> No
             config_dir, final_host, machine_root, log_fn
         )
         snapshot = _config_snapshot(config_dir, work_dir, machine_root, log_fn)
-        _lock_and_evaluate(snapshot, final_host, log_fn)
+        _lock_config(snapshot, log_fn)
         if os.path.isfile(os.path.join(snapshot, "flake.lock")):
             shutil.copyfile(
                 os.path.join(snapshot, "flake.lock"),

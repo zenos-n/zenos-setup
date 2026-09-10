@@ -332,7 +332,7 @@ legacy.fileSystems = {
                 runner._bind_hardware(
                     str(config), template, str(host / "hardware.json")
                 )
-                runner._lock_and_evaluate(str(config), "oobe-test")
+                runner._lock_config(str(config))
             self.assertNotIn(
                 runner.HARDWARE_PLACEHOLDER, (config / "flake.nix").read_text()
             )
