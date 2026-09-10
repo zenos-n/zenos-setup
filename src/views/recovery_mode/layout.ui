@@ -68,10 +68,27 @@
                 </child>
               </object>
             </child>
+            <child>
+              <object class="AdwPreferencesGroup">
+                <property name="title" translatable="yes">Debugging</property>
+                <property name="description" translatable="yes">Temporary diagnostics for installation failures.</property>
+                <child>
+                  <object class="AdwActionRow">
+                    <property name="title" translatable="yes">Ignore SSL certificate errors</property>
+                    <property name="subtitle" translatable="yes">Disable certificate verification for installer downloads</property>
+                    <property name="activatable-widget">switch_ignore_ssl</property>
+                    <child>
+                      <object class="GtkSwitch" id="switch_ignore_ssl">
+                        <property name="valign">center</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
           </object>
         </child>
       </object>
     </child>
   </template>
 </interface>
-

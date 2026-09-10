@@ -18,6 +18,47 @@ def _progress(_value):
 
 
 class RunnerSafetyTests(unittest.TestCase):
+    def test_ignore_ssl_environment_is_scoped_and_preserves_existing_flags(self):
+        token = runner._IGNORE_SSL_ERRORS.set(True)
+        try:
+            env = runner._command_environment(
+                {"NIX_CURL_FLAGS": "--retry 2", "NIX_CONFIG": "fallback = false"}
+            )
+        finally:
+            runner._IGNORE_SSL_ERRORS.reset(token)
+
+        self.assertEqual(env["NIX_CURL_FLAGS"], "--retry 2 --insecure")
+        self.assertIn("fallback = false", env["NIX_CONFIG"])
+        self.assertIn(
+            "extra-experimental-features = configurable-impure-env",
+            env["NIX_CONFIG"],
+        )
+        self.assertIn(
+            "impure-env = NIX_CURL_FLAGS=--insecure", env["NIX_CONFIG"]
+        )
+
+    def test_default_environment_does_not_disable_ssl_verification(self):
+        env = runner._command_environment({"NIX_CURL_FLAGS": "--retry 2"})
+        self.assertEqual(env, {"NIX_CURL_FLAGS": "--retry 2"})
+
+    def test_ignore_ssl_environment_survives_sudo(self):
+        process = mock.MagicMock()
+        process.__enter__.return_value = process
+        process.stdout = []
+        process.returncode = 0
+        token = runner._IGNORE_SSL_ERRORS.set(True)
+        try:
+            with mock.patch.object(runner, "DRY_RUN", False):
+                with mock.patch("src.runner.subprocess.Popen", return_value=process) as popen:
+                    runner._run(["sudo", "-n", "nixos-install"])
+        finally:
+            runner._IGNORE_SSL_ERRORS.reset(token)
+
+        command = popen.call_args.args[0]
+        self.assertEqual(command[:3], ["sudo", "-n", "env"])
+        self.assertIn("NIX_CURL_FLAGS=--insecure", command)
+        self.assertIn("nixos-install", command)
+
     def test_dry_run_is_default_and_never_starts_subprocess(self):
         self.assertTrue(runner.DRY_RUN)
         with mock.patch("src.runner.subprocess.Popen") as popen:

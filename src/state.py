@@ -6,6 +6,7 @@ import json
 class InstallState:
     oobe: bool = False
     pages: list = field(default_factory=list)
+    debugging: dict = field(default_factory=dict)
 
     def set_page(self, page_id: str, data: dict):
         """Upsert a page's data by id."""
@@ -25,6 +26,7 @@ class InstallState:
         return {
             "oobe": self.oobe,
             "pages": self.pages,
+            "debugging": self.debugging,
         }
 
     def to_json(self, **kwargs) -> str:

@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+from contextvars import ContextVar
 from datetime import datetime, timezone
 
 from .builder import build_config_documents, build_execution_plan, serialize_zcfg
@@ -32,6 +33,7 @@ HARDWARE_PLACEHOLDER = "@ZENOS_SETUP_HARDWARE@"
 _WHOLE_DISK_NAME = re.compile(r"(?:[hsv]d[a-z]+|xvd[a-z]+|nvme\d+n\d+|mmcblk\d+)")
 _HOST_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_-]{0,62}")
 _SHA256 = re.compile(r"[0-9a-f]{64}")
+_IGNORE_SSL_ERRORS = ContextVar("ignore_ssl_errors", default=False)
 _ROOT_ENTRIES = {"flake.nix", "flake.lock", "hosts"}
 _HOST_FILES = {
     "apps.zcfg",
@@ -58,17 +60,45 @@ def _emit(fn, msg: str) -> None:
         fn(str(msg))
 
 
+def _command_environment(base=None) -> dict[str, str]:
+    env = dict(os.environ if base is None else base)
+    if not _IGNORE_SSL_ERRORS.get():
+        return env
+
+    curl_flags = env.get("NIX_CURL_FLAGS", "").split()
+    if "--insecure" not in curl_flags:
+        curl_flags.append("--insecure")
+    env["NIX_CURL_FLAGS"] = " ".join(curl_flags)
+
+    nix_config = env.get("NIX_CONFIG", "").rstrip()
+    insecure_config = (
+        "extra-experimental-features = configurable-impure-env\n"
+        "impure-env = NIX_CURL_FLAGS=--insecure"
+    )
+    env["NIX_CONFIG"] = f"{nix_config}\n{insecure_config}".lstrip()
+    return env
+
+
 def _run(cmd: list[str], log_fn=None, **popen_kwargs) -> None:
     """Run a command with combined streamed output, or only log it in dry-run."""
     if DRY_RUN:
         _emit(log_fn, f"[dry-run] would run: {' '.join(str(part) for part in cmd)}")
         return
 
+    env = _command_environment(popen_kwargs.pop("env", None))
+    if _IGNORE_SSL_ERRORS.get() and cmd[:2] == ["sudo", "-n"]:
+        cmd = cmd[:2] + [
+            "env",
+            f"NIX_CONFIG={env['NIX_CONFIG']}",
+            f"NIX_CURL_FLAGS={env['NIX_CURL_FLAGS']}",
+        ] + cmd[2:]
+
     with subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        env=env,
         **popen_kwargs,
     ) as proc:
         assert proc.stdout is not None
@@ -1411,6 +1441,10 @@ def run_installer(
 
     def _thread() -> None:
         data = install_state.to_dict()
+        ignore_ssl_errors = bool(
+            data.get("debugging", {}).get("ignore_ssl_errors", False)
+        )
+        ssl_token = _IGNORE_SSL_ERRORS.set(ignore_ssl_errors)
         pages = {page["id"]: page for page in data.get("pages", [])}
         is_oobe = data.get("oobe", False)
         is_online = "online" in pages and pages["online"].get("method") == "online"
@@ -1433,6 +1467,7 @@ def run_installer(
             if done_fn:
                 done_fn(False, str(exc))
         finally:
+            _IGNORE_SSL_ERRORS.reset(ssl_token)
             shutil.rmtree(work_dir, ignore_errors=True)
 
     thread = threading.Thread(target=_thread, daemon=True, name="zenos-installer")

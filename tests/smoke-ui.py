@@ -24,6 +24,7 @@ from zenos_setup.views.installer_welcome.logic import Page as InstallerWelcome
 from zenos_setup.views.keyboard.logic import all_keyboards
 from zenos_setup.views.oobe_welcome.logic import Page as OOBEWelcome
 from zenos_setup.views.path_choice.logic import Page as PathChoice
+from zenos_setup.views.recovery_mode.logic import Page as Recovery
 from zenos_setup.views.shortcuts.logic import Page as Shortcuts
 from zenos_setup.views.theme.logic import Page as Theme
 
@@ -37,6 +38,10 @@ router = SimpleNamespace(
     carousel_steps=[],
     step_bins={},
 )
+recovery = Recovery(router)
+assert not recovery.switch_ignore_ssl.get_active()
+recovery.switch_ignore_ssl.set_active(True)
+assert state.debugging == {"ignore_ssl_errors": True}
 app_id = "com.negzero.zenos.setup"
 desktop_entry = GLib.KeyFile()
 desktop_entry.load_from_file(

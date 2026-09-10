@@ -441,7 +441,10 @@ class ZenosSetupWindow(Adw.ApplicationWindow):
             path.append(self.current_step_id)
 
         collected_views = set()
-        collected_state = InstallState(oobe=self.install_state.oobe)
+        collected_state = InstallState(
+            oobe=self.install_state.oobe,
+            debugging=self.install_state.debugging.copy(),
+        )
 
         for step_id in path:
             step_config = FLOWS[self.active_flow_id]["steps"].get(step_id)
