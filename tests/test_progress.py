@@ -4,7 +4,7 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 from src.views.progress import next_tour_index
-from src.oobe_timing import reached_wallpaper_switch
+from src.oobe_timing import destination2_wallpaper, reached_wallpaper_switch
 
 
 class ProgressTourTests(unittest.TestCase):
@@ -23,6 +23,20 @@ class ProgressTourTests(unittest.TestCase):
         self.assertTrue(reached_wallpaper_switch(5.0, 10.0))
         self.assertTrue(reached_wallpaper_switch(9.0, 10.0))
         self.assertFalse(reached_wallpaper_switch(0.0, 0.0))
+
+    def test_oobe_uses_selected_destination_2_wallpaper(self):
+        self.assertEqual(
+            destination2_wallpaper({"accent": "grey", "darkMode": True}, "/system"),
+            "/system/share/backgrounds/destination-2/slate dark.png",
+        )
+        self.assertEqual(
+            destination2_wallpaper({"accent": "teal", "darkMode": False}, "/system"),
+            "/system/share/backgrounds/destination-2/teal.png",
+        )
+        self.assertEqual(
+            destination2_wallpaper({"accent": "../../bad", "darkMode": "bad"}, "/system"),
+            "/system/share/backgrounds/destination-2/purple dark.png",
+        )
 
     def test_layout_bundles_three_distinct_slides(self):
         layout = Path(__file__).parents[1] / "src/views/progress/layout.ui"

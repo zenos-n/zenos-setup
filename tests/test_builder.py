@@ -4,6 +4,9 @@ from pathlib import Path
 import unittest
 
 from src.builder import (
+    GNOME_EXTENSION_IDS,
+    GVariant,
+    PackageFile,
     PkgsRef,
     build_config_documents,
     build_config_tree,
@@ -108,9 +111,7 @@ class BuilderTests(unittest.TestCase):
         self.assertEqual(tree["legacy"]["networking"]["hostName"], "zen-box")
         self.assertTrue(tree["desktops"]["gnome"]["enable"])
         self.assertFalse(
-            tree["legacy"]["programs"]["dconf"]["profiles"]["user"]["databases"][0][
-                "settings"
-            ]["org/gnome/shell/extensions/forge"]["tiling-mode-enabled"]
+            tree["desktops"]["gnome"]["extensions"]["forge"]["tiling"]["enable"]
         )
         self.assertEqual(tree["desktops"]["gnome"]["defaultAccentColor"], "purple")
         self.assertNotIn("gnomeProfile", tree)
@@ -156,6 +157,9 @@ class BuilderTests(unittest.TestCase):
         self.assertIn("legacy = {", documents["users/zen/main.zcfg"])
         self.assertNotIn("zenfs", documents["users/zen/main.zcfg"])
         self.assertIn("firefox = true;", documents["apps.zcfg"])
+        self.assertIn("forge = {", documents["desktop.zcfg"])
+        self.assertIn("window-focus-left = [", documents["desktop.zcfg"])
+        self.assertNotIn("forge", documents["apps.zcfg"])
 
     def test_execution_plan_owns_disk_and_network_state(self):
         plan = build_execution_plan(FULL_PAYLOAD)
@@ -163,6 +167,24 @@ class BuilderTests(unittest.TestCase):
         self.assertEqual(plan["disk"]["mode"], "auto")
         self.assertEqual(plan["disk"]["devices"], ["vda"])
         self.assertEqual(plan["networkStatus"], "connected")
+        self.assertEqual(plan["theme"], {"accent": "purple", "darkMode": True})
+
+    def test_default_user_gets_private_zsh_environment(self):
+        tree = build_config_tree(default_payload(), password_hash="$6$test$hash")
+        user = tree["users"]["zen"]["legacy"]
+        self.assertEqual(user["shell"], PkgsRef(("legacy", "zsh")))
+        home = user["homeManager"]
+        self.assertTrue(home["programs"]["direnv"]["enable"])
+        self.assertTrue(home["programs"]["direnv"]["nix-direnv"]["enable"])
+        self.assertTrue(home["programs"]["zoxide"]["enableZshIntegration"])
+        self.assertTrue(home["programs"]["zsh"]["autosuggestion"]["enable"])
+        self.assertTrue(home["programs"]["zsh"]["syntaxHighlighting"]["enable"])
+        self.assertEqual(home["programs"]["zsh"]["history"]["size"], 10000)
+        self.assertEqual(
+            home["xdg"]["configFile"]["zsh/p10k.zsh"]["source"],
+            PackageFile(PkgsRef(("system", "zenos-shell-defaults")), "/share/zenos-shell/p10k.zsh"),
+        )
+        self.assertIn("powerlevel10k", home["programs"]["zsh"]["plugins"][0]["name"])
 
     def test_invalid_dynamic_identifier_is_rejected(self):
         payload = {"pages": [{"id": "user", "username": "bad user", "password": "x"}]}
@@ -311,23 +333,36 @@ class BuilderTests(unittest.TestCase):
             ],
         )
 
-    def test_serializer_escapes_interpolation_and_rejects_floats(self):
+    def test_serializer_escapes_interpolation_and_supports_typed_floats(self):
         source = serialize_zcfg({"networking": {"hostName": "host-${unsafe}"}})
         self.assertIn(r"host-\u0024{unsafe}", source)
-        with self.assertRaisesRegex(ValueError, "floating-point"):
-            serialize_zcfg({"value": 1.5})
+        for value, expected in (
+            (0.0, "0.0"),
+            (1.5, "1.5"),
+            (-0.7, "-0.7"),
+            (1e-7, "0.0000001"),
+            (1e20, "100000000000000000000.0"),
+        ):
+            with self.subTest(value=value):
+                self.assertIn(f"value = {expected};", serialize_zcfg({"value": value}))
+        for value in (float("inf"), float("-inf"), float("nan")):
+            with (
+                self.subTest(value=value),
+                self.assertRaisesRegex(ValueError, "non-finite"),
+            ):
+                serialize_zcfg({"value": value})
 
     def test_default_selected_profile_is_fully_rendered(self):
         tree = build_config_tree(default_payload(), password_hash="$6$test$hash")
         gnome = tree["desktops"]["gnome"]
-        self.assertIn(
-            PkgsRef(("desktops", "gnome", "extensions", "dash-stacks")),
-            gnome["extensionPackages"],
-        )
-        self.assertIn(
-            PkgsRef(("desktops", "gnome", "extensions", "forge")),
-            gnome["extensionPackages"],
-        )
+        extensions = gnome["extensions"]
+        self.assertTrue(extensions["dash-stacks"]["enable"])
+        self.assertTrue(extensions["forge"]["enable"])
+        self.assertTrue(extensions["alphabetical-app-grid"]["enable"])
+        self.assertTrue(extensions["clipboard-indicator"]["enable"])
+        self.assertFalse(extensions["app-hider"]["enable"])
+        self.assertFalse(extensions["burn-my-windows"]["enable"])
+        self.assertFalse(extensions["hide-top-bar"]["enable"])
         self.assertTrue(tree["system"]["packages"]["theming"]["icons"]["adwaita-hacks"])
         settings = tree["legacy"]["programs"]["dconf"]["profiles"]["user"]["databases"][
             0
@@ -340,13 +375,53 @@ class BuilderTests(unittest.TestCase):
             ["<Super><Control>h"],
         )
         self.assertEqual(
-            settings["org/gnome/shell/extensions/forge/keybindings"][
-                "window-focus-left"
-            ],
-            ["<Super>h"],
+            extensions["forge"]["keybindings"]["window-focus-left"],
+            ["super", "h"],
         )
-        self.assertTrue(
-            settings["org/gnome/shell/extensions/forge"]["tiling-mode-enabled"]
+        self.assertTrue(extensions["forge"]["tiling"]["enable"])
+        self.assertFalse(extensions["forge"]["tiling"]["stacked"])
+        self.assertFalse(extensions["forge"]["tiling"]["tabbed"]["enable"])
+        self.assertEqual(
+            extensions["forge"]["appearance"],
+            {
+                "borders": {"focus": {"toggle": False}, "split": {"toggle": False}},
+                "gaps": {"size": 4},
+            },
+        )
+        self.assertEqual(
+            extensions["forge"]["interaction"],
+            {
+                "dnd-center-layout": "swap",
+                "float-always-on-top": False,
+            },
+        )
+        self.assertEqual(extensions["forge"]["general"], {"quick-settings": False})
+        self.assertEqual(
+            extensions["date-menu-formatter"],
+            {
+                "enable": True,
+                "font-size": 12,
+                "formatter": "01_luxon",
+                "pattern": "dd.MM  HH:mm",
+                "text-align": "center",
+                "update-level": 1,
+            },
+        )
+        self.assertEqual(
+            extensions["coverflow-alt-tab"],
+            {
+                "enable": True,
+                "desaturate-factor": 0.0,
+                "icon-style": "Classic",
+                "use-glitch-effect": True,
+            },
+        )
+        self.assertIs(type(extensions["coverflow-alt-tab"]["desaturate-factor"]), float)
+        self.assertEqual(
+            extensions["mouse-tail"], {"enable": True, "render-mode": "precise"}
+        )
+        self.assertEqual(
+            extensions["notification-timeout"], {"enable": True, "timeout": 2000}
         )
         self.assertEqual(
             settings["org/gnome/desktop/interface"]["gtk-theme"], "adw-gtk3-dark"
@@ -369,11 +444,280 @@ class BuilderTests(unittest.TestCase):
                     actions == "zenos",
                 )
                 self.assertEqual(
-                    settings["org/gnome/shell/extensions/forge/keybindings"][
-                        "window-focus-left"
-                    ],
-                    ["<Super>h" if directions == "vim" else "<Super>Left"],
+                    tree["desktops"]["gnome"]["extensions"]["user-themes"],
+                    {"enable": True},
                 )
+                bindings = tree["desktops"]["gnome"]["extensions"]["forge"][
+                    "keybindings"
+                ]
+                keys = (
+                    ("h", "j", "k", "l")
+                    if directions == "vim"
+                    else ("Left", "Down", "Up", "Right")
+                )
+                for direction, key in zip(("left", "down", "up", "right"), keys):
+                    self.assertEqual(
+                        bindings[f"window-focus-{direction}"], ["super", key]
+                    )
+                    self.assertEqual(
+                        bindings[f"window-move-{direction}"], ["shift", "super", key]
+                    )
+                    self.assertEqual(bindings[f"window-swap-{direction}"], [])
+                if actions == "zenos":
+                    self.assertEqual(bindings["prefs-tiling-toggle"], [])
+                else:
+                    self.assertNotIn("prefs-tiling-toggle", bindings)
+
+    def test_extension_selection_and_independent_tiling_toggle(self):
+        selections = (
+            [],
+            ["forge"],
+            ["dash-stacks", "date-menu-formatter"],
+            sorted(GNOME_EXTENSION_IDS),
+        )
+        for selected in selections:
+            for enabled in (False, True):
+                for tiling in (False, True):
+                    with self.subTest(
+                        selected=selected, enabled=enabled, tiling=tiling
+                    ):
+                        payload = {
+                            "pages": [
+                                {
+                                    "id": "desktop",
+                                    "install_de": True,
+                                    "desktop_environment": "gnome",
+                                    "gnome_options": {
+                                        "theme": False,
+                                        "extensions": enabled,
+                                        "extension_ids": selected,
+                                        "tiling": tiling,
+                                    },
+                                }
+                            ]
+                        }
+                        tree = build_config_tree(payload)
+                        self.assertTrue(tree["desktops"]["gnome"]["enable"])
+                        modules = tree["desktops"]["gnome"]["extensions"]
+                        expected = set(selected) if enabled else set()
+                        if tiling:
+                            expected.add("forge")
+                        self.assertEqual(
+                            {
+                                name
+                                for name, config in modules.items()
+                                if config["enable"]
+                            },
+                            expected,
+                        )
+                        for name, config in modules.items():
+                            if name not in expected:
+                                self.assertEqual(config, {"enable": False})
+                        if "forge" in expected:
+                            self.assertEqual(
+                                modules["forge"]["tiling"]["enable"], tiling
+                            )
+                        source = serialize_zcfg(tree)
+                        for forbidden in (
+                            "extensionPackages",
+                            "extensionUuids",
+                            "extensionUuid",
+                            "enabled-extensions",
+                            "org/gnome/shell/extensions/",
+                            "$pkgs.apps.gnome-extensions",
+                            "$pkgs.desktops.gnome.extensions",
+                            "configure = true;",
+                            "/Users/zenos/",
+                            "com.negzero.zenos.setup.desktop",
+                        ):
+                            self.assertNotIn(forbidden, source)
+
+    def test_missing_extension_ids_use_recommendations_not_live_choices(self):
+        payload = default_payload()
+        expected = build_config_tree(payload, password_hash="$6$test$hash")
+        options = next(page for page in payload["pages"] if page["id"] == "desktop")[
+            "gnome_options"
+        ]
+        del options["extension_ids"]
+        self.assertEqual(
+            build_config_tree(payload, password_hash="$6$test$hash"), expected
+        )
+        options["extension_ids"] = ["dash-stacks", "forge", "dash-stacks"]
+        first = build_config_documents(payload, password_hash="$6$test$hash")
+        options["extension_ids"] = ["forge", "dash-stacks"]
+        self.assertEqual(
+            build_config_documents(payload, password_hash="$6$test$hash"), first
+        )
+
+    def test_branding_clock_gdm_and_firefox_flags_remain_independent(self):
+        for branding in (False, True):
+            for enabled in (False, True):
+                for dark in (False, True):
+                    for firefox_theme in (False, True):
+                        with self.subTest(
+                            branding=branding,
+                            enabled=enabled,
+                            dark=dark,
+                            firefox_theme=firefox_theme,
+                        ):
+                            payload = copy.deepcopy(FULL_PAYLOAD)
+                            pages = {page["id"]: page for page in payload["pages"]}
+                            pages["desktop"]["gnome_options"].update(
+                                theme=branding, extensions=enabled
+                            )
+                            pages["theme"].update(dark_mode=dark, accent="grey")
+                            pages["software"]["apps"][0]["extraOptions"] = (
+                                ["gnome_theme"] if firefox_theme else []
+                            )
+                            tree = build_config_tree(
+                                payload, password_hash="$6$test$hash"
+                            )
+                            gnome = tree["desktops"]["gnome"]
+                            self.assertEqual(gnome["defaultDarkMode"], dark)
+                            self.assertEqual(gnome["defaultAccentColor"], "grey")
+                            self.assertEqual(
+                                "firefox-theming" in gnome.get("tweaks", {}),
+                                firefox_theme,
+                            )
+                            self.assertTrue(
+                                tree["system"]["packages"]["apps"]["browsers"][
+                                    "firefox"
+                                ]
+                            )
+                            modules = gnome["extensions"]
+                            clock = modules["customize-clock-on-lockscreen"]
+                            self.assertEqual(clock["enable"], branding and enabled)
+                            self.assertEqual(
+                                "theme" in modules["user-themes"], branding and enabled
+                            )
+                            if branding and enabled:
+                                self.assertEqual(
+                                    modules["user-themes"]["name"], "ClockOverride"
+                                )
+                                self.assertIn(
+                                    "font-family: 'Zero'",
+                                    modules["user-themes"]["theme"]["cssOverride"],
+                                )
+                                self.assertFalse(clock["command"]["enable"])
+                                self.assertEqual(clock["time"]["text"], "%H\n%M")
+                                self.assertEqual(
+                                    clock["time"]["font"],
+                                    {
+                                        "family": "Zero Mono Thin",
+                                        "size": 96,
+                                        "weight": "Thin",
+                                        "color": "rgba(255, 255, 255, 1.0)",
+                                    },
+                                )
+                                self.assertEqual(clock["date"]["text"], "%d.%m.%Y")
+                                self.assertEqual(
+                                    clock["date"]["font"],
+                                    {
+                                        "family": "Zero",
+                                        "size": 24,
+                                        "color": "rgba(255, 255, 255, 1.0)",
+                                    },
+                                )
+                            profiles = tree["legacy"]["programs"]["dconf"]["profiles"]
+                            settings = profiles["user"]["databases"][0]["settings"]
+                            self.assertEqual("gdm" in profiles, branding)
+                            self.assertEqual(
+                                "org/gnome/desktop/background" in settings, branding
+                            )
+                            self.assertNotIn(
+                                "org/gnome/shell/extensions/", serialize_zcfg(tree)
+                            )
+                            if branding:
+                                self.assertEqual(
+                                    settings["org/gnome/desktop/interface"][
+                                        "gtk-theme"
+                                    ],
+                                    "adw-gtk3-dark" if dark else "adw-gtk3",
+                                )
+                                wallpaper = settings["org/gnome/desktop/background"][
+                                    "picture-uri"
+                                ]
+                                self.assertEqual(
+                                    wallpaper,
+                                    PackageFile(
+                                        PkgsRef(
+                                            ("theming", "wallpapers", "destination-2")
+                                        ),
+                                        f"/share/backgrounds/destination-2/slate{' dark' if dark else ''}.png",
+                                        True,
+                                    ),
+                                )
+                                gdm = profiles["gdm"]["databases"][0]["settings"]
+                                self.assertFalse(
+                                    gdm["org/gnome/login-screen"]["disable-user-list"]
+                                )
+                                self.assertEqual(
+                                    gdm["org/gnome/login-screen"]["logo"],
+                                    PackageFile(
+                                        PkgsRef(("theming", "icons", "zenos-icons")),
+                                        "/share/icons/hicolor/scalable/apps/zenos.svg",
+                                    ),
+                                )
+                                self.assertTrue(
+                                    gdm["org/gnome/desktop/lockdown"][
+                                        "disable-lock-screen"
+                                    ]
+                                )
+                                self.assertEqual(
+                                    gdm["org/gnome/desktop/session"]["idle-delay"],
+                                    GVariant("uint32", 0),
+                                )
+                                self.assertEqual(
+                                    gdm["org/gnome/desktop/interface"]["color-scheme"],
+                                    "prefer-dark" if dark else "prefer-light",
+                                )
+                            else:
+                                self.assertNotIn("theming", tree["system"]["packages"])
+
+    def test_other_desktops_do_not_emit_gnome_extension_modules(self):
+        for desktop in ("none", "kde", "xfce", "cinnamon", "budgie", "mate"):
+            with self.subTest(desktop=desktop):
+                tree = build_config_tree(
+                    {
+                        "pages": [
+                            {
+                                "id": "desktop",
+                                "install_de": desktop != "none",
+                                "desktop_environment": desktop,
+                                "gnome_options": {
+                                    "theme": True,
+                                    "extensions": True,
+                                    "tiling": True,
+                                },
+                            }
+                        ]
+                    }
+                )
+                self.assertEqual(tree["desktops"]["gnome"], {"enable": False})
+
+    def test_final_display_manager_matches_desktop(self):
+        expected = {
+            "gnome": ("services", "displayManager", "gdm"),
+            "kde": ("services", "displayManager", "plasma-login-manager"),
+            "xfce": ("services", "xserver", "displayManager", "lightdm"),
+            "cinnamon": ("services", "xserver", "displayManager", "lightdm"),
+            "budgie": ("services", "xserver", "displayManager", "lightdm"),
+            "mate": ("services", "xserver", "displayManager", "lightdm"),
+        }
+        for desktop, path in expected.items():
+            with self.subTest(desktop=desktop):
+                tree = build_config_tree({"pages": [{
+                    "id": "desktop",
+                    "install_de": True,
+                    "desktop_environment": desktop,
+                    "gnome_options": {"theme": False, "extensions": False, "tiling": False},
+                }]})
+                value = tree["legacy"]
+                for part in path:
+                    value = value[part]
+                self.assertEqual(value, {"enable": True})
+                if desktop == "kde":
+                    self.assertFalse(tree["legacy"]["services"]["displayManager"]["sddm"]["enable"])
 
     def test_unknown_shortcut_presets_are_rejected(self):
         for option, value in (("directions", "unknown"), ("actions", "unknown")):

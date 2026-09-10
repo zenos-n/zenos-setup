@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 import json
 from pathlib import Path
 import re
@@ -49,6 +50,15 @@ DESKTOP_OPTIONS = {
     ),
     "budgie": ("legacy", "services", "desktopManager", "budgie", "enable"),
     "mate": ("legacy", "services", "xserver", "desktopManager", "mate", "enable"),
+}
+
+DISPLAY_MANAGER_OPTIONS = {
+    "gnome": ("legacy", "services", "displayManager", "gdm", "enable"),
+    "kde": ("legacy", "services", "displayManager", "plasma-login-manager", "enable"),
+    "xfce": ("legacy", "services", "xserver", "displayManager", "lightdm", "enable"),
+    "cinnamon": ("legacy", "services", "xserver", "displayManager", "lightdm", "enable"),
+    "budgie": ("legacy", "services", "xserver", "displayManager", "lightdm", "enable"),
+    "mate": ("legacy", "services", "xserver", "displayManager", "lightdm", "enable"),
 }
 
 UNAVAILABLE_PACKAGES = {"flatseal", "helium-browser", "ventoy", "zen-browser"}
@@ -155,8 +165,14 @@ APP_PACKAGE_PATHS = {
 }
 
 
-def _gnome_profile(tree, options, shortcuts, theme, extension_paths):
-    """Lower the a813a8e GNOME profile into existing options, without a profile schema."""
+def _gnome_profile(tree, options, shortcuts, theme, enabled_extensions):
+    """Map Setup choices to desktop settings and typed extension modules."""
+    extensions = {
+        name: {"enable": name in enabled_extensions}
+        for name in sorted(GNOME_EXTENSION_IDS)
+    }
+    extensions["customize-clock-on-lockscreen"] = {"enable": False}
+    _set_path(tree, ("desktops", "gnome", "extensions"), extensions)
     directions = shortcuts.get("directions", "vim")
     actions = shortcuts.get("actions", "zenos")
     if directions not in {"standard", "vim"}:
@@ -212,50 +228,57 @@ def _gnome_profile(tree, options, shortcuts, theme, extension_paths):
             path = f"{media}/custom-keybindings/{name}"
             settings[media]["custom-keybindings"].append(f"/{path}/")
             settings[path] = {"name": title, "command": command, "binding": binding}
-    forge_path = ("desktops", "gnome", "extensions", "forge")
-    if forge_path in extension_paths:
+    if "forge" in enabled_extensions:
         bindings = {}
         for direction, key in keys.items():
-            bindings[f"window-focus-{direction}"] = [f"<Super>{key}"]
-            bindings[f"window-move-{direction}"] = [f"<Shift><Super>{key}"]
+            bindings[f"window-focus-{direction}"] = ["super", key]
+            bindings[f"window-move-{direction}"] = ["shift", "super", key]
         # Forge's defaults otherwise steal workspace shortcuts and Super+W.
         for direction in keys:
-            bindings[f"window-swap-{direction}"] = empty
+            bindings[f"window-swap-{direction}"] = []
         if actions == "zenos":
-            bindings["prefs-tiling-toggle"] = empty
-        settings["org/gnome/shell/extensions/forge/keybindings"] = bindings
-        settings["org/gnome/shell/extensions/forge"] = {
-            "tiling-mode-enabled": bool(options.get("tiling", True)),
-            "dnd-center-layout": "swap",
-            "float-always-on-top-enabled": False,
-            "focus-border-toggle": False,
-            "quick-settings-enabled": False,
-            "split-border-toggle": False,
-            "stacked-tiling-mode-enabled": False,
-            "tabbed-tiling-mode-enabled": False,
-            "window-gap-size": GVariant("uint32", 4),
-        }
-    selected_names = {path[-1] for path in extension_paths}
-    if "date-menu-formatter" in selected_names:
-        settings["org/gnome/shell/extensions/date-menu-formatter"] = {
-            "font-size": GVariant("int32", 12),
-            "formatter": "01_luxon",
-            "pattern": "dd.MM  HH:mm",
-            "text-align": "center",
-            "update-level": GVariant("int32", 1),
-        }
-    if "coverflow-alt-tab" in selected_names:
-        settings["org/gnome/shell/extensions/coverflowalttab"] = {
-            "desaturate-factor": GVariant("double", 0),
-            "icon-style": "Classic",
-            "use-glitch-effect": True,
-        }
-    if "mouse-tail" in selected_names:
-        settings["org/gnome/shell/extensions/mouse-tail"] = {"render-mode": "precise"}
-    if "notification-timeout" in selected_names:
-        settings["org/gnome/shell/extensions/notification-timeout"] = {
-            "timeout": GVariant("int32", 2000)
-        }
+            bindings["prefs-tiling-toggle"] = []
+        extensions["forge"].update(
+            {
+                "keybindings": bindings,
+                "tiling": {
+                    "enable": bool(options.get("tiling", True)),
+                    "stacked": False,
+                    "tabbed": {"enable": False},
+                },
+                "interaction": {
+                    "dnd-center-layout": "swap",
+                    "float-always-on-top": False,
+                },
+                "appearance": {
+                    "borders": {"focus": {"toggle": False}, "split": {"toggle": False}},
+                    "gaps": {"size": 4},
+                },
+                "general": {"quick-settings": False},
+            }
+        )
+    if "date-menu-formatter" in enabled_extensions:
+        extensions["date-menu-formatter"].update(
+            {
+                "font-size": 12,
+                "formatter": "01_luxon",
+                "pattern": "dd.MM  HH:mm",
+                "text-align": "center",
+                "update-level": 1,
+            }
+        )
+    if "coverflow-alt-tab" in enabled_extensions:
+        extensions["coverflow-alt-tab"].update(
+            {
+                "desaturate-factor": 0.0,
+                "icon-style": "Classic",
+                "use-glitch-effect": True,
+            }
+        )
+    if "mouse-tail" in enabled_extensions:
+        extensions["mouse-tail"]["render-mode"] = "precise"
+    if "notification-timeout" in enabled_extensions:
+        extensions["notification-timeout"]["timeout"] = 2000
     if options.get("theme", True):
         for path in (
             ("apps", "cursors", "google-dot"),
@@ -301,12 +324,9 @@ def _gnome_profile(tree, options, shortcuts, theme, extension_paths):
             "primary-color": "#000000",
             "secondary-color": "#000000",
         }
-        if "user-themes" in selected_names:
-            _set_path(
-                tree,
-                ("desktops", "gnome", "extensions", "user-themes"),
+        if "user-themes" in enabled_extensions:
+            extensions["user-themes"].update(
                 {
-                    "enable": True,
                     "name": "ClockOverride",
                     "theme": {
                         "cssOverride": ".clock-display { font-family: 'Zero', sans-serif !important; font-size: 12px; font-style: normal !important; font-weight: normal !important; letter-spacing: 0 !important; }"
@@ -314,12 +334,7 @@ def _gnome_profile(tree, options, shortcuts, theme, extension_paths):
                 },
             )
         if options.get("extensions", True):
-            extension_paths.append(
-                ("legacy", "gnomeExtensions", "customize-clock-on-lock-screen")
-            )
-            _set_path(
-                tree,
-                ("desktops", "gnome", "extensions", "customize-clock-on-lockscreen"),
+            extensions["customize-clock-on-lockscreen"].update(
                 {
                     "enable": True,
                     "command": {"enable": False},
@@ -351,8 +366,8 @@ def _gnome_profile(tree, options, shortcuts, theme, extension_paths):
                         "org/gnome/login-screen": {
                             "disable-user-list": False,
                             "logo": PackageFile(
-                                PkgsRef(("theming", "system", "zenos-plymouth", "src")),
-                                "/icons/zenos.svg",
+                                PkgsRef(("theming", "icons", "zenos-icons")),
+                                "/share/icons/hicolor/scalable/apps/zenos.svg",
                             ),
                         },
                         "org/gnome/desktop/lockdown": {"disable-lock-screen": True},
@@ -490,6 +505,76 @@ def build_config_tree(
         _set_path(tree, (*base, "home"), f"/Users/{username}")
         _set_path(tree, (*base, "initialHashedPassword"), hashed)
         _set_path(tree, (*base, "extraGroups"), ["networkmanager", "video", "wheel"])
+        _set_path(tree, (*base, "shell"), PkgsRef(("legacy", "zsh")))
+        _set_path(tree, ("legacy", "programs", "zsh", "enable"), True)
+        _set_path(
+            tree,
+            ("legacy", "programs", "zsh", "interactiveShellInit"),
+            'private_config="$XDG_CONFIG_HOME"\n'
+            '[[ -n "$private_config" ]] || private_config="$HOME/.private/Config"\n'
+            'private_zshrc="$private_config/zsh/.zshrc"\n'
+            '[[ ! -f "$private_zshrc" ]] || source "$private_zshrc"',
+        )
+        home = (*base, "homeManager")
+        _set_path(
+            tree,
+            (*home, "xdg", "configFile"),
+            {
+                "zsh/p10k.zsh": {
+                    "source": PackageFile(
+                        PkgsRef(("system", "zenos-shell-defaults")),
+                        "/share/zenos-shell/p10k.zsh",
+                    ),
+                },
+            },
+        )
+        _set_path(tree, (*home, "programs", "direnv", "enable"), True)
+        _set_path(tree, (*home, "programs", "direnv", "nix-direnv", "enable"), True)
+        _set_path(tree, (*home, "programs", "zoxide", "enable"), True)
+        _set_path(tree, (*home, "programs", "zoxide", "enableZshIntegration"), True)
+        _set_path(tree, (*home, "programs", "zsh", "enable"), True)
+        _set_path(tree, (*home, "programs", "zsh", "enableCompletion"), True)
+        _set_path(tree, (*home, "programs", "zsh", "autosuggestion", "enable"), True)
+        _set_path(tree, (*home, "programs", "zsh", "syntaxHighlighting", "enable"), True)
+        _set_path(
+            tree,
+            (*home, "programs", "zsh", "dotDir"),
+            f"/Users/{username}/.private/Config/zsh",
+        )
+        _set_path(tree, (*home, "programs", "zsh", "history", "size"), 10000)
+        _set_path(
+            tree,
+            (*home, "programs", "zsh", "shellAliases"),
+            {
+                "g": "git",
+                "ga": "git add",
+                "gaa": "git add .",
+                "gc": "git commit -m",
+                "gs": "git status",
+                "gp": "git push",
+                "gl": "git log --oneline --graph --decorate",
+                "da": "direnv allow",
+                "dr": "direnv reload",
+                "myip": "curl ifconfig.me",
+            },
+        )
+        _set_path(
+            tree,
+            (*home, "programs", "zsh", "plugins"),
+            [
+                {
+                    "name": "powerlevel10k",
+                    "src": PkgsRef(("legacy", "zsh-powerlevel10k")),
+                    "file": "share/zsh-powerlevel10k/powerlevel10k.zsh-theme",
+                },
+            ],
+        )
+        _set_path(
+            tree,
+            (*home, "programs", "zsh", "initContent"),
+            '[[ ! -f "$XDG_CONFIG_HOME/zsh/p10k.zsh" ]] || source "$XDG_CONFIG_HOME/zsh/p10k.zsh"\n'
+            "bindkey '^[[A' up-line-or-search\nbindkey '^[[B' down-line-or-search",
+        )
 
     desktop = pages.get("desktop", {"install_de": True, "desktop_environment": "gnome"})
     selected = (
@@ -503,8 +588,10 @@ def build_config_tree(
         if selected != "gnome":
             _set_path(tree, option, True)
             _set_path(tree, ("legacy", "services", "xserver", "enable"), True)
+        _set_path(tree, DISPLAY_MANAGER_OPTIONS[selected], True)
+        if selected == "kde":
             _set_path(
-                tree, ("legacy", "services", "displayManager", "sddm", "enable"), True
+                tree, ("legacy", "services", "displayManager", "sddm", "enable"), False
             )
         if selected == "gnome":
             gnome_options = desktop.get(
@@ -536,28 +623,12 @@ def build_config_tree(
             )
             if gnome_options.get("tiling", True):
                 enabled_extensions.add("forge")
-            extension_paths = [
-                ("desktops", "gnome", "extensions", name)
-                if name in {"forge", "dash-stacks"}
-                else ("apps", "gnome-extensions", name)
-                for name in sorted(enabled_extensions)
-            ]
             _gnome_profile(
                 tree,
                 gnome_options,
                 pages.get("shortcuts", {}),
                 pages.get("theme", {}),
-                extension_paths,
-            )
-            _set_path(
-                tree,
-                ("desktops", "gnome", "extensionPackages"),
-                [PkgsRef(path) for path in extension_paths],
-            )
-            _set_path(
-                tree,
-                ("desktops", "gnome", "extensionUuids"),
-                [PkgsRef((*path, "extensionUuid")) for path in extension_paths],
+                enabled_extensions,
             )
             theme = pages.get("theme", {})
             accent = theme.get("accent", "purple")
@@ -660,6 +731,7 @@ def build_execution_plan(payload: dict[str, Any]) -> dict[str, Any]:
     pages = _pages(payload)
     disk = pages.get("disks", {})
     online = pages.get("online", {})
+    theme = pages.get("theme", {})
     return {
         "version": 1,
         "mode": "oobe" if payload.get("oobe") else "installer",
@@ -673,6 +745,10 @@ def build_execution_plan(payload: dict[str, Any]) -> dict[str, Any]:
             "enabled": online.get("method") == "online",
             "flake": online.get("flake", ""),
             "host": online.get("host", ""),
+        },
+        "theme": {
+            "accent": theme.get("accent", "purple"),
+            "darkMode": theme.get("dark_mode", True),
         },
     }
 
@@ -695,7 +771,14 @@ def _serialize_value(value: Any, indent: int) -> str:
             raise ValueError("integer is outside the signed 64-bit range")
         return str(value)
     if isinstance(value, float):
-        raise ValueError("floating-point values are not supported by zcfg")
+        decimal = Decimal(str(value))
+        if not decimal.is_finite():
+            raise ValueError(
+                "non-finite floating-point values are not supported by zcfg"
+            )
+        # ZCFG accepts decimal literals, not Python's exponent notation.
+        rendered = format(decimal, "f")
+        return rendered if "." in rendered else rendered + ".0"
     if isinstance(value, str):
         return _quote(value)
     if isinstance(value, PkgsRef):

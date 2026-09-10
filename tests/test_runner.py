@@ -417,7 +417,8 @@ class InitialInstallTests(unittest.TestCase):
         commands = [line for line in logs if "would run:" in line]
         self.assertFalse(any(" disko " in line for line in commands))
         hardware = [line for line in commands if "nixos-generate-config" in line]
-        self.assertIn("--root / --no-filesystems", hardware[0])
+        self.assertNotIn("--root", hardware[0])
+        self.assertIn("--no-filesystems --show-hardware-config", hardware[0])
         self.assertIn("--root /mnt --show-hardware-config", hardware[1])
 
     def _run_short(self, work_dir, logs):

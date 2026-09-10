@@ -532,9 +532,9 @@ def _generate_hardware_config(
         "sudo",
         "-n",
         "nixos-generate-config",
-        "--root",
-        "/" if preflight else MOUNT_ROOT,
     ]
+    if not preflight:
+        command.extend(["--root", MOUNT_ROOT])
     if not include_filesystems:
         command.append("--no-filesystems")
     command.append("--show-hardware-config")
@@ -544,13 +544,18 @@ def _generate_hardware_config(
             _write_text(output, "# dry-run hardware config\n{ ... }: { }\n")
         else:
             with open(output, "w", encoding="utf-8") as destination:
-                subprocess.run(
-                    command,
-                    stdout=destination,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    check=True,
-                )
+                try:
+                    subprocess.run(
+                        command,
+                        stdout=destination,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        check=True,
+                    )
+                except subprocess.CalledProcessError as error:
+                    if error.stderr:
+                        _emit(log_fn, error.stderr.rstrip())
+                    raise
         _write_json(
             os.path.join(source_dir, "detection.json"),
             {

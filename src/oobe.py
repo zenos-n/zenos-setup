@@ -1,6 +1,8 @@
 import ctypes
+import json
 import os
 import resource
+import socket
 import time
 import gi
 
@@ -10,7 +12,7 @@ from gi.repository import Gtk, Gio, GLib, Adw, GObject
 from mpv import MPV, MpvGlGetProcAddressFn, MpvRenderContext
 from OpenGL import GL
 
-from .oobe_timing import reached_wallpaper_switch
+from .oobe_timing import destination2_wallpaper, reached_wallpaper_switch
 
 
 def get_proc_address_wrapper():
@@ -149,6 +151,7 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
         self.transition_started = False
         self.anims_killed_for_end = False
         self.wallpaper_applied = False
+        self.wallpaper_error_reported = False
         self.video_debug = os.environ.get("ZENOS_OOBE_VIDEO_DEBUG") == "1"
         self.debug_frames = 0
         self.debug_qos_drops = 0
@@ -160,11 +163,16 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
         if not self.video_path:
             raise RuntimeError("ZENOS_VIDEO_PATH is required for OOBE playback")
 
-        # fix wallpaper pathing logic for themes
-        base_wallpaper = os.environ.get("ZENOS_WALLPAPER_PATH", "/run/current-system/sw/share/zenos/")
-        if not base_wallpaper.endswith('/'):
-            base_wallpaper += '/'
-        self.wallpaper_path = os.environ.get("ZENOS_WALLPAPER_FILE", base_wallpaper + "purple.png")
+        self.wallpaper_path = os.environ.get("ZENOS_WALLPAPER_FILE")
+        if not self.wallpaper_path:
+            plan = f"/Config/ZenOS/hosts/{socket.gethostname()}/install-plan.json"
+            try:
+                with open(plan, encoding="utf-8") as source:
+                    theme = json.load(source).get("theme", {})
+                self.wallpaper_path = destination2_wallpaper(theme)
+            except (OSError, ValueError, TypeError):
+                base = os.environ.get("ZENOS_WALLPAPER_PATH", "/run/current-system/sw/share/zenos/")
+                self.wallpaper_path = os.path.join(base, "purple.png")
 
         # setup dconf BEFORE gstreamer touches anything
         self.settings = Gio.Settings.new('org.gnome.desktop.interface')
@@ -182,7 +190,11 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
             self.ext_proxy = None
 
         self.bg_settings.set_string('picture-options', 'none')
+        self.bg_settings.set_string('picture-uri', '')
+        self.bg_settings.set_string('picture-uri-dark', '')
         self.bg_settings.set_string('primary-color', '#000000')
+        self.bg_settings.set_string('secondary-color', '#000000')
+        Gio.Settings.sync()
         self.set_global_anims(False)
 
         self.connect("close-request", self.on_close_request)
@@ -303,12 +315,23 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
         return False
 
     def apply_wallpaper(self):
+        if not os.path.isfile(self.wallpaper_path):
+            if not self.wallpaper_error_reported:
+                print(f"Destination 2 wallpaper is missing: {self.wallpaper_path}")
+                self.wallpaper_error_reported = True
+            return False
         target_uri = f"file://{self.wallpaper_path}"
-        self.bg_settings.set_string('picture-options', 'zoom')
-        self.bg_settings.set_string('picture-uri', target_uri)
-        self.bg_settings.set_string('picture-uri-dark', target_uri)
+        changed = all((
+            self.bg_settings.set_string('picture-options', 'zoom'),
+            self.bg_settings.set_string('picture-uri', target_uri),
+            self.bg_settings.set_string('picture-uri-dark', target_uri),
+        ))
         Gio.Settings.sync()
-        self.wallpaper_applied = True
+        self.wallpaper_applied = changed
+        if not changed and not self.wallpaper_error_reported:
+            print(f"GNOME rejected Destination 2 wallpaper: {target_uri}")
+            self.wallpaper_error_reported = True
+        return changed
 
     def check_video_progress(self):
         if self.transition_started or not self.video:
