@@ -1,4 +1,4 @@
-import threading
+from queue import Empty, SimpleQueue
 
 from gi.repository import Gtk, Adw, GObject, GLib
 
@@ -62,6 +62,7 @@ class Page(Gtk.Box):
 
         # --- collect install state and start the real installer ---
         self.install_state = self.router.collect_state()
+        self._install_results = SimpleQueue()
         self._start_installer()
 
     # ------------------------------------------------------------------ runner
@@ -75,8 +76,9 @@ class Page(Gtk.Box):
             self.install_state,
             progress_fn=self._on_progress,
             log_fn=self._on_log,
-            done_fn=self._on_done,
+            done_fn=self._queue_done,
         )
+        self._result_timer_id = GLib.timeout_add(100, self._poll_result)
 
     # --- thread-safe callbacks (runner calls these from a worker thread) ---
 
@@ -86,8 +88,17 @@ class Page(Gtk.Box):
     def _on_log(self, line: str):
         GLib.idle_add(self._append_log, line)
 
-    def _on_done(self, success: bool, error: str | None):
-        GLib.idle_add(self._finish, success, error)
+    def _queue_done(self, success: bool, error: str | None):
+        self._install_results.put((success, error))
+
+    def _poll_result(self):
+        try:
+            success, error = self._install_results.get_nowait()
+        except Empty:
+            return GLib.SOURCE_CONTINUE
+        self._result_timer_id = None
+        self._finish(success, error)
+        return GLib.SOURCE_REMOVE
 
     # --- GTK-thread updates ---
 

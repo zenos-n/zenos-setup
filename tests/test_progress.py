@@ -65,6 +65,9 @@ class ProgressTourTests(unittest.TestCase):
         self.assertIn('"hide_next_while_gated": True', source)
         self.assertIn("self.live_mode_button.set_visible(True)", source)
         self.assertIn("self.router.navigate_next()", source)
+        self.assertIn("SimpleQueue", source)
+        self.assertIn("self._install_results.put((success, error))", source)
+        self.assertIn("GLib.timeout_add(100, self._poll_result)", source)
 
     def test_extension_manifest_and_default_apps(self):
         project = Path(__file__).parents[1]
