@@ -4,22 +4,25 @@ Setup reads `/iso-config-template/flake.nix` once, before disk work. The image
 owns this template and supplies pinned compiler, runtime, Nixpkgs, Disko, and
 offline dependencies. Setup does not import the live ISO host configuration.
 
-The template must contain this input, with the placeholder exactly once:
+The template must expose only `zenpkgs` as a root input. Setup reads its pinned
+upstream Nixpkgs through `inputs.zenpkgs.inputs.nixpkgs`.
+There is no `setup-hardware` input or hardware placeholder. Each generated
+`hosts/<name>/host.zcfg` imports its hardware through canonical DSL syntax:
 
-```nix
-inputs.setup-hardware = {
-  url = "path:@ZENOS_SETUP_HARDWARE@";
-  flake = false;
-};
+```text
+_import "./hardware.zcfg";
 ```
 
-Setup replaces the placeholder with an immutable store directory created by
-`nix store add-path`. That directory contains `hardware-configuration.nix` and
-`detection.json`. Import `inputs.setup-hardware + "/hardware-configuration.nix"`
-as an upstream NixOS module for each generated host. Retain this input in the
-installed closure, for example with `system.extraDependencies`, along with the
-pinned compiler/runtime sources and offline build dependencies. Do not read a
-generated `host.nix` or hardware Nix from the editable tree.
+Setup captures upstream `nixos-generate-config --show-hardware-config` output
+in memory, evaluates the detected options and imported hardware profiles with
+the template's pinned Nixpkgs, and serializes data into `hardware.zcfg` under
+the existing `legacy` namespace. It does not write hardware Nix or hardware
+JSON, either in the editable tree or in a separate hardware input. Only options
+authored by the detector/profiles are projected; unrelated NixOS defaults are
+not copied into the host. Detected defaults become concrete hardware values.
+Non-data values (functions, packages, or paths) and unsupported list shapes
+fail before disk operations rather than being silently dropped. The image
+must provide the scanner and the pinned dependencies for this evaluation.
 
 Enumerate `hosts/<name>/host.zcfg`, compile it with the image's pinned canonical
 compiler into a store output, and import that output with the current ZenPkgs
@@ -31,11 +34,11 @@ boolean selectors. The template must not force a desktop or override Setup's
 user selections.
 
 Before unmounting or running automatic Disko, Setup stages the complete config,
-checks/compiles ZCFG outside the editable tree, binds provisional hardware,
-locks offline, and evaluates the selected host's `system.build.toplevel.drvPath`.
+locks offline, generates provisional hardware, checks/compiles ZCFG outside the
+editable tree, and evaluates the selected host's `system.build.toplevel.drvPath`.
 Manual preflight uses the selected root and EFI devices without mounting them.
-After mounting, Setup regenerates actual hardware/filesystems, replaces the
-hardware input, relocks and evaluates again, then calls nixos-install.
+After mounting, Setup regenerates actual hardware/filesystems in `hardware.zcfg`,
+recompiles, relocks and evaluates again, then calls nixos-install.
 Evaluation may realize compiler outputs; it must not activate or partition.
 Preflight is not a guarantee that every target closure is available offline.
 
@@ -62,17 +65,26 @@ closure. Later rebuild tooling must perform the same snapshot handoff: directly
 evaluating the editable flake with external home symlinks is not supported by
 pure Nix. This contract does not add a public option or change D19 ownership.
 
-For Install Now, Setup creates `oobe-<suffix>` and a version 3 `oobe.json` with
-`status = "pending"`, `temporaryHost`, and checksums of `graphics.zcfg`,
-`hardware.json`, and (for automatic disks) `drives.zcfg`. `hardware.json` points
-to the immutable hardware source and records its checksum. The template must
-enable its temporary first-boot session only for the host with this pending
-marker, launching `zenos-setup --oobe`. Live and OOBE launch environments must
+For Install Now, Setup creates `oobe-<suffix>` with
+`system.oobe.enable = true` in its generated `system.zcfg`. Final hosts omit
+that setting entirely. The template must compile all `_import` dependencies
+and expose the runtime's evaluated boolean at
+`nixosConfigurations.<name>.config.zenos.system.oobe.enable`. Its default is
+false. Setup queries this value through `nix eval --json --offline
+--no-write-lock-file` against a materialized snapshot; it never searches source
+text, comments, filenames, or JSON markers to determine OOBE state. Evaluation
+errors and non-booleans are fatal. Before installing, Setup checks that the
+evaluated state matches the selected temporary/final mode.
+
+The template must let this evaluated option own the temporary account,
+autologin/session, and `zenos-setup --oobe` launch. It must not force OOBE on or
+infer it from the host name or bookkeeping records. Live and OOBE environments must
 set `ZENOS_SETUP_DRY_RUN=0`; the package keeps dry-run as its default.
 
-OOBE verifies the pending host and artifacts, stages the final host with the
-same hardware input and drive configuration, evaluates it, and requests
-`nixos-rebuild boot`. The final host has no pending marker and must not inherit
+OOBE requires exactly one evaluated enabled host matching the running hostname.
+It stages the final host with hardware, graphics and drive ZCFG from that
+snapshot, evaluates it with OOBE disabled, and requests
+`nixos-rebuild boot`. The final host omits the OOBE setting and must not inherit
 temporary accounts, autologin, or the OOBE session. Only after a successful
 rebuild does Setup write `oobe-complete.json` and remove the temporary host.
 On an initial evaluation/rebuild failure it removes the staged final host and
@@ -82,7 +94,12 @@ back. Setup records `oobe-finalize.json` before rebuilding so finalization can b
 retried without republishing users. A completion record permits cleanup-only
 retries, even after the temporary host was removed. An intent without a completion
 record conservatively retains the final sources and repeats evaluation/rebuild
-before cleanup. These are runner bookkeeping records, not new template inputs.
+before cleanup. These version 1 records contain `host`, `sourceHost`, and
+`status` (`prepared` or `complete`); they contain no hardware configuration.
+They are runner bookkeeping records, not template inputs or OOBE enable flags.
+The rebuild's return is the commit boundary. rEFInd synchronization runs after
+completion is recorded and is retried along with cleanup; its failure never
+rolls back the already bootable final sources.
 Reboot remains owned by the existing reboot page.
 
 The default GNOME choices are supported. Branding and both shortcut families

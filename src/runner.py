@@ -37,8 +37,10 @@ _HOST_FILES = {
     "desktop.zcfg",
     "drives.zcfg",
     "graphics.zcfg",
-    "hardware-configuration.nix",
+    "hardware.zcfg",
     "host.zcfg",
+    "oobe-complete.json",
+    "oobe-finalize.json",
     "system.zcfg",
     "users",
 }
@@ -481,6 +483,26 @@ def _host_dir(config_dir: str, host_name: str) -> str:
     return os.path.join(config_dir, "hosts", _validate_host_name(host_name))
 
 
+def _write_json(path: str, value: dict) -> str:
+    descriptor, temporary = tempfile.mkstemp(prefix=".marker-", dir=os.path.dirname(path))
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as file:
+            json.dump(value, file, sort_keys=True)
+            file.write("\n")
+            file.flush()
+            os.fsync(file.fileno())
+        os.replace(temporary, path)
+        directory = os.open(os.path.dirname(path), os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+    return path
+
+
 def _write_host_documents(
     host_dir: str,
     documents: dict[str, str],
@@ -516,8 +538,8 @@ def _generate_hardware_config(
     include_filesystems: bool = True,
     preflight: bool = False,
 ) -> str:
-    output = os.path.join(_host_dir(config_dir, host_name), "hardware-configuration.nix")
-    _emit(log_fn, "generating private hardware configuration")
+    output = os.path.join(_host_dir(config_dir, host_name), "hardware.zcfg")
+    _emit(log_fn, "generating hardware ZCFG")
     command = [
         "sudo",
         "-n",
@@ -530,22 +552,67 @@ def _generate_hardware_config(
     command.append("--show-hardware-config")
     if DRY_RUN:
         _run(command, log_fn)
-        _write_text(output, "# dry-run hardware config\n{ ... }: { }\n")
+        _write_text(output, "# dry-run hardware detection placeholder\n")
     else:
-        with open(output, "w", encoding="utf-8") as destination:
-            try:
-                subprocess.run(
-                    command,
-                    stdout=destination,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    check=True,
-                )
-            except subprocess.CalledProcessError as error:
-                if error.stderr:
-                    _emit(log_fn, error.stderr.rstrip())
-                raise
-    _run(["nix-instantiate", "--parse", output], log_fn)
+        # The upstream scanner speaks Nix. Evaluate that transient expression with
+        # the template's pinned Nixpkgs; never persist hardware Nix or JSON.
+        detected = subprocess.run(
+            command, capture_output=True, text=True, check=True,
+            env=_command_environment(),
+        ).stdout
+        expression = '''let
+          flake = builtins.getFlake FLAKE;
+          nixpkgs = flake.inputs.zenpkgs.inputs.nixpkgs;
+          lib = nixpkgs.lib;
+          hardware = (HARDWARE);
+          evaluated = import (nixpkgs + "/nixos/lib/eval-config.nix") {
+            modules = [ { _file = "setup-hardware"; imports = [ hardware ]; } ];
+          };
+          args = { inherit lib; inherit (evaluated) config pkgs;
+            modulesPath = nixpkgs + "/nixos/modules"; };
+          load = module: let
+            value = if builtins.isPath module || builtins.isString module
+              then import module else module;
+          in if builtins.isFunction value then value args else value;
+          paths = module: let
+            value = load module;
+            walk = path: attrs: lib.concatMap (name: let
+              next = path ++ [ name ];
+              option = lib.attrByPath next {} evaluated.options;
+            in if lib.isOption option then [ { path = next; shape = attrs.${name}; } ]
+               else walk next attrs.${name}) (builtins.attrNames attrs);
+          in if value ? options || value ? _module || value ? disabledModules || value ? _type
+            then throw "hardware module requires unsupported structural lowering"
+            else walk [] (builtins.removeAttrs (value.config or value)
+            [ "imports" "_file" ])
+            ++ lib.concatMap paths (value.imports or []);
+          project = shape: value:
+            if builtins.isAttrs shape && !(shape ? _type)
+            then lib.mapAttrs (name: child: project child value.${name}) shape
+            else if builtins.isList shape && lib.any builtins.isAttrs shape
+            then if builtins.length shape != builtins.length value
+              then throw "hardware list requires unsupported structural lowering"
+              else lib.imap0 (index: child: project child (builtins.elemAt value index)) shape
+            else value;
+          dataOnly = value:
+            if lib.isDerivation value || builtins.isFunction value || builtins.isPath value
+            then throw "hardware option requires unsupported non-data lowering"
+            else if builtins.isAttrs value then lib.mapAttrs (_: dataOnly) value
+            else if builtins.isList value then map dataOnly value else value;
+        in lib.foldl' lib.recursiveUpdate {} (map (entry: lib.setAttrByPath entry.path (dataOnly (
+          if entry.path == [ "nixpkgs" "hostPlatform" ]
+          then evaluated.pkgs.stdenv.hostPlatform.system
+          else project entry.shape (lib.getAttrFromPath entry.path evaluated.config))))
+          (paths hardware))
+        '''.replace("FLAKE", json.dumps(os.path.abspath(config_dir))).replace("HARDWARE", detected)
+        result = subprocess.run(
+            ["nix", "eval", "--offline", "--impure", "--json", "--expr", expression],
+            capture_output=True, text=True, check=True, env=_command_environment(),
+        )
+        tree = json.loads(result.stdout)
+        if not isinstance(tree, dict) or not tree:
+            raise RuntimeError("hardware evaluation returned no options")
+        _write_text(output, serialize_zcfg({"legacy": tree}))
     return output
 
 
@@ -812,12 +879,19 @@ def _initialize_target_config(
     return config_dir
 
 
-def _lock_config(config_dir: str, log_fn=None, *, initial_lock: bool = False) -> None:
+def _lock_config(config_dir: str, log_fn=None) -> None:
     _validate_config_layout(config_dir)
-    lock_command = ["nix", "flake", "lock"]
-    if not initial_lock:
-        lock_command.append("--offline")
+    lock_command = ["nix", "flake", "lock", "--offline"]
     _run(lock_command, log_fn, cwd=config_dir)
+
+
+def _evaluate_host(config_dir: str, host_name: str, log_fn=None, *, oobe=False) -> None:
+    _run([
+        "nix", "eval", "--offline", "--no-write-lock-file", "--raw",
+        f"{config_dir}#nixosConfigurations.{_validate_host_name(host_name)}.config.system.build.toplevel.drvPath",
+    ], log_fn)
+    if not DRY_RUN and _read_oobe_enabled(config_dir, host_name) is not oobe:
+        raise RuntimeError(f"unexpected evaluated OOBE state for {host_name}")
 
 
 def _nixos_install(config_dir: str, host_name: str, log_fn=None) -> None:
@@ -848,7 +922,6 @@ def _nixos_rebuild_boot(config_dir: str, host_name: str, log_fn=None) -> None:
         ],
         log_fn,
     )
-    _run(["sudo", "-n", "zenos-sync-refind-generations"], log_fn)
 
 
 def _request_reboot(log_fn=None) -> None:
@@ -913,7 +986,7 @@ def _install_local(
         _emit(log_fn, f"temporary host: {host_name}")
     else:
         host_name = _validate_host_name(pages["computer_name"]["hostname"])
-        payload = data
+        payload = {**data, "oobe": False}
         _emit(log_fn, f"permanent host: {host_name}")
 
     documents = build_config_documents(payload)
@@ -935,7 +1008,7 @@ def _install_local(
     staged_config = _initialize_target_config(work_dir, log_fn, stage=True)
     staged_host = _host_dir(staged_config, host_name)
     _generate_graphics_config(staged_config, host_name, log_fn)
-    extra_imports = ["graphics.zcfg"]
+    extra_imports = ["graphics.zcfg", "hardware.zcfg"]
     if drives_text is not None:
         _write_text(os.path.join(staged_host, "drives.zcfg"), drives_text)
         extra_imports.append("drives.zcfg")
@@ -956,15 +1029,16 @@ def _install_local(
     staged_zcfg = _write_host_documents(
         staged_host, documents, extra_imports=tuple(extra_imports)
     )
-    _compile_host(staged_zcfg, log_fn)
-    hardware_path = _generate_hardware_config(
+    _lock_config(staged_config, log_fn)
+    _generate_hardware_config(
         staged_config, host_name, log_fn, include_filesystems=False, preflight=True
     )
+    _compile_host(staged_zcfg, log_fn)
     _emit(
         log_fn,
         "preflight: checking ISO template and generated host before disk operations",
     )
-    _lock_config(staged_config, log_fn, initial_lock=True)
+    _evaluate_host(staged_config, host_name, log_fn, oobe=short)
 
     machine_root = os.path.join(work_dir, "target") if DRY_RUN else MOUNT_ROOT
     user_sources = []
@@ -984,7 +1058,7 @@ def _install_local(
         config_dir = _initialize_target_config(work_dir, log_fn, source=staged_config)
         host_dir = _host_dir(config_dir, host_name)
         _generate_graphics_config(config_dir, host_name, log_fn)
-        extra_imports = ["graphics.zcfg"]
+        extra_imports = ["graphics.zcfg", "hardware.zcfg"]
         if drives_text is not None:
             _write_text(os.path.join(host_dir, "drives.zcfg"), drives_text)
             extra_imports.append("drives.zcfg")
@@ -995,13 +1069,13 @@ def _install_local(
             documents,
             extra_imports=tuple(extra_imports),
         )
-        _compile_host(zcfg_path, log_fn)
-        hardware_path = _generate_hardware_config(
+        _generate_hardware_config(
             config_dir,
             host_name,
             log_fn,
             include_filesystems=disko_text is None,
         )
+        _compile_host(zcfg_path, log_fn)
         with open(zcfg_path, encoding="utf-8") as host_file:
             _print_config(log_fn, zcfg_path, host_file.read())
 
@@ -1013,6 +1087,7 @@ def _install_local(
         )
         snapshot = _config_snapshot(config_dir, work_dir, machine_root, log_fn)
         _lock_config(snapshot, log_fn)
+        _evaluate_host(snapshot, host_name, log_fn, oobe=short)
         if os.path.isfile(os.path.join(snapshot, "flake.lock")):
             shutil.copyfile(
                 os.path.join(snapshot, "flake.lock"),
@@ -1048,25 +1123,30 @@ def _read_current_host() -> str:
         raise RuntimeError("cannot identify the current temporary host") from exc
 
 
+def _read_oobe_enabled(config_dir: str, host_name: str) -> bool:
+    if DRY_RUN:
+        raise RuntimeError("dry-run OOBE requires an injected evaluated host state")
+    result = subprocess.run(
+        ["nix", "eval", "--offline", "--no-write-lock-file", "--json",
+         f"{config_dir}#nixosConfigurations.{_validate_host_name(host_name)}.config.zenos.system.oobe.enable"],
+        capture_output=True, text=True, check=True, env=_command_environment(),
+    )
+    enabled = json.loads(result.stdout)
+    if type(enabled) is not bool:
+        raise RuntimeError("evaluated OOBE state must be a boolean")
+    return enabled
+
+
 def _find_pending_oobe(config_dir: str, current_host: str) -> str:
     pending: list[str] = []
     hosts_dir = os.path.join(config_dir, "hosts")
     for host_name in os.listdir(hosts_dir):
-        system_path = os.path.join(hosts_dir, host_name, "system.zcfg")
-        if not os.path.isfile(system_path) or os.path.islink(system_path):
-            continue
-        with open(system_path, encoding="utf-8") as file:
-            system = file.read()
-        if re.search(
-            r"(?:oobe\s*=\s*\{.*?enable\s*=\s*true|system\.oobe\.enable\s*=\s*true)",
-            system,
-            re.S,
-        ):
+        if _read_oobe_enabled(config_dir, host_name):
             pending.append(host_name)
 
     if len(pending) != 1:
         raise RuntimeError(
-            f"expected exactly one pending OOBE marker, found {len(pending)}"
+            f"expected exactly one enabled OOBE host, found {len(pending)}"
         )
     temporary_host = pending[0]
     if current_host != temporary_host:
@@ -1076,14 +1156,22 @@ def _find_pending_oobe(config_dir: str, current_host: str) -> str:
     return temporary_host
 
 
-def _finish_oobe(config_dir, final_host, temporary_host, progress_fn, log_fn):
-    temporary_dir = _host_dir(config_dir, temporary_host)
+def _finish_oobe(config_dir, completion, progress_fn, log_fn):
+    final_dir = _host_dir(config_dir, completion["host"])
+    temporary_dir = _host_dir(config_dir, completion["sourceHost"])
+    _write_json(os.path.join(final_dir, "oobe-complete.json"),
+                {**completion, "status": "complete"})
+    _run(["sudo", "-n", "zenos-sync-refind-generations"], log_fn)
     progress_fn(0.85)
     _validate_config_layout(config_dir)
     if os.path.exists(temporary_dir):
         _remove_config_tree(temporary_dir, log_fn)
+    try:
+        os.unlink(os.path.join(final_dir, "oobe-finalize.json"))
+    except FileNotFoundError:
+        pass
     progress_fn(1.0)
-    _emit(log_fn, f"OOBE finalized host {final_host}")
+    _emit(log_fn, f"OOBE finalized host {completion['host']}")
 
 
 def _run_oobe(data: dict, pages: dict, work_dir: str, progress_fn, log_fn) -> None:
@@ -1098,23 +1186,54 @@ def _run_oobe(data: dict, pages: dict, work_dir: str, progress_fn, log_fn) -> No
     final_dir = _host_dir(config_dir, final_host)
     current_host = _read_current_host()
     machine_root = os.path.join(work_dir, "target") if DRY_RUN else "/"
-    temporary_host = _find_pending_oobe(config_dir, current_host)
+    if os.path.exists(final_dir):
+        # An intent may have survived a successful boot followed by a failed
+        # completion write. Retries must never republish or roll back sources.
+        completion_path = os.path.join(final_dir, "oobe-complete.json")
+        complete = os.path.isfile(completion_path)
+        resume_path = completion_path if complete else os.path.join(final_dir, "oobe-finalize.json")
+        if not os.path.isfile(resume_path):
+            raise RuntimeError(f"final host already exists: {final_host}")
+        with open(resume_path, encoding="utf-8") as file:
+            completion = json.load(file)
+        if (
+            not isinstance(completion, dict)
+            or completion.get("version") != 1
+            or completion.get("host") != final_host
+            or completion.get("status") != ("complete" if complete else "prepared")
+            or completion.get("sourceHost") == final_host
+            or current_host not in (final_host, completion.get("sourceHost"))
+        ):
+            raise RuntimeError("invalid OOBE finalization retry record")
+        _validate_host_name(completion.get("sourceHost"))
+        if not complete:
+            snapshot = _config_snapshot(config_dir, work_dir, machine_root, log_fn)
+            _lock_config(snapshot, log_fn)
+            _evaluate_host(snapshot, final_host, log_fn)
+            _nixos_rebuild_boot(snapshot, final_host, log_fn)
+        _finish_oobe(config_dir, completion, progress_fn, log_fn)
+        return
+
+    snapshot = _config_snapshot(config_dir, work_dir, machine_root, log_fn)
+    _lock_config(snapshot, log_fn)
+    temporary_host = _find_pending_oobe(snapshot, current_host)
     if final_host == temporary_host:
         raise RuntimeError("final host name must differ from the temporary OOBE host")
 
     hosts_dir = os.path.join(config_dir, "hosts")
-    temporary_dir = _host_dir(config_dir, temporary_host)
+    temporary_dir = _host_dir(snapshot, temporary_host)
 
     source_artifacts = {
         name: os.path.join(temporary_dir, name)
-        for name in ("graphics.zcfg", "drives.zcfg", "hardware-configuration.nix")
+        for name in ("graphics.zcfg", "drives.zcfg", "hardware.zcfg")
         if os.path.isfile(os.path.join(temporary_dir, name))
     }
-    if "hardware-configuration.nix" not in source_artifacts:
-        raise RuntimeError("temporary host is missing hardware-configuration.nix")
+    for required in ("hardware.zcfg", "graphics.zcfg"):
+        if required not in source_artifacts:
+            raise RuntimeError(f"temporary host is missing {required}")
 
     documents = build_config_documents({**data, "oobe": False})
-    stage_dir = tempfile.mkdtemp(prefix=f".{final_host}.staging-", dir=hosts_dir)
+    stage_dir = tempfile.mkdtemp(prefix=f"{final_host}-staging-", dir=work_dir)
     published = False
     boot_committed = False
     user_sources = []
@@ -1134,7 +1253,14 @@ def _run_oobe(data: dict, pages: dict, work_dir: str, progress_fn, log_fn) -> No
         _compile_host(zcfg_path, log_fn)
         with open(zcfg_path, encoding="utf-8") as host_file:
             _print_config(log_fn, zcfg_path, host_file.read())
-        os.replace(stage_dir, final_dir)
+        # Stage beside the destination for an atomic rename, after validation.
+        publish_dir = tempfile.mkdtemp(prefix=f".{final_host}.staging-", dir=hosts_dir)
+        try:
+            shutil.copytree(stage_dir, publish_dir, dirs_exist_ok=True)
+            os.rename(publish_dir, final_dir)
+        finally:
+            if os.path.isdir(publish_dir):
+                shutil.rmtree(publish_dir)
         published = True
         _validate_config_layout(config_dir)
         progress_fn(0.45)
@@ -1144,14 +1270,20 @@ def _run_oobe(data: dict, pages: dict, work_dir: str, progress_fn, log_fn) -> No
         )
         snapshot = _config_snapshot(config_dir, work_dir, machine_root, log_fn)
         _lock_config(snapshot, log_fn)
+        _evaluate_host(snapshot, final_host, log_fn)
         if os.path.isfile(os.path.join(snapshot, "flake.lock")):
             shutil.copyfile(
                 os.path.join(snapshot, "flake.lock"),
                 os.path.join(config_dir, "flake.lock"),
             )
+        completion = {
+            "version": 1, "host": final_host, "sourceHost": temporary_host,
+            "status": "prepared",
+        }
+        _write_json(os.path.join(final_dir, "oobe-finalize.json"), completion)
         _nixos_rebuild_boot(snapshot, final_host, log_fn)
         boot_committed = True
-        _finish_oobe(config_dir, final_host, temporary_host, progress_fn, log_fn)
+        _finish_oobe(config_dir, completion, progress_fn, log_fn)
     except Exception as exc:
         if boot_committed:
             raise RuntimeError(
@@ -1205,6 +1337,8 @@ def run_installer(
             if done_fn:
                 done_fn(True, None)
         except Exception as exc:
+            if isinstance(exc, subprocess.CalledProcessError) and exc.stderr:
+                _emit(log_fn, exc.stderr.rstrip())
             _emit(log_fn, f"[fatal] {exc}")
             if done_fn:
                 done_fn(False, str(exc))

@@ -16,8 +16,8 @@ GNOME controls and default rendering under Xvfb with an isolated settings backen
 
 ## Image integration
 
-See [TEMPLATE-CONTRACT.md](TEMPLATE-CONTRACT.md) for the template input,
-pre-erase checks, immutable hardware source, and pending OOBE handoff.
+See [TEMPLATE-CONTRACT.md](TEMPLATE-CONTRACT.md) for the template interface,
+pre-erase checks, imported `hardware.zcfg`, and evaluated OOBE handoff.
 No generated Nix belongs below `/Config/ZenOS`, except its `flake.nix` entry.
 Per-user host entries link to `/Users/<user>/.private/Config/main.zcfg`.
 Setup evaluates private materialized snapshots of those sources. Later rebuild
@@ -44,6 +44,9 @@ Set `ZENOS_SETUP_RUNTIME_SOURCE` to a private current ZenPkgs snapshot and
 the default host and its dconf output through the current runtime. Tests never
 partition disks, mount filesystems, install a system, or activate a generation.
 Installer and OOBE command ordering uses dry-run or mocks.
+Dry-run OOBE tests inject evaluated boolean states; dry-run mode does not guess
+those states from source text. Source-level compiler and Nix evaluation tests
+are separate from full runtime, privileged handoff, and VM acceptance tests.
 
 Default GNOME branding, recommended extensions including Dash Stacks, Forge
 tiling, Vim directions, and ZenOS actions are supported. Stock branding and both

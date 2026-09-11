@@ -216,7 +216,7 @@ legacy.fileSystems = {
 };
 """
             )
-            documents["host.zcfg"] += "import ./drives.zcfg;\n"
+            documents["host.zcfg"] += '_import "./drives.zcfg";\n'
             for name, text in documents.items():
                 (root / name).parent.mkdir(parents=True, exist_ok=True)
                 (root / name).write_text(text)
@@ -261,6 +261,7 @@ legacy.fileSystems = {
                 text=True,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
+
             actual = json.loads(result.stdout)
             self.assertEqual(actual["hostname"], "zen-box")
             self.assertEqual(actual["home"], "/Users/zen")
@@ -282,61 +283,52 @@ legacy.fileSystems = {
             self.assertFalse(actual["zenfs"])
             return actual
 
-    def test_hardware_input_lock_and_pending_host_contract(self):
-        # This small flake tests handoff mechanics, not the image-owned NixOS runtime.
+    def test_hardware_zcfg_and_evaluated_oobe_contract(self):
+        # Compile real imports and evaluate the resulting module with a minimal
+        # lib fixture, so comments and unrelated enable flags cannot select OOBE.
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            source = root / "private-hardware"
-            source.mkdir()
-            (source / "hardware-configuration.nix").write_text("{ ... }: { }\n")
-            (source / "detection.json").write_text('{"version": 1}\n')
-            added = subprocess.run(
-                [
-                    "nix",
-                    "store",
-                    "add-path",
-                    "--name",
-                    "zenos-setup-hardware",
-                    str(source),
-                ],
-                text=True,
-                capture_output=True,
-                check=True,
-            )
-            store_path = added.stdout.strip()
             config = root / "config"
             host = config / "hosts" / "oobe-test"
             host.mkdir(parents=True)
-            runner._write_json(
-                str(host / "hardware.json"),
-                {
-                    "version": 1,
-                    "storePath": store_path,
-                    "sha256": runner._sha256(
-                        str(source / "hardware-configuration.nix")
-                    ),
-                },
+            (host / "host.zcfg").write_text(
+                '_import "./system.zcfg";\n_import "./hardware.zcfg";\n'
             )
-            runner._write_json(str(host / "oobe.json"), {"status": "pending"})
-            template = """{
-  inputs.setup-hardware = { url = "path:@ZENOS_SETUP_HARDWARE@"; flake = false; };
-  outputs = { self, setup-hardware }: {
-    nixosConfigurations.oobe-test.config.system.build.toplevel.drvPath =
-      assert builtins.pathExists (setup-hardware + "/hardware-configuration.nix");
-      assert (builtins.fromJSON (builtins.readFile ./hosts/oobe-test/oobe.json)).status == "pending";
-      "/nix/store/test-only-handoff.drv";
-  };
-}
-"""
-            with mock.patch.object(runner, "DRY_RUN", False):
-                runner._bind_hardware(
-                    str(config), template, str(host / "hardware.json")
+            (host / "hardware.zcfg").write_text(
+                'legacy.boot.initrd.availableKernelModules = [ "virtio_pci" ];\n'
+            )
+            env = {**os.environ, "PYTHONPATH": os.environ["ZENOS_SETUP_COMPILER_SOURCE"]}
+            for source, expected in (
+                ('# system.oobe.enable = true;\nsystem.oobe.enable = false;\nsystem.zenfs.enable = true;\n', False),
+                ('system = { oobe = { enable = true; }; };\n', True),
+                ('system.zenfs.enable = true;\n', False),
+            ):
+                (host / "system.zcfg").write_text(source)
+                compiled = root / "compiled.nix"
+                subprocess.run(
+                    [sys.executable, "-m", "zenlang", "compile", str(host / "host.zcfg"), "-o", str(compiled)],
+                    env=env, capture_output=True, text=True, check=True,
                 )
-                runner._lock_config(str(config))
-            self.assertNotIn(
-                runner.HARDWARE_PLACEHOLDER, (config / "flake.nix").read_text()
-            )
-            self.assertTrue((config / "flake.lock").is_file())
+                # Compiler output stays outside the editable tree and enters a
+                # separate immutable input, as the image's compiler derivation does.
+                added = subprocess.run(
+                    ["nix", "store", "add-path", str(compiled)],
+                    capture_output=True, text=True, check=True,
+                )
+                (config / "flake.nix").write_text('''{
+                  inputs.compiled = { url = "path:COMPILED"; flake = false; };
+                  outputs = { compiled, ... }: let
+                    lib = { mkMerge = xs: builtins.foldl' (a: b: a // b) {} xs; };
+                    result = import compiled { inherit lib; pkgs = {}; };
+                  in { nixosConfigurations.oobe-test.config.zenos.system.oobe.enable =
+                    result.zenos.system.oobe.enable or false; };
+                }'''.replace("COMPILED", added.stdout.strip()))
+                with mock.patch.object(runner, "DRY_RUN", False):
+                    runner._lock_config(str(config))
+                    try:
+                        self.assertIs(runner._read_oobe_enabled(str(config), "oobe-test"), expected)
+                    except subprocess.CalledProcessError as error:
+                        self.fail(error.stderr)
             self.assertEqual(
                 sorted(path.name for path in config.rglob("*.nix")), ["flake.nix"]
             )
@@ -377,7 +369,7 @@ legacy.fileSystems = {
                 documents["drives.zcfg"] = build_disko_zcfg("/dev/vda")
                 documents["graphics.zcfg"] = build_graphics_config([])
                 documents["host.zcfg"] += (
-                    "import ./drives.zcfg;\nimport ./graphics.zcfg;\n"
+                    '_import "./drives.zcfg";\n_import "./graphics.zcfg";\n'
                 )
                 for name, text in documents.items():
                     (root / name).parent.mkdir(parents=True, exist_ok=True)
@@ -406,3 +398,90 @@ legacy.fileSystems = {
                     capture_output=True,
                 )
                 self.assertEqual(result.returncode, 0, result.stderr)
+
+    @unittest.skipUnless(os.environ.get("ZENOS_SETUP_NIXPKGS_SOURCE"), "requires pinned Nixpkgs source")
+    def test_upstream_hardware_is_evaluated_and_lowered_to_zcfg(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = root / "config"
+            host = config / "hosts/test-host"
+            host.mkdir(parents=True)
+            zenpkgs = root / "zenpkgs"
+            zenpkgs.mkdir()
+            (zenpkgs / "flake.nix").write_text('''{
+              inputs.nixpkgs.url = "path:NIXPKGS";
+              outputs = _: {};
+            }'''.replace("NIXPKGS", os.environ["ZENOS_SETUP_NIXPKGS_SOURCE"]))
+            (config / "flake.nix").write_text('''{
+              inputs.zenpkgs.url = "path:ZENPKGS";
+              outputs = _: {};
+            }'''.replace("ZENPKGS", str(zenpkgs)))
+            detected = '''{ lib, config, modulesPath, ... }: {
+              imports = [ (modulesPath + "/profiles/qemu-guest.nix")
+                (modulesPath + "/installer/scan/not-detected.nix") ];
+              boot.initrd.availableKernelModules = [ "xhci_pci" ];
+              boot.kernelModules = [ "kvm-intel" ];
+              boot.extraModulePackages = [];
+              fileSystems."/" = { device = "/dev/disk/by-uuid/root"; fsType = "ext4"; };
+              swapDevices = [ { device = "/dev/disk/by-uuid/swap"; } ];
+              nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
+              hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
+            }'''
+            real_run = subprocess.run
+
+            def run(command, **kwargs):
+                if "nixos-generate-config" in command:
+                    return subprocess.CompletedProcess(command, 0, detected, "")
+                return real_run(command, **kwargs)
+
+            with mock.patch.object(runner, "DRY_RUN", False):
+                runner._lock_config(str(config))
+                with mock.patch.object(runner.subprocess, "run", side_effect=run):
+                    try:
+                        output = runner._generate_hardware_config(str(config), "test-host")
+                    except subprocess.CalledProcessError as error:
+                        self.fail(error.stderr)
+            source = Path(output).read_text()
+            for value in ("virtio_pci", "xhci_pci", "kvm-intel", "updateMicrocode", "/dev/disk/by-uuid/root", "/dev/disk/by-uuid/swap"):
+                self.assertIn(value, source)
+            self.assertNotIn("systemd", source)
+            self.assertEqual(list(host.iterdir()), [host / "hardware.zcfg"])
+            env = {**os.environ, "PYTHONPATH": os.environ["ZENOS_SETUP_COMPILER_SOURCE"]}
+            result = subprocess.run(
+                [sys.executable, "-m", "zenlang", "compile", output],
+                env=env, capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            expression = '''let
+              source = builtins.toPath NIXPKGS;
+              evaluated = import (source + "/nixos/lib/eval-config.nix") {
+                modules = [ ({ lib, pkgs, ... }:
+                  ((COMPILED) { inherit lib pkgs; }).zenos.legacy) ];
+              };
+            in {
+              root = evaluated.config.fileSystems."/".device;
+              swap = (builtins.head evaluated.config.swapDevices).device;
+              modules = evaluated.config.boot.initrd.availableKernelModules;
+              microcode = evaluated.config.hardware.cpu.intel.updateMicrocode;
+            }'''.replace("NIXPKGS", json.dumps(os.environ["ZENOS_SETUP_NIXPKGS_SOURCE"])).replace("COMPILED", result.stdout)
+            lowered = subprocess.run(
+                ["nix", "eval", "--offline", "--impure", "--json", "--expr", expression],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(lowered.returncode, 0, lowered.stderr)
+            actual = json.loads(lowered.stdout)
+            self.assertEqual(actual["root"], "/dev/disk/by-uuid/root")
+            self.assertEqual(actual["swap"], "/dev/disk/by-uuid/swap")
+            self.assertTrue(actual["microcode"])
+            self.assertIn("virtio_pci", actual["modules"])
+            original = detected
+            for unsupported in (
+                "nixpkgs.config.allowUnfreePredicate = pkg: true;",
+                "disabledModules = [];",
+            ):
+                detected = original.replace("boot.extraModulePackages = [];", unsupported)
+                with mock.patch.object(runner, "DRY_RUN", False), mock.patch.object(runner.subprocess, "run", side_effect=run):
+                    with self.assertRaises(subprocess.CalledProcessError) as error:
+                        runner._generate_hardware_config(str(config), "test-host")
+                    self.assertIn("unsupported", error.exception.stderr)
+                    self.assertEqual(Path(output).read_text(), source)

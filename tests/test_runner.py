@@ -18,6 +18,28 @@ def _progress(_value):
 
 
 class RunnerSafetyTests(unittest.TestCase):
+    def test_evaluation_rejects_incorrect_temporary_or_final_state(self):
+        with mock.patch.object(runner, "DRY_RUN", False), mock.patch.object(runner, "_run"):
+            for expected in (False, True):
+                with mock.patch.object(runner, "_read_oobe_enabled", return_value=not expected):
+                    with self.assertRaisesRegex(RuntimeError, "unexpected evaluated OOBE"):
+                        runner._evaluate_host("/snapshot", "test", oobe=expected)
+
+    def test_oobe_state_requires_evaluated_boolean_and_propagates_errors(self):
+        with mock.patch.object(runner, "DRY_RUN", False):
+            for value in (True, False, "true", None, 1):
+                result = subprocess.CompletedProcess([], 0, json.dumps(value), "")
+                with mock.patch.object(runner.subprocess, "run", return_value=result) as run:
+                    if type(value) is bool:
+                        self.assertIs(runner._read_oobe_enabled("/snapshot", "test"), value)
+                    else:
+                        with self.assertRaisesRegex(RuntimeError, "boolean"):
+                            runner._read_oobe_enabled("/snapshot", "test")
+                    self.assertIn("/snapshot#nixosConfigurations.test.config.zenos.system.oobe.enable", run.call_args.args[0])
+            with mock.patch.object(runner.subprocess, "run", side_effect=subprocess.CalledProcessError(1, "nix")):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    runner._read_oobe_enabled("/snapshot", "test")
+
     def test_ignore_ssl_environment_is_scoped_and_preserves_existing_flags(self):
         token = runner._IGNORE_SSL_ERRORS.set(True)
         try:
@@ -123,7 +145,7 @@ class RunnerSafetyTests(unittest.TestCase):
             root = runner._dry_config_root(work_dir)
             os.makedirs(os.path.join(root, "hosts", "zen-test"))
             runner._write_text(os.path.join(root, "flake.nix"), "{ }")
-            for name in ("host.zcfg", "hardware-configuration.nix"):
+            for name in ("host.zcfg", "hardware.zcfg"):
                 runner._write_text(os.path.join(root, "hosts", "zen-test", name), "")
             runner._validate_config_layout(root)
 
@@ -136,7 +158,7 @@ class RunnerSafetyTests(unittest.TestCase):
             with tempfile.TemporaryDirectory() as work_dir:
                 template = os.path.join(source_dir, "flake.nix")
                 text = (
-                    '{ inputs.setup-hardware.url = "path:@ZENOS_SETUP_HARDWARE@"; }\n'
+                    '{ inputs.zenpkgs.url = "path:/pinned-zenpkgs"; outputs = _: {}; }\n'
                 )
                 runner._write_text(template, text)
                 runner._write_text(
@@ -358,7 +380,7 @@ class InitialInstallTests(unittest.TestCase):
 
     def test_preflight_failure_never_reaches_disk_or_install(self):
         disk = {"id": "disks", "mode": "auto", "disks": ["vda"]}
-        for failure in ("_compile_host", "_lock_config"):
+        for failure in ("_compile_host", "_lock_config", "_evaluate_host", "_generate_hardware_config"):
             with (
                 self.subTest(failure=failure),
                 tempfile.TemporaryDirectory() as work_dir,
@@ -445,7 +467,7 @@ class InitialInstallTests(unittest.TestCase):
             ]
             self.assertEqual(
                 generated_nix,
-                ["flake.nix", f"hosts/{host}/hardware-configuration.nix"],
+                ["flake.nix"],
             )
         commands = [line for line in logs if "would run:" in line]
         self.assertFalse(any(" disko " in line for line in commands))
@@ -478,13 +500,15 @@ class InitialInstallTests(unittest.TestCase):
                     "desktop.zcfg",
                     "drives.zcfg",
                     "graphics.zcfg",
-                    "hardware-configuration.nix",
+                    "hardware.zcfg",
                     "host.zcfg",
                     "system.zcfg",
                 },
             )
             with open(os.path.join(host_dir, "system.zcfg"), encoding="utf-8") as file:
                 self.assertIn("oobe =", file.read())
+            with open(os.path.join(host_dir, "host.zcfg"), encoding="utf-8") as file:
+                self.assertIn('_import "./hardware.zcfg";', file.read())
             runner._validate_config_layout(config_dir)
 
         command_logs = [line for line in logs if "would run:" in line]
@@ -503,16 +527,18 @@ class InitialInstallTests(unittest.TestCase):
 
         joined = "\n".join(logs)
         positions = [
+            joined.index("nix flake lock --offline"),
             joined.index("nixos-generate-config"),
-            joined.index("nix flake lock"),
+            joined.index("nix eval"),
             joined.index("disko --mode disko"),
             joined.rindex("nixos-generate-config"),
             joined.rindex("nix flake lock --offline"),
+            joined.rindex("nix eval"),
             joined.index("nixos-install --flake"),
         ]
         self.assertEqual(positions, sorted(positions))
-        self.assertNotIn("nix eval", joined)
-        self.assertEqual(joined.count("nix flake lock\n"), 1)
+        self.assertEqual(joined.count("nix eval"), 2)
+        self.assertEqual(joined.count("nix flake lock\n"), 0)
         self.assertGreaterEqual(joined.count("nix flake lock --offline"), 1)
         self.assertRegex(
             joined,
@@ -588,11 +614,45 @@ class InitialInstallTests(unittest.TestCase):
 
 
 class OobeTests(unittest.TestCase):
-    @unittest.skip("replaced by zcfg-owned OOBE state")
+    def setUp(self):
+        self.enabled_hosts = set()
+        patcher = mock.patch.object(
+            runner, "_read_oobe_enabled",
+            side_effect=lambda _config, host: host in self.enabled_hosts,
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_evaluation_failure_rolls_back_initial_final_host_and_allows_retry(self):
+        with tempfile.TemporaryDirectory() as work:
+            config, temporary, _ = self._seed_pending(work)
+            data, pages = self._payload()
+            with mock.patch.object(runner, "_read_current_host", return_value="oobe-abc123"), mock.patch("src.builder.hash_password", return_value="$6$test$hash"):
+                with mock.patch.object(runner, "_evaluate_host", side_effect=RuntimeError("evaluation failed")), mock.patch.object(runner, "_nixos_rebuild_boot") as rebuild:
+                    with self.assertRaisesRegex(RuntimeError, "evaluation failed"):
+                        runner._run_oobe(data, pages, work, _progress, None)
+                    rebuild.assert_not_called()
+                self.assertTrue(Path(temporary).exists())
+                self.assertFalse(Path(config, "hosts/zen-final").exists())
+                self.assertFalse(Path(work, "target/Users/zen/.private/Config/main.zcfg").exists())
+                runner._run_oobe(data, pages, work, _progress, None)
+                self.assertFalse(Path(temporary).exists())
+
+    def test_missing_hardware_or_graphics_fails_before_publishing(self):
+        for name in ("hardware.zcfg", "graphics.zcfg"):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as work:
+                _, temporary, _ = self._seed_pending(work)
+                Path(temporary, name).unlink()
+                data, pages = self._payload()
+                with mock.patch.object(runner, "_read_current_host", return_value="oobe-abc123"), mock.patch.object(runner, "_publish_user_sources") as publish:
+                    with self.assertRaisesRegex(RuntimeError, "missing"):
+                        runner._run_oobe(data, pages, work, _progress, None)
+                    publish.assert_not_called()
+
     def test_postcommit_failures_preserve_sources_and_retry_cleanup(self):
         for failure in (
             "completion",
-            "plan",
+            "refind",
             "validation",
             "temporary",
             "intent",
@@ -616,12 +676,8 @@ class OobeTests(unittest.TestCase):
                     return write_json(path, value, **kwargs)
 
                 def remove(path, *args, **kwargs):
-                    if Path(path) == final / (
-                        "install-plan.json"
-                        if failure == "plan"
-                        else "oobe-finalize.json"
-                    ):
-                        if failure in {"plan", "intent"}:
+                    if Path(path) == final / "oobe-finalize.json":
+                        if failure == "intent":
                             raise OSError("cleanup unlink failed")
                     return unlink(path, *args, **kwargs)
 
@@ -669,6 +725,17 @@ class OobeTests(unittest.TestCase):
                                     side_effect=OSError("temporary cleanup failed"),
                                 )
                             )
+                        if failure == "refind":
+                            original_run = runner._run
+
+                            def fail_refind(command, *args, **kwargs):
+                                if "zenos-sync-refind-generations" in command:
+                                    raise RuntimeError("refind failed")
+                                return original_run(command, *args, **kwargs)
+
+                            stack.enter_context(mock.patch.object(
+                                runner, "_run", side_effect=fail_refind
+                            ))
                         with self.assertRaisesRegex(
                             RuntimeError, "boot generation succeeded"
                         ):
@@ -691,7 +758,6 @@ class OobeTests(unittest.TestCase):
                     # Cleanup remains idempotent even after the pending host is gone.
                     runner._run_oobe(data, pages, work, _progress, None)
 
-    @unittest.skip("replaced by zcfg-owned OOBE state")
     def test_uncertain_commit_retry_never_rolls_back_on_rebuild_failure(self):
         with tempfile.TemporaryDirectory() as work:
             config, _, _ = self._seed_pending(work)
@@ -755,13 +821,14 @@ class OobeTests(unittest.TestCase):
             self.assertFalse(
                 any(
                     os.path.exists(os.path.join(final_dir, filename))
-                    for filename in ("oobe.json", "oobe-complete.json", "install-plan.json")
+                    for filename in ("oobe.json", "install-plan.json")
                 )
             )
             with open(os.path.join(final_dir, "system.zcfg"), encoding="utf-8") as file:
                 self.assertNotIn("oobe =", file.read())
 
     def _seed_pending(self, work_dir, temporary_host="oobe-abc123"):
+        self.enabled_hosts.add(temporary_host)
         config_dir = runner._dry_config_root(work_dir)
         host_dir = os.path.join(config_dir, "hosts", temporary_host)
         os.makedirs(host_dir)
@@ -769,7 +836,7 @@ class OobeTests(unittest.TestCase):
         hardware = b"hardware-config-from-install\n"
         graphics = b"graphics-config-from-install\n"
         disko = b"disko-config-from-install\n"
-        with open(os.path.join(host_dir, "hardware-configuration.nix"), "wb") as file:
+        with open(os.path.join(host_dir, "hardware.zcfg"), "wb") as file:
             file.write(hardware)
         with open(os.path.join(host_dir, "graphics.zcfg"), "wb") as file:
             file.write(graphics)
@@ -789,7 +856,7 @@ class OobeTests(unittest.TestCase):
             {
                 "drives.zcfg": disko,
                 "graphics.zcfg": graphics,
-                "hardware-configuration.nix": hardware,
+                "hardware.zcfg": hardware,
             },
         )
 
@@ -828,7 +895,7 @@ class OobeTests(unittest.TestCase):
             for filename, expected in artifacts.items():
                 with open(os.path.join(final_dir, filename), "rb") as file:
                     self.assertEqual(file.read(), expected)
-            for filename in ("oobe.json", "oobe-complete.json", "install-plan.json"):
+            for filename in ("oobe.json", "install-plan.json"):
                 self.assertFalse(os.path.exists(os.path.join(final_dir, filename)))
             runner._validate_config_layout(config_dir)
             snapshot = runner._config_snapshot(
@@ -909,7 +976,7 @@ class OobeTests(unittest.TestCase):
     def test_generated_nix_in_editable_tree_is_rejected(self):
         with tempfile.TemporaryDirectory() as work_dir:
             root, host_dir, _ = self._seed_pending(work_dir)
-            for filename in ("host.nix", "kernel.nix"):
+            for filename in ("host.nix", "kernel.nix", "hardware-configuration.nix", "hardware.json"):
                 path = runner._write_text(os.path.join(host_dir, filename), "{ }")
                 with self.assertRaisesRegex(RuntimeError, "unexpected files"):
                     runner._validate_config_layout(root)
