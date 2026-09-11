@@ -894,6 +894,7 @@ def _evaluate_host(config_dir: str, host_name: str, log_fn=None, *, oobe=False) 
 
 def _nixos_install(config_dir: str, host_name: str, log_fn=None) -> None:
     _emit(log_fn, f"running nixos-install ({host_name})...")
+    command_env = dict(os.environ, LANG="C", LC_ALL="C", LANGUAGE="C")
     _run(
         [
             "sudo",
@@ -904,11 +905,13 @@ def _nixos_install(config_dir: str, host_name: str, log_fn=None) -> None:
             "--no-root-passwd",
         ],
         log_fn,
+        env=command_env,
     )
 
 
 def _nixos_rebuild_boot(config_dir: str, host_name: str, log_fn=None) -> None:
     _emit(log_fn, f"building the next boot generation ({host_name})...")
+    command_env = dict(os.environ, LANG="C", LC_ALL="C", LANGUAGE="C")
     _run(
         [
             "sudo",
@@ -919,6 +922,7 @@ def _nixos_rebuild_boot(config_dir: str, host_name: str, log_fn=None) -> None:
             f"{config_dir}#{host_name}",
         ],
         log_fn,
+        env=command_env,
     )
 
 
