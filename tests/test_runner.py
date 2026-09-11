@@ -40,6 +40,7 @@ class RunnerSafetyTests(unittest.TestCase):
             host.mkdir(parents=True)
             for source, expected in (
                 ("system.oobeMode = true;\n", True),
+                ("system = { oobeMode = true; };\n", True),
                 ("# system.oobeMode = true;\nsystem.oobeMode = false;\n", False),
             ):
                 Path(host, "system.zcfg").write_text(source)

@@ -298,6 +298,7 @@ legacy.fileSystems = {
             for source, expected in (
                 ('# system.oobeMode = true;\nsystem.oobeMode = false;\nsystem.zenfs.enable = true;\n', False),
                 ('system.oobeMode = true;\n', True),
+                ('system = { oobeMode = true; };\n', True),
                 ('system.zenfs.enable = true;\n', False),
             ):
                 (host / "system.zcfg").write_text(source)

@@ -1125,7 +1125,11 @@ def _read_oobe_enabled(config_dir: str, host_name: str) -> bool:
     except FileNotFoundError:
         return False
     source = re.sub(r"#.*", "", source)
-    return re.search(r"system\s*\.\s*oobeMode\s*=\s*true", source) is not None
+    return re.search(
+        r"(?:system\s*\.\s*oobeMode\s*=\s*true|system\s*=\s*\{.*?\boobeMode\s*=\s*true)",
+        source,
+        re.DOTALL,
+    ) is not None
 
 
 def _find_pending_oobe(config_dir: str, current_host: str) -> str:
