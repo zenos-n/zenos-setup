@@ -1040,7 +1040,6 @@ def _install_local(
         log_fn,
         "preflight: checking ISO template and generated host before disk operations",
     )
-    _evaluate_host(staged_config, host_name, log_fn, oobe=short)
 
     machine_root = os.path.join(work_dir, "target") if DRY_RUN else MOUNT_ROOT
     user_sources = []
@@ -1089,7 +1088,6 @@ def _install_local(
         )
         snapshot = _config_snapshot(config_dir, work_dir, machine_root, log_fn)
         _lock_config(snapshot, log_fn)
-        _evaluate_host(snapshot, host_name, log_fn, oobe=short)
         if os.path.isfile(os.path.join(snapshot, "flake.lock")):
             shutil.copyfile(
                 os.path.join(snapshot, "flake.lock"),

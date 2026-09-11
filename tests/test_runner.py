@@ -380,7 +380,7 @@ class InitialInstallTests(unittest.TestCase):
 
     def test_preflight_failure_never_reaches_disk_or_install(self):
         disk = {"id": "disks", "mode": "auto", "disks": ["vda"]}
-        for failure in ("_compile_host", "_lock_config", "_evaluate_host", "_generate_hardware_config"):
+        for failure in ("_compile_host", "_lock_config", "_generate_hardware_config"):
             with (
                 self.subTest(failure=failure),
                 tempfile.TemporaryDirectory() as work_dir,
@@ -529,15 +529,13 @@ class InitialInstallTests(unittest.TestCase):
         positions = [
             joined.index("nix flake lock --offline"),
             joined.index("nixos-generate-config"),
-            joined.index("nix eval"),
             joined.index("disko --mode disko"),
             joined.rindex("nixos-generate-config"),
             joined.rindex("nix flake lock --offline"),
-            joined.rindex("nix eval"),
             joined.index("nixos-install --flake"),
         ]
         self.assertEqual(positions, sorted(positions))
-        self.assertEqual(joined.count("nix eval"), 2)
+        self.assertNotIn("nix eval", joined)
         self.assertEqual(joined.count("nix flake lock\n"), 0)
         self.assertGreaterEqual(joined.count("nix flake lock --offline"), 1)
         self.assertRegex(
