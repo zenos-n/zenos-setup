@@ -461,6 +461,8 @@ def build_config_tree(
         ("legacy", "i18n", "defaultLocale"),
         language.get("locale") or "en_US.UTF-8",
     )
+    locale = language.get("locale") or "en_US.UTF-8"
+    _set_path(tree, ("legacy", "i18n", "supportedLocales"), [f"{locale}/UTF-8"])
 
     timezone = pages.get("timezone", {}).get("timezone", {})
     region = timezone.get("region") or "Europe"

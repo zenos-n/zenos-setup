@@ -107,6 +107,9 @@ class BuilderTests(unittest.TestCase):
         tree = build_config_tree(FULL_PAYLOAD, password_hash="$6$test$hash")
 
         self.assertEqual(tree["legacy"]["i18n"]["defaultLocale"], "pl_PL.UTF-8")
+        self.assertEqual(
+            tree["legacy"]["i18n"]["supportedLocales"], ["pl_PL.UTF-8/UTF-8"]
+        )
         self.assertEqual(tree["legacy"]["time"]["timeZone"], "Europe/Warsaw")
         self.assertEqual(tree["legacy"]["networking"]["hostName"], "zen-box")
         self.assertTrue(tree["desktops"]["gnome"]["enable"])
