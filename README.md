@@ -17,10 +17,11 @@ GNOME controls and default rendering under Xvfb with an isolated settings backen
 ## Image integration
 
 See [TEMPLATE-CONTRACT.md](TEMPLATE-CONTRACT.md) for the template interface,
-pre-erase checks, imported `hardware.zcfg`, and evaluated OOBE handoff.
+pre-erase checks, imported `hardware.zcfg`, and declarative OOBE handoff.
 No generated Nix belongs below `/Config/ZenOS`, except its `flake.nix` entry.
 Per-user host entries link to `/Users/<user>/.private/Config/main.zcfg`.
-Setup evaluates private materialized snapshots of those sources. Later rebuild
+Setup passes private materialized snapshots of those sources to the install or
+rebuild command. Later rebuild
 tools must implement the same handoff instead of passing external home symlinks
 directly to pure Nix.
 

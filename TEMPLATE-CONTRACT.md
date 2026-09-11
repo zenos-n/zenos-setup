@@ -14,15 +14,14 @@ _import "./hardware.zcfg";
 ```
 
 Setup captures upstream `nixos-generate-config --show-hardware-config` output
-in memory, evaluates the detected options and imported hardware profiles with
-the template's pinned Nixpkgs, and serializes data into `hardware.zcfg` under
+in memory, lowers its supported static options and known hardware profiles
+without a separate Nix evaluation, and serializes data into `hardware.zcfg` under
 the existing `legacy` namespace. It does not write hardware Nix or hardware
 JSON, either in the editable tree or in a separate hardware input. Only options
 authored by the detector/profiles are projected; unrelated NixOS defaults are
 not copied into the host. Detected defaults become concrete hardware values.
-Non-data values (functions, packages, or paths) and unsupported list shapes
-fail before disk operations rather than being silently dropped. The image
-must provide the scanner and the pinned dependencies for this evaluation.
+Dynamic Nix expressions and unknown profile imports fail before disk operations
+rather than being silently dropped. The image must provide the scanner.
 
 Enumerate `hosts/<name>/host.zcfg`, compile it with the image's pinned canonical
 compiler into a store output, and import that output with the current ZenPkgs
@@ -34,12 +33,12 @@ boolean selectors. The template must not force a desktop or override Setup's
 user selections.
 
 Before unmounting or running automatic Disko, Setup stages the complete config,
-locks offline, generates provisional hardware, checks/compiles ZCFG outside the
-editable tree, and evaluates the selected host's `system.build.toplevel.drvPath`.
+locks offline, generates provisional hardware, and checks/compiles ZCFG outside
+the editable tree.
 Manual preflight uses the selected root and EFI devices without mounting them.
 After mounting, Setup regenerates actual hardware/filesystems in `hardware.zcfg`,
-recompiles, relocks and evaluates again, then calls nixos-install.
-Evaluation may realize compiler outputs; it must not activate or partition.
+recompiles, relocks, then calls `nixos-install`. OOBE calls only
+`nixos-rebuild switch` for system evaluation and activation.
 Preflight is not a guarantee that every target closure is available offline.
 
 The target is `/mnt/etc/ZenOS`, visible as `/Config/ZenOS` after boot. It contains
@@ -66,10 +65,10 @@ evaluating the editable flake with external home symlinks is not supported by
 pure Nix. This contract does not add a public option or change D19 ownership.
 
 For Install Now, Setup creates `oobe-<suffix>` with
-`system.oobe.enable = true` in its generated `system.zcfg`. Final hosts omit
+`system.oobeMode = true` in its generated `system.zcfg`. Final hosts omit
 that setting entirely. The template must compile all `_import` dependencies
 and expose the runtime's evaluated boolean at
-`nixosConfigurations.<name>.config.zenos.system.oobe.enable`. Its default is
+`nixosConfigurations.<name>.config.zenos.system.oobeMode`. Its default is
 false. Setup queries this value through `nix eval --json --offline
 --no-write-lock-file` against a materialized snapshot; it never searches source
 text, comments, filenames, or JSON markers to determine OOBE state. Evaluation

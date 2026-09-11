@@ -552,66 +552,69 @@ def _generate_hardware_config(
         _run(command, log_fn)
         _write_text(output, "# dry-run hardware detection placeholder\n")
     else:
-        # The upstream scanner speaks Nix. Evaluate that transient expression with
-        # the template's pinned Nixpkgs; never persist hardware Nix or JSON.
         detected = subprocess.run(
             command, capture_output=True, text=True, check=True,
             env=_command_environment(),
         ).stdout
-        expression = '''let
-          flake = builtins.getFlake FLAKE;
-          nixpkgs = flake.inputs.zenpkgs.inputs.nixpkgs;
-          lib = nixpkgs.lib;
-          hardware = (HARDWARE);
-          evaluated = import (nixpkgs + "/nixos/lib/eval-config.nix") {
-            modules = [ { _file = "setup-hardware"; imports = [ hardware ]; } ];
-          };
-          args = { inherit lib; inherit (evaluated) config pkgs;
-            modulesPath = nixpkgs + "/nixos/modules"; };
-          load = module: let
-            value = if builtins.isPath module || builtins.isString module
-              then import module else module;
-          in if builtins.isFunction value then value args else value;
-          paths = module: let
-            value = load module;
-            walk = path: attrs: lib.concatMap (name: let
-              next = path ++ [ name ];
-              option = lib.attrByPath next {} evaluated.options;
-            in if lib.isOption option then [ { path = next; shape = attrs.${name}; } ]
-               else walk next attrs.${name}) (builtins.attrNames attrs);
-          in if value ? options || value ? _module || value ? disabledModules || value ? _type
-            then throw "hardware module requires unsupported structural lowering"
-            else walk [] (builtins.removeAttrs (value.config or value)
-            [ "imports" "_file" ])
-            ++ lib.concatMap paths (value.imports or []);
-          project = shape: value:
-            if builtins.isAttrs shape && !(shape ? _type)
-            then lib.mapAttrs (name: child: project child value.${name}) shape
-            else if builtins.isList shape && lib.any builtins.isAttrs shape
-            then if builtins.length shape != builtins.length value
-              then throw "hardware list requires unsupported structural lowering"
-              else lib.imap0 (index: child: project child (builtins.elemAt value index)) shape
-            else value;
-          dataOnly = value:
-            if lib.isDerivation value || builtins.isFunction value || builtins.isPath value
-            then throw "hardware option requires unsupported non-data lowering"
-            else if builtins.isAttrs value then lib.mapAttrs (_: dataOnly) value
-            else if builtins.isList value then map dataOnly value else value;
-        in lib.foldl' lib.recursiveUpdate {} (map (entry: lib.setAttrByPath entry.path (dataOnly (
-          if entry.path == [ "nixpkgs" "hostPlatform" ]
-          then evaluated.pkgs.stdenv.hostPlatform.system
-          else project entry.shape (lib.getAttrFromPath entry.path evaluated.config))))
-          (paths hardware))
-        '''.replace("FLAKE", json.dumps(os.path.abspath(config_dir))).replace("HARDWARE", detected)
-        result = subprocess.run(
-            ["nix", "eval", "--offline", "--impure", "--json", "--expr", expression],
-            capture_output=True, text=True, check=True, env=_command_environment(),
-        )
-        tree = json.loads(result.stdout)
-        if not isinstance(tree, dict) or not tree:
-            raise RuntimeError("hardware evaluation returned no options")
-        _write_text(output, serialize_zcfg({"legacy": tree}))
+        _write_text(output, _lower_hardware_module(detected))
     return output
+
+
+def _lower_hardware_module(source: str) -> str:
+    module_start = source.find("{")
+    match = re.fullmatch(
+        r"\s*\{.*?\}:\s*\{(.*)\}\s*",
+        source[module_start:] if module_start >= 0 else "",
+        re.DOTALL,
+    )
+    if match is None:
+        raise RuntimeError("nixos-generate-config returned an unsupported module shape")
+    body = match.group(1)
+    imports_match = re.search(r"\bimports\s*=\s*\[(.*?)\]\s*;", body, re.DOTALL)
+    imports = imports_match.group(1) if imports_match else ""
+    if imports_match:
+        body = body[:imports_match.start()] + body[imports_match.end():]
+
+    known_imports = {
+        "/profiles/qemu-guest.nix",
+        "/installer/scan/not-detected.nix",
+        "/hardware/network/broadcom-43xx.nix",
+    }
+    found_imports = set(re.findall(r'modulesPath\s*\+\s*"([^"]+)"', imports))
+    if re.sub(r'\(\s*modulesPath\s*\+\s*"[^"]+"\s*\)', "", imports).strip():
+        raise RuntimeError("hardware module contains an unsupported import expression")
+    unknown_imports = found_imports - known_imports
+    if unknown_imports:
+        raise RuntimeError(f"hardware module contains unsupported imports: {sorted(unknown_imports)}")
+
+    if "/profiles/qemu-guest.nix" in found_imports:
+        qemu_available = ' "virtio_net" "virtio_pci" "virtio_mmio" "virtio_blk" "virtio_scsi" "9p" "9pnet_virtio"'
+        qemu_initrd = ' "virtio_balloon" "virtio_console" "virtio_rng" "virtio_gpu"'
+        body = re.sub(
+            r"(boot\.initrd\.availableKernelModules\s*=\s*\[)(.*?)(\]\s*;)",
+            lambda item: item.group(1) + item.group(2) + qemu_available + " " + item.group(3),
+            body,
+            count=1,
+            flags=re.DOTALL,
+        )
+        body = re.sub(
+            r"(boot\.initrd\.kernelModules\s*=\s*\[)(.*?)(\]\s*;)",
+            lambda item: item.group(1) + item.group(2) + qemu_initrd + " " + item.group(3),
+            body,
+            count=1,
+            flags=re.DOTALL,
+        )
+    if found_imports & {
+        "/installer/scan/not-detected.nix",
+        "/hardware/network/broadcom-43xx.nix",
+    }:
+        body += "\n  hardware.enableRedistributableFirmware = true;\n"
+
+    body = re.sub(r"lib\.mkDefault\s+config\.hardware\.enableRedistributableFirmware", "true", body)
+    body = re.sub(r'lib\.mkDefault\s+("(?:\\.|[^"\\])*")', r"\1", body)
+    if re.search(r"\b(?:disabledModules|options)\s*=|\b(?:lib|config|modulesPath|pkgs)\.", body):
+        raise RuntimeError("hardware module contains an unsupported dynamic Nix expression")
+    return "legacy = {" + body + "};\n"
 
 
 def _generate_graphics_config(config_dir: str, host_name: str, log_fn=None) -> str:
@@ -883,15 +886,6 @@ def _lock_config(config_dir: str, log_fn=None) -> None:
     _run(lock_command, log_fn, cwd=config_dir)
 
 
-def _evaluate_host(config_dir: str, host_name: str, log_fn=None, *, oobe=False) -> None:
-    _run([
-        "nix", "eval", "--offline", "--no-write-lock-file", "--raw",
-        f"{config_dir}#nixosConfigurations.{_validate_host_name(host_name)}.config.system.build.toplevel.drvPath",
-    ], log_fn)
-    if not DRY_RUN and _read_oobe_enabled(config_dir, host_name) is not oobe:
-        raise RuntimeError(f"unexpected evaluated OOBE state for {host_name}")
-
-
 def _nixos_install(config_dir: str, host_name: str, log_fn=None) -> None:
     _emit(log_fn, f"running nixos-install ({host_name})...")
     command_env = dict(os.environ, LANG="C", LC_ALL="C", LANGUAGE="C")
@@ -909,15 +903,15 @@ def _nixos_install(config_dir: str, host_name: str, log_fn=None) -> None:
     )
 
 
-def _nixos_rebuild_boot(config_dir: str, host_name: str, log_fn=None) -> None:
-    _emit(log_fn, f"building the next boot generation ({host_name})...")
+def _nixos_rebuild_switch(config_dir: str, host_name: str, log_fn=None) -> None:
+    _emit(log_fn, f"switching to the final system ({host_name})...")
     command_env = dict(os.environ, LANG="C", LC_ALL="C", LANGUAGE="C")
     _run(
         [
             "sudo",
             "-n",
             "nixos-rebuild",
-            "boot",
+            "switch",
             "--flake",
             f"{config_dir}#{host_name}",
         ],
@@ -1124,17 +1118,14 @@ def _read_current_host() -> str:
 
 
 def _read_oobe_enabled(config_dir: str, host_name: str) -> bool:
-    if DRY_RUN:
-        raise RuntimeError("dry-run OOBE requires an injected evaluated host state")
-    result = subprocess.run(
-        ["nix", "eval", "--offline", "--no-write-lock-file", "--json",
-         f"{config_dir}#nixosConfigurations.{_validate_host_name(host_name)}.config.zenos.system.oobe.enable"],
-        capture_output=True, text=True, check=True, env=_command_environment(),
-    )
-    enabled = json.loads(result.stdout)
-    if type(enabled) is not bool:
-        raise RuntimeError("evaluated OOBE state must be a boolean")
-    return enabled
+    system_path = os.path.join(_host_dir(config_dir, host_name), "system.zcfg")
+    try:
+        with open(system_path, encoding="utf-8") as system_file:
+            source = system_file.read()
+    except FileNotFoundError:
+        return False
+    source = re.sub(r"#.*", "", source)
+    return re.search(r"system\s*\.\s*oobeMode\s*=\s*true", source) is not None
 
 
 def _find_pending_oobe(config_dir: str, current_host: str) -> str:
@@ -1186,8 +1177,7 @@ def _run_oobe(data: dict, pages: dict, work_dir: str, progress_fn, log_fn) -> No
             raise RuntimeError("final host is still marked for OOBE")
         snapshot = _config_snapshot(config_dir, work_dir, machine_root, log_fn)
         _lock_config(snapshot, log_fn)
-        _evaluate_host(snapshot, final_host, log_fn, oobe=False)
-        _nixos_rebuild_boot(snapshot, final_host, log_fn)
+        _nixos_rebuild_switch(snapshot, final_host, log_fn)
         _finish_oobe(
             config_dir,
             {"host": final_host, "sourceHost": temporary_host},
@@ -1252,13 +1242,12 @@ def _run_oobe(data: dict, pages: dict, work_dir: str, progress_fn, log_fn) -> No
         )
         snapshot = _config_snapshot(config_dir, work_dir, machine_root, log_fn)
         _lock_config(snapshot, log_fn)
-        _evaluate_host(snapshot, final_host, log_fn)
         if os.path.isfile(os.path.join(snapshot, "flake.lock")):
             shutil.copyfile(
                 os.path.join(snapshot, "flake.lock"),
                 os.path.join(config_dir, "flake.lock"),
             )
-        _nixos_rebuild_boot(snapshot, final_host, log_fn)
+        _nixos_rebuild_switch(snapshot, final_host, log_fn)
         boot_committed = True
         _finish_oobe(
             config_dir,

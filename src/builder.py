@@ -585,7 +585,7 @@ def build_config_tree(
     if selected == "none":
         _set_path(tree, ("system", "zenfs", "apps", "enable"), False)
     if payload.get("oobe"):
-        _set_path(tree, ("system", "oobe", "enable"), True)
+        _set_path(tree, ("system", "oobeMode"), True)
     _set_path(tree, DESKTOP_OPTIONS["gnome"], selected == "gnome")
     if desktop.get("install_de"):
         option = DESKTOP_OPTIONS.get(selected)
