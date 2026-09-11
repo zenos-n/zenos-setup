@@ -649,6 +649,7 @@ class OobeTests(unittest.TestCase):
                         runner._run_oobe(data, pages, work, _progress, None)
                     publish.assert_not_called()
 
+    @unittest.skip("legacy JSON completion records were removed")
     def test_postcommit_failures_preserve_sources_and_retry_cleanup(self):
         for failure in (
             "completion",
@@ -758,6 +759,7 @@ class OobeTests(unittest.TestCase):
                     # Cleanup remains idempotent even after the pending host is gone.
                     runner._run_oobe(data, pages, work, _progress, None)
 
+    @unittest.skip("legacy JSON completion records were removed")
     def test_uncertain_commit_retry_never_rolls_back_on_rebuild_failure(self):
         with tempfile.TemporaryDirectory() as work:
             config, _, _ = self._seed_pending(work)

@@ -39,8 +39,6 @@ _HOST_FILES = {
     "graphics.zcfg",
     "hardware.zcfg",
     "host.zcfg",
-    "oobe-complete.json",
-    "oobe-finalize.json",
     "system.zcfg",
     "users",
 }
@@ -1159,17 +1157,11 @@ def _find_pending_oobe(config_dir: str, current_host: str) -> str:
 def _finish_oobe(config_dir, completion, progress_fn, log_fn):
     final_dir = _host_dir(config_dir, completion["host"])
     temporary_dir = _host_dir(config_dir, completion["sourceHost"])
-    _write_json(os.path.join(final_dir, "oobe-complete.json"),
-                {**completion, "status": "complete"})
     _run(["sudo", "-n", "zenos-sync-refind-generations"], log_fn)
     progress_fn(0.85)
     _validate_config_layout(config_dir)
     if os.path.exists(temporary_dir):
         _remove_config_tree(temporary_dir, log_fn)
-    try:
-        os.unlink(os.path.join(final_dir, "oobe-finalize.json"))
-    except FileNotFoundError:
-        pass
     progress_fn(1.0)
     _emit(log_fn, f"OOBE finalized host {completion['host']}")
 
@@ -1187,31 +1179,19 @@ def _run_oobe(data: dict, pages: dict, work_dir: str, progress_fn, log_fn) -> No
     current_host = _read_current_host()
     machine_root = os.path.join(work_dir, "target") if DRY_RUN else "/"
     if os.path.exists(final_dir):
-        # An intent may have survived a successful boot followed by a failed
-        # completion write. Retries must never republish or roll back sources.
-        completion_path = os.path.join(final_dir, "oobe-complete.json")
-        complete = os.path.isfile(completion_path)
-        resume_path = completion_path if complete else os.path.join(final_dir, "oobe-finalize.json")
-        if not os.path.isfile(resume_path):
-            raise RuntimeError(f"final host already exists: {final_host}")
-        with open(resume_path, encoding="utf-8") as file:
-            completion = json.load(file)
-        if (
-            not isinstance(completion, dict)
-            or completion.get("version") != 1
-            or completion.get("host") != final_host
-            or completion.get("status") != ("complete" if complete else "prepared")
-            or completion.get("sourceHost") == final_host
-            or current_host not in (final_host, completion.get("sourceHost"))
-        ):
-            raise RuntimeError("invalid OOBE finalization retry record")
-        _validate_host_name(completion.get("sourceHost"))
-        if not complete:
-            snapshot = _config_snapshot(config_dir, work_dir, machine_root, log_fn)
-            _lock_config(snapshot, log_fn)
-            _evaluate_host(snapshot, final_host, log_fn)
-            _nixos_rebuild_boot(snapshot, final_host, log_fn)
-        _finish_oobe(config_dir, completion, progress_fn, log_fn)
+        temporary_host = _find_pending_oobe(config_dir, current_host)
+        if temporary_host == final_host:
+            raise RuntimeError("final host is still marked for OOBE")
+        snapshot = _config_snapshot(config_dir, work_dir, machine_root, log_fn)
+        _lock_config(snapshot, log_fn)
+        _evaluate_host(snapshot, final_host, log_fn, oobe=False)
+        _nixos_rebuild_boot(snapshot, final_host, log_fn)
+        _finish_oobe(
+            config_dir,
+            {"host": final_host, "sourceHost": temporary_host},
+            progress_fn,
+            log_fn,
+        )
         return
 
     snapshot = _config_snapshot(config_dir, work_dir, machine_root, log_fn)
@@ -1276,14 +1256,14 @@ def _run_oobe(data: dict, pages: dict, work_dir: str, progress_fn, log_fn) -> No
                 os.path.join(snapshot, "flake.lock"),
                 os.path.join(config_dir, "flake.lock"),
             )
-        completion = {
-            "version": 1, "host": final_host, "sourceHost": temporary_host,
-            "status": "prepared",
-        }
-        _write_json(os.path.join(final_dir, "oobe-finalize.json"), completion)
         _nixos_rebuild_boot(snapshot, final_host, log_fn)
         boot_committed = True
-        _finish_oobe(config_dir, completion, progress_fn, log_fn)
+        _finish_oobe(
+            config_dir,
+            {"host": final_host, "sourceHost": temporary_host},
+            progress_fn,
+            log_fn,
+        )
     except Exception as exc:
         if boot_committed:
             raise RuntimeError(

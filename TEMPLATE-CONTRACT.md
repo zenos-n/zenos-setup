@@ -86,20 +86,16 @@ It stages the final host with hardware, graphics and drive ZCFG from that
 snapshot, evaluates it with OOBE disabled, and requests
 `nixos-rebuild boot`. The final host omits the OOBE setting and must not inherit
 temporary accounts, autologin, or the OOBE session. Only after a successful
-rebuild does Setup write `oobe-complete.json` and remove the temporary host.
+rebuild does Setup remove the temporary host.
 On an initial evaluation/rebuild failure it removes the staged final host and
 retains the pending source. Successful `nixos-rebuild boot` commits the final
-sources immediately: later marker, progress or cleanup errors never roll them
-back. Setup records `oobe-finalize.json` before rebuilding so finalization can be
-retried without republishing users. A completion record permits cleanup-only
-retries, even after the temporary host was removed. An intent without a completion
-record conservatively retains the final sources and repeats evaluation/rebuild
-before cleanup. These version 1 records contain `host`, `sourceHost`, and
-`status` (`prepared` or `complete`); they contain no hardware configuration.
-They are runner bookkeeping records, not template inputs or OOBE enable flags.
+sources immediately: later progress or cleanup errors never roll them back.
+Retries derive source and destination hosts from evaluated zcfg and existing host
+directories without republishing users. Setup does not write OOBE bookkeeping
+records before or after rebuilding.
 The rebuild's return is the commit boundary. rEFInd synchronization runs after
-completion is recorded and is retried along with cleanup; its failure never
-rolls back the already bootable final sources.
+the rebuild and is retried along with cleanup; its failure never rolls back the
+already bootable final sources.
 Reboot remains owned by the existing reboot page.
 
 The default GNOME choices are supported. Branding and both shortcut families
