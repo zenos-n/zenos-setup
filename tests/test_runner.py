@@ -531,7 +531,6 @@ class InitialInstallTests(unittest.TestCase):
             joined.rindex("nixos-generate-config"),
             joined.rindex("nix flake lock --offline"),
             joined.index("nixos-install --flake"),
-            joined.index("zenos-sync-refind-generations"),
         ]
         self.assertEqual(positions, sorted(positions))
         self.assertNotIn("nix eval", joined)

@@ -953,7 +953,6 @@ def _nixos_install(config_dir: str, host_name: str, log_fn=None) -> None:
         ],
         log_fn,
     )
-    _run(["sudo", "-n", "zenos-sync-refind-generations"], log_fn)
 
 
 def _nixos_rebuild_boot(config_dir: str, host_name: str, log_fn=None) -> None:
