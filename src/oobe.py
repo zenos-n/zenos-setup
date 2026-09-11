@@ -1,8 +1,6 @@
 import ctypes
-import json
 import os
 import resource
-import socket
 import time
 import gi
 
@@ -12,7 +10,7 @@ from gi.repository import Gtk, Gio, GLib, Adw, GObject
 from mpv import MPV, MpvGlGetProcAddressFn, MpvRenderContext
 from OpenGL import GL
 
-from .oobe_timing import destination2_wallpaper, reached_wallpaper_switch
+from .oobe_timing import reached_wallpaper_switch
 
 
 def get_proc_address_wrapper():
@@ -165,14 +163,8 @@ class ZenWelcomeWindow(Adw.ApplicationWindow):
 
         self.wallpaper_path = os.environ.get("ZENOS_WALLPAPER_FILE")
         if not self.wallpaper_path:
-            plan = f"/Config/ZenOS/hosts/{socket.gethostname()}/install-plan.json"
-            try:
-                with open(plan, encoding="utf-8") as source:
-                    theme = json.load(source).get("theme", {})
-                self.wallpaper_path = destination2_wallpaper(theme)
-            except (OSError, ValueError, TypeError):
-                base = os.environ.get("ZENOS_WALLPAPER_PATH", "/run/current-system/sw/share/zenos/")
-                self.wallpaper_path = os.path.join(base, "purple.png")
+            base = os.environ.get("ZENOS_WALLPAPER_PATH", "/run/current-system/sw/share/zenos/")
+            self.wallpaper_path = os.path.join(base, "purple.png")
 
         # setup dconf BEFORE gstreamer touches anything
         self.settings = Gio.Settings.new('org.gnome.desktop.interface')

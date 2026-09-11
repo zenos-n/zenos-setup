@@ -15,9 +15,8 @@ import sys
 import tempfile
 import threading
 from contextvars import ContextVar
-from datetime import datetime, timezone
 
-from .builder import build_config_documents, build_execution_plan, serialize_zcfg
+from .builder import build_config_documents, serialize_zcfg
 from . import user_sources
 
 
@@ -28,11 +27,9 @@ ISO_CONFIG_TEMPLATE = "/iso-config-template/flake.nix"
 MOUNT_ROOT = "/mnt"
 TARGET_CONFIG_ROOT = "/mnt/etc/ZenOS"
 OOBE_CONFIG_ROOT = "/Config/ZenOS"
-HARDWARE_PLACEHOLDER = "@ZENOS_SETUP_HARDWARE@"
 
 _WHOLE_DISK_NAME = re.compile(r"(?:[hsv]d[a-z]+|xvd[a-z]+|nvme\d+n\d+|mmcblk\d+)")
 _HOST_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_-]{0,62}")
-_SHA256 = re.compile(r"[0-9a-f]{64}")
 _IGNORE_SSL_ERRORS = ContextVar("ignore_ssl_errors", default=False)
 _ROOT_ENTRIES = {"flake.nix", "flake.lock", "hosts"}
 _HOST_FILES = {
@@ -40,12 +37,8 @@ _HOST_FILES = {
     "desktop.zcfg",
     "drives.zcfg",
     "graphics.zcfg",
-    "hardware.json",
+    "hardware-configuration.nix",
     "host.zcfg",
-    "install-plan.json",
-    "oobe-complete.json",
-    "oobe-finalize.json",
-    "oobe.json",
     "system.zcfg",
     "users",
 }
@@ -484,33 +477,6 @@ def _write_text(path: str, value: str) -> str:
     return path
 
 
-def _write_json(path: str, value: dict, *, atomic: bool = False) -> str:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    if not atomic:
-        with open(path, "w", encoding="utf-8") as file:
-            json.dump(value, file, indent=2, sort_keys=True)
-            file.write("\n")
-        return path
-
-    descriptor, temporary = tempfile.mkstemp(
-        prefix=".marker-", dir=os.path.dirname(path)
-    )
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as file:
-            json.dump(value, file, indent=2, sort_keys=True)
-            file.write("\n")
-            file.flush()
-            os.fsync(file.fileno())
-        os.replace(temporary, path)
-    except Exception:
-        try:
-            os.unlink(temporary)
-        except FileNotFoundError:
-            pass
-        raise
-    return path
-
-
 def _host_dir(config_dir: str, host_name: str) -> str:
     return os.path.join(config_dir, "hosts", _validate_host_name(host_name))
 
@@ -525,22 +491,20 @@ def _write_host_documents(
     for name, contents in documents.items():
         if name != "host.zcfg":
             _write_text(os.path.join(host_dir, name), contents)
-    host = "".join(f"import ./{name};\n" for name in names)
+    host = "".join(f'_import "./{name}";\n' for name in names)
     return _write_text(os.path.join(host_dir, "host.zcfg"), host)
-
-
-def _write_plan(config_dir: str, host_name: str, plan: dict) -> str:
-    return _write_json(
-        os.path.join(_host_dir(config_dir, host_name), "install-plan.json"), plan
-    )
 
 
 def _compile_host(zcfg_path: str, log_fn=None) -> None:
     with tempfile.TemporaryDirectory(prefix="zenos-compile-") as cache:
         output = os.path.join(cache, "host.nix")
         _emit(log_fn, f"checking and compiling {zcfg_path}")
-        _run(["zcfg", "check", zcfg_path], log_fn)
-        _run(["zcfg", "compile", zcfg_path, "-o", output], log_fn)
+        import_root = os.path.dirname(zcfg_path)
+        _run(["zen-dsl", "check", zcfg_path, "--import-root", import_root], log_fn)
+        _run(
+            ["zen-dsl", "compile", zcfg_path, "--import-root", import_root, "-o", output],
+            log_fn,
+        )
         _run(["nix-instantiate", "--parse", output], log_fn)
 
 
@@ -552,11 +516,7 @@ def _generate_hardware_config(
     include_filesystems: bool = True,
     preflight: bool = False,
 ) -> str:
-    source_dir = tempfile.mkdtemp(
-        prefix="zenos-hardware-",
-        dir=os.path.dirname(config_dir) if DRY_RUN else None,
-    )
-    output = os.path.join(source_dir, "hardware-configuration.nix")
+    output = os.path.join(_host_dir(config_dir, host_name), "hardware-configuration.nix")
     _emit(log_fn, "generating private hardware configuration")
     command = [
         "sudo",
@@ -568,90 +528,25 @@ def _generate_hardware_config(
     if not include_filesystems:
         command.append("--no-filesystems")
     command.append("--show-hardware-config")
-    try:
-        if DRY_RUN:
-            _run(command, log_fn)
-            _write_text(output, "# dry-run hardware config\n{ ... }: { }\n")
-        else:
-            with open(output, "w", encoding="utf-8") as destination:
-                try:
-                    subprocess.run(
-                        command,
-                        stdout=destination,
-                        stderr=subprocess.PIPE,
-                        text=True,
-                        check=True,
-                    )
-                except subprocess.CalledProcessError as error:
-                    if error.stderr:
-                        _emit(log_fn, error.stderr.rstrip())
-                    raise
-        _write_json(
-            os.path.join(source_dir, "detection.json"),
-            {
-                "version": 1,
-                "graphics": detect_graphics_devices(),
-                "laptop": is_laptop_environment(),
-            },
-        )
-        _run(["nix-instantiate", "--parse", output], log_fn)
-        if DRY_RUN:
-            store_path = source_dir
-        else:
-            result = subprocess.run(
-                [
-                    "nix",
-                    "store",
-                    "add-path",
-                    "--name",
-                    "zenos-setup-hardware",
-                    source_dir,
-                ],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            store_path = result.stdout.strip()
-            if not re.fullmatch(
-                r"/nix/store/[a-z0-9]{32}-zenos-setup-hardware", store_path
-            ):
-                raise RuntimeError("invalid immutable hardware source path")
-        return _write_json(
-            os.path.join(_host_dir(config_dir, host_name), "hardware.json"),
-            {
-                "version": 1,
-                "storePath": store_path,
-                "sha256": _sha256(output),
-            },
-        )
-    finally:
-        if not DRY_RUN:
-            shutil.rmtree(source_dir)
-
-
-def _hardware_source(metadata_path: str) -> str:
-    with open(metadata_path, encoding="utf-8") as file:
-        metadata = json.load(file)
-    source = metadata.get("storePath", "")
-    if metadata.get("version") != 1 or not isinstance(source, str):
-        raise RuntimeError("invalid hardware source metadata")
-    if not DRY_RUN and not re.fullmatch(
-        r"/nix/store/[a-z0-9]{32}-zenos-setup-hardware", source
-    ):
-        raise RuntimeError("hardware source is not immutable")
-    if _sha256(os.path.join(source, "hardware-configuration.nix")) != metadata.get(
-        "sha256"
-    ):
-        raise RuntimeError("immutable hardware configuration checksum mismatch")
-    return source
-
-
-def _bind_hardware(config_dir: str, template: str, metadata_path: str) -> None:
-    source = _hardware_source(metadata_path)
-    _write_text(
-        os.path.join(config_dir, "flake.nix"),
-        template.replace(HARDWARE_PLACEHOLDER, source),
-    )
+    if DRY_RUN:
+        _run(command, log_fn)
+        _write_text(output, "# dry-run hardware config\n{ ... }: { }\n")
+    else:
+        with open(output, "w", encoding="utf-8") as destination:
+            try:
+                subprocess.run(
+                    command,
+                    stdout=destination,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    check=True,
+                )
+            except subprocess.CalledProcessError as error:
+                if error.stderr:
+                    _emit(log_fn, error.stderr.rstrip())
+                raise
+    _run(["nix-instantiate", "--parse", output], log_fn)
+    return output
 
 
 def _generate_graphics_config(config_dir: str, host_name: str, log_fn=None) -> str:
@@ -673,13 +568,6 @@ def _sha256(path: str) -> str:
         for chunk in iter(lambda: file.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
-
-
-def _artifact_metadata(path: str) -> dict:
-    return {
-        "file": os.path.basename(path),
-        "sha256": _sha256(path),
-    }
 
 
 def _validate_config_layout(config_dir: str) -> None:
@@ -916,18 +804,10 @@ def _initialize_target_config(
         shutil.copyfile(ISO_CONFIG_TEMPLATE, destination)
     elif DRY_RUN:
         _emit(log_fn, f"[dry-run] mocking template copy from {ISO_CONFIG_TEMPLATE}")
-        _write_text(
-            destination,
-            '# dry-run ISO flake template\n{ inputs.setup-hardware = { url = "path:@ZENOS_SETUP_HARDWARE@"; flake = false; }; outputs = _: { }; }\n',
-        )
+        _write_text(destination, '{ inputs.zenpkgs.url = "path:/zenpkgs"; outputs = _: { }; }\n')
     else:
         raise RuntimeError(f"missing ISO config template: {ISO_CONFIG_TEMPLATE}")
     _emit(log_fn, f"copied ISO flake template to {destination}")
-    with open(destination, encoding="utf-8") as file:
-        if file.read().count(HARDWARE_PLACEHOLDER) != 1:
-            raise RuntimeError(
-                "ISO template must contain @ZENOS_SETUP_HARDWARE@ exactly once"
-            )
     _validate_config_layout(config_dir)
     return config_dir
 
@@ -1014,7 +894,7 @@ def _install_local(
     if short:
         host_name = f"oobe-{_rand_suffix()}"
         payload = {
-            "oobe": False,
+            "oobe": True,
             "pages": [
                 *(
                     page
@@ -1037,7 +917,6 @@ def _install_local(
         _emit(log_fn, f"permanent host: {host_name}")
 
     documents = build_config_documents(payload)
-    plan = build_execution_plan(payload)
     disko_text = None
     drives_text = None
     disko_staging_path = None
@@ -1054,8 +933,6 @@ def _install_local(
     # Evaluate the same host/template before even cleaning mounts. No target
     # filesystem exists yet, so manual preflight supplies provisional devices.
     staged_config = _initialize_target_config(work_dir, log_fn, stage=True)
-    with open(os.path.join(staged_config, "flake.nix"), encoding="utf-8") as file:
-        template = file.read()
     staged_host = _host_dir(staged_config, host_name)
     _generate_graphics_config(staged_config, host_name, log_fn)
     extra_imports = ["graphics.zcfg"]
@@ -1079,16 +956,10 @@ def _install_local(
     staged_zcfg = _write_host_documents(
         staged_host, documents, extra_imports=tuple(extra_imports)
     )
-    _write_plan(staged_config, host_name, plan)
     _compile_host(staged_zcfg, log_fn)
     hardware_path = _generate_hardware_config(
         staged_config, host_name, log_fn, include_filesystems=False, preflight=True
     )
-    _bind_hardware(staged_config, template, hardware_path)
-    if short:
-        _write_pending_marker(
-            staged_config, host_name, automatic=disko_text is not None
-        )
     _emit(
         log_fn,
         "preflight: checking ISO template and generated host before disk operations",
@@ -1125,21 +996,15 @@ def _install_local(
             extra_imports=tuple(extra_imports),
         )
         _compile_host(zcfg_path, log_fn)
-        _write_plan(config_dir, host_name, plan)
         hardware_path = _generate_hardware_config(
             config_dir,
             host_name,
             log_fn,
             include_filesystems=disko_text is None,
         )
-        _bind_hardware(config_dir, template, hardware_path)
         with open(zcfg_path, encoding="utf-8") as host_file:
             _print_config(log_fn, zcfg_path, host_file.read())
 
-        if short:
-            _write_pending_marker(
-                config_dir, host_name, automatic=disko_text is not None
-            )
 
         _validate_config_layout(config_dir)
         progress_fn(0.55)
@@ -1156,8 +1021,6 @@ def _install_local(
         progress_fn(0.75)
         _nixos_install(snapshot, host_name, log_fn)
         installed = True
-        if not short:
-            os.unlink(os.path.join(host_dir, "install-plan.json"))
         progress_fn(1.0)
         _emit(log_fn, f"{mode} install done")
     except Exception:
@@ -1168,27 +1031,8 @@ def _install_local(
         _cleanup_mount_root(log_fn)
 
 
-def _write_pending_marker(config_dir: str, host_name: str, *, automatic: bool) -> None:
-    host_dir = _host_dir(config_dir, host_name)
-    artifacts = {
-        "graphics": _artifact_metadata(os.path.join(host_dir, "graphics.zcfg")),
-        "hardware": _artifact_metadata(os.path.join(host_dir, "hardware.json")),
-    }
-    if automatic:
-        artifacts["disko"] = _artifact_metadata(os.path.join(host_dir, "drives.zcfg"))
-    _write_json(
-        os.path.join(host_dir, "oobe.json"),
-        {
-            "artifacts": artifacts,
-            "status": "pending",
-            "temporaryHost": host_name,
-            "version": 3,
-        },
-    )
-
-
 def _run_short(pages: dict, work_dir: str, progress_fn, log_fn) -> None:
-    data = {"oobe": False, "pages": list(pages.values())}
+    data = {"oobe": True, "pages": list(pages.values())}
     _install_local(data, pages, work_dir, progress_fn, log_fn, short=True)
 
 
@@ -1204,79 +1048,42 @@ def _read_current_host() -> str:
         raise RuntimeError("cannot identify the current temporary host") from exc
 
 
-def _find_pending_oobe(config_dir: str, current_host: str) -> tuple[str, dict]:
-    pending: list[tuple[str, dict]] = []
+def _find_pending_oobe(config_dir: str, current_host: str) -> str:
+    pending: list[str] = []
     hosts_dir = os.path.join(config_dir, "hosts")
     for host_name in os.listdir(hosts_dir):
-        marker_path = os.path.join(hosts_dir, host_name, "oobe.json")
-        if not os.path.isfile(marker_path) or os.path.islink(marker_path):
+        system_path = os.path.join(hosts_dir, host_name, "system.zcfg")
+        if not os.path.isfile(system_path) or os.path.islink(system_path):
             continue
-        try:
-            with open(marker_path, encoding="utf-8") as file:
-                marker = json.load(file)
-        except (OSError, json.JSONDecodeError) as exc:
-            raise RuntimeError(f"invalid OOBE marker: {marker_path}") from exc
-        if marker.get("status") == "pending":
-            pending.append((host_name, marker))
+        with open(system_path, encoding="utf-8") as file:
+            system = file.read()
+        if re.search(
+            r"(?:oobe\s*=\s*\{.*?enable\s*=\s*true|system\.oobe\.enable\s*=\s*true)",
+            system,
+            re.S,
+        ):
+            pending.append(host_name)
 
     if len(pending) != 1:
         raise RuntimeError(
             f"expected exactly one pending OOBE marker, found {len(pending)}"
         )
-    temporary_host, marker = pending[0]
-    if marker.get("version") != 3 or marker.get("temporaryHost") != temporary_host:
-        raise RuntimeError("pending OOBE marker does not match its temporary host")
+    temporary_host = pending[0]
     if current_host != temporary_host:
         raise RuntimeError(
             f"pending OOBE host {temporary_host!r} is not current host {current_host!r}"
         )
-    artifacts = marker.get("artifacts")
-    if not isinstance(artifacts, dict) or set(artifacts) not in (
-        {"graphics", "hardware"},
-        {"disko", "graphics", "hardware"},
-    ):
-        raise RuntimeError("pending OOBE marker has invalid artifact metadata")
-    expected_files = {
-        "disko": "drives.zcfg",
-        "graphics": "graphics.zcfg",
-        "hardware": "hardware.json",
-    }
-    for name, metadata in artifacts.items():
-        if (
-            not isinstance(metadata, dict)
-            or metadata.get("file") != expected_files[name]
-            or not _SHA256.fullmatch(metadata.get("sha256", ""))
-        ):
-            raise RuntimeError(f"pending OOBE marker has invalid {name} metadata")
-    return temporary_host, marker
+    return temporary_host
 
 
-def _finish_oobe(config_dir, completion, progress_fn, log_fn):
-    final_dir = _host_dir(config_dir, completion["host"])
-    temporary_dir = _host_dir(config_dir, completion["sourceHost"])
-    completion = {
-        **completion,
-        "status": "complete",
-        "completedAt": completion.get(
-            "completedAt", datetime.now(timezone.utc).isoformat()
-        ),
-    }
-    _write_json(os.path.join(final_dir, "oobe-complete.json"), completion, atomic=True)
+def _finish_oobe(config_dir, final_host, temporary_host, progress_fn, log_fn):
+    temporary_dir = _host_dir(config_dir, temporary_host)
     progress_fn(0.85)
-    for name in ("install-plan.json",):
-        try:
-            os.unlink(os.path.join(final_dir, name))
-        except FileNotFoundError:
-            pass
     _validate_config_layout(config_dir)
     if os.path.exists(temporary_dir):
         _remove_config_tree(temporary_dir, log_fn)
-    try:
-        os.unlink(os.path.join(final_dir, "oobe-finalize.json"))
-    except FileNotFoundError:
-        pass
     progress_fn(1.0)
-    _emit(log_fn, f"OOBE finalized host {completion['host']}")
+    _emit(log_fn, f"OOBE finalized host {final_host}")
 
 
 def _run_oobe(data: dict, pages: dict, work_dir: str, progress_fn, log_fn) -> None:
@@ -1291,82 +1098,39 @@ def _run_oobe(data: dict, pages: dict, work_dir: str, progress_fn, log_fn) -> No
     final_dir = _host_dir(config_dir, final_host)
     current_host = _read_current_host()
     machine_root = os.path.join(work_dir, "target") if DRY_RUN else "/"
-    if os.path.exists(final_dir):
-        # A prepared intent can survive a successful rebuild followed by a failed
-        # marker write. Never republish or roll back sources on this retry path.
-        completion_path = os.path.join(final_dir, "oobe-complete.json")
-        complete = os.path.isfile(completion_path)
-        resume_path = (
-            completion_path
-            if complete
-            else os.path.join(final_dir, "oobe-finalize.json")
-        )
-        if not os.path.isfile(resume_path):
-            raise RuntimeError(f"final host already exists: {final_host}")
-        with open(resume_path, encoding="utf-8") as file:
-            completion = json.load(file)
-        if (
-            not isinstance(completion, dict)
-            or completion.get("version") != 3
-            or completion.get("host") != final_host
-            or completion.get("status") != ("complete" if complete else "prepared")
-            or completion.get("sourceHost") == final_host
-            or current_host not in {final_host, completion.get("sourceHost")}
-        ):
-            raise RuntimeError("invalid OOBE finalization retry record")
-        _validate_host_name(completion.get("sourceHost"))
-        if not complete:
-            snapshot = _config_snapshot(config_dir, work_dir, machine_root, log_fn)
-            _lock_config(snapshot, log_fn)
-            _nixos_rebuild_boot(snapshot, final_host, log_fn)
-        _finish_oobe(config_dir, completion, progress_fn, log_fn)
-        return
-
-    temporary_host, marker = _find_pending_oobe(config_dir, current_host)
+    temporary_host = _find_pending_oobe(config_dir, current_host)
     if final_host == temporary_host:
         raise RuntimeError("final host name must differ from the temporary OOBE host")
 
     hosts_dir = os.path.join(config_dir, "hosts")
     temporary_dir = _host_dir(config_dir, temporary_host)
 
-    source_artifacts = {}
-    for name, metadata in marker["artifacts"].items():
-        source = os.path.join(temporary_dir, metadata["file"])
-        if _sha256(source) != metadata["sha256"]:
-            raise RuntimeError(f"temporary {name} configuration checksum mismatch")
-        source_artifacts[name] = source
-    _hardware_source(source_artifacts["hardware"])
+    source_artifacts = {
+        name: os.path.join(temporary_dir, name)
+        for name in ("graphics.zcfg", "drives.zcfg", "hardware-configuration.nix")
+        if os.path.isfile(os.path.join(temporary_dir, name))
+    }
+    if "hardware-configuration.nix" not in source_artifacts:
+        raise RuntimeError("temporary host is missing hardware-configuration.nix")
 
-    documents = build_config_documents(data)
+    documents = build_config_documents({**data, "oobe": False})
     stage_dir = tempfile.mkdtemp(prefix=f".{final_host}.staging-", dir=hosts_dir)
     published = False
     boot_committed = False
     user_sources = []
     try:
         for name, source in source_artifacts.items():
-            metadata = marker["artifacts"][name]
-            staged = os.path.join(stage_dir, metadata["file"])
+            staged = os.path.join(stage_dir, name)
             shutil.copyfile(source, staged)
-            if _sha256(staged) != metadata["sha256"]:
-                raise RuntimeError(f"copied {name} configuration checksum mismatch")
 
         imported_artifacts = tuple(
-            metadata["file"]
-            for metadata in marker["artifacts"].values()
-            if metadata["file"].endswith(".zcfg")
+            name for name in source_artifacts if name.endswith(".zcfg")
         )
         zcfg_path = _write_host_documents(
             stage_dir,
             documents,
             extra_imports=imported_artifacts,
         )
-        final_plan = build_execution_plan(data)
-        with open(
-            os.path.join(temporary_dir, "install-plan.json"), encoding="utf-8"
-        ) as file:
-            initial_plan = json.load(file)
-        final_plan["disk"] = initial_plan.get("disk", final_plan["disk"])
-        _write_json(os.path.join(stage_dir, "install-plan.json"), final_plan)
         _compile_host(zcfg_path, log_fn)
         with open(zcfg_path, encoding="utf-8") as host_file:
             _print_config(log_fn, zcfg_path, host_file.read())
@@ -1385,19 +1149,9 @@ def _run_oobe(data: dict, pages: dict, work_dir: str, progress_fn, log_fn) -> No
                 os.path.join(snapshot, "flake.lock"),
                 os.path.join(config_dir, "flake.lock"),
             )
-        completion = {
-            "artifacts": marker["artifacts"],
-            "host": final_host,
-            "sourceHost": temporary_host,
-            "status": "prepared",
-            "version": 3,
-        }
-        _write_json(
-            os.path.join(final_dir, "oobe-finalize.json"), completion, atomic=True
-        )
         _nixos_rebuild_boot(snapshot, final_host, log_fn)
         boot_committed = True
-        _finish_oobe(config_dir, completion, progress_fn, log_fn)
+        _finish_oobe(config_dir, final_host, temporary_host, progress_fn, log_fn)
     except Exception as exc:
         if boot_committed:
             raise RuntimeError(

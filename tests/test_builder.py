@@ -152,8 +152,8 @@ class BuilderTests(unittest.TestCase):
                 "users/zen/main.zcfg",
             },
         )
-        self.assertIn("import ./apps.zcfg;", documents["host.zcfg"])
-        self.assertIn("import ./users/zen/main.zcfg;", documents["host.zcfg"])
+        self.assertIn('_import "./apps.zcfg";', documents["host.zcfg"])
+        self.assertIn('_import "./users/zen/main.zcfg";', documents["host.zcfg"])
         self.assertIn("legacy = {", documents["users/zen/main.zcfg"])
         self.assertNotIn("zenfs", documents["users/zen/main.zcfg"])
         self.assertIn("firefox = true;", documents["apps.zcfg"])
@@ -700,13 +700,14 @@ class BuilderTests(unittest.TestCase):
 
     def test_final_display_manager_matches_desktop(self):
         expected = {
-            "gnome": ("services", "displayManager", "gdm"),
             "kde": ("services", "displayManager", "plasma-login-manager"),
             "xfce": ("services", "xserver", "displayManager", "lightdm"),
             "cinnamon": ("services", "xserver", "displayManager", "lightdm"),
             "budgie": ("services", "xserver", "displayManager", "lightdm"),
             "mate": ("services", "xserver", "displayManager", "lightdm"),
         }
+        gnome = build_config_tree({"pages": [{"id": "desktop", "install_de": True, "desktop_environment": "gnome"}]})
+        self.assertNotIn("displayManager", gnome["legacy"].get("services", {}))
         for desktop, path in expected.items():
             with self.subTest(desktop=desktop):
                 tree = build_config_tree({"pages": [{
