@@ -884,7 +884,7 @@ def _initialize_target_config(
 
 def _lock_config(config_dir: str, log_fn=None) -> None:
     _validate_config_layout(config_dir)
-    lock_command = ["nix", "flake", "lock", "--offline"]
+    lock_command = ["nix", "flake", "lock"]
     _run(lock_command, log_fn, cwd=config_dir)
 
 

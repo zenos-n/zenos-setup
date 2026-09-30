@@ -535,17 +535,18 @@ class InitialInstallTests(unittest.TestCase):
 
         joined = "\n".join(logs)
         positions = [
-            joined.index("nix flake lock --offline"),
+            joined.index("nix flake lock"),
             joined.index("nixos-generate-config"),
             joined.index("disko --mode disko"),
             joined.rindex("nixos-generate-config"),
-            joined.rindex("nix flake lock --offline"),
+            joined.rindex("nix flake lock"),
             joined.index("nixos-install --flake"),
         ]
         self.assertEqual(positions, sorted(positions))
         self.assertNotIn("nix eval", joined)
         self.assertEqual(joined.count("nix flake lock\n"), 0)
-        self.assertGreaterEqual(joined.count("nix flake lock --offline"), 1)
+        self.assertGreaterEqual(joined.count("nix flake lock"), 1)
+        self.assertNotIn("nix flake lock --offline", joined)
         self.assertRegex(
             joined,
             r"nixos-install --flake [^\s]+/config-snapshot-[^\s#]+#oobe-abc123",

@@ -1,8 +1,10 @@
 # Setup template contract
 
 Setup reads `/iso-config-template/flake.nix` once, before disk work. The image
-owns this template and supplies pinned compiler, runtime, Nixpkgs, Disko, and
-offline dependencies. Setup does not import the live ISO host configuration.
+owns this template and supplies compiler, runtime, Nixpkgs, and Disko dependencies.
+The installed template tracks the ZenPkgs GitHub branch; its first lock resolves
+and pins the GitHub revision using the required internet connection.
+Setup does not import the live ISO host configuration.
 
 The template must expose only `zenpkgs` as a root input. Setup reads its pinned
 upstream Nixpkgs through `inputs.zenpkgs.inputs.nixpkgs`.
@@ -33,7 +35,7 @@ boolean selectors. The template must not force a desktop or override Setup's
 user selections.
 
 Before unmounting or running automatic Disko, Setup stages the complete config,
-locks offline, generates provisional hardware, and checks/compiles ZCFG outside
+locks the GitHub inputs, generates provisional hardware, and checks/compiles ZCFG outside
 the editable tree.
 Manual preflight uses the selected root and EFI devices without mounting them.
 After mounting, Setup regenerates actual hardware/filesystems in `hardware.zcfg`,
