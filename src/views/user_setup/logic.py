@@ -31,6 +31,14 @@ class Page(Adw.Bin):
         self.username_entry.connect("changed", self._validate)
         self.password_entry.connect("changed", self._validate)
         self.password_confirmation.connect("changed", self._validate)
+        self.password_entry.connect("entry-activated", self._on_password_activated)
+        self.password_confirmation.connect("entry-activated", self._on_password_activated)
+
+    def _on_password_activated(self, entry):
+        if self._validate():
+            self.router.navigate_next()
+        elif entry is self.password_entry:
+            self.password_confirmation.grab_focus()
 
     def _check_password_strength(self, password):
         if len(password) < 8:
@@ -67,6 +75,7 @@ class Page(Adw.Bin):
         self.warning_label.set_visible(bool(warning_msg))
 
         self.router.set_next_enabled(is_valid, caller=self)
+        return is_valid
 
     def get_data(self):
         return {

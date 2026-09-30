@@ -27,6 +27,7 @@ from zenos_setup.views.path_choice.logic import Page as PathChoice
 from zenos_setup.views.recovery_mode.logic import Page as Recovery
 from zenos_setup.views.shortcuts.logic import Page as Shortcuts
 from zenos_setup.views.theme.logic import Page as Theme
+from zenos_setup.views.user_setup.logic import Page as UserSetup
 
 assert runner.DRY_RUN
 assert all_keyboards
@@ -70,6 +71,28 @@ for source, icon_name, expected in icons:
     assert icon.get_file().get_path() == str(expected_file), (source, icon.get_file())
     assert expected_file.is_file(), expected_file
 print("PASS: installed welcome, OOBE, path-choice, and desktop icons resolve to packaged SVGs")
+user_next = []
+user_enabled = []
+user = UserSetup(SimpleNamespace(
+    set_next_enabled=lambda enabled, **kwargs: user_enabled.append(enabled),
+    navigate_next=lambda: user_next.append(True),
+))
+user.password_entry.emit("entry-activated")
+assert not user_next
+user.fullname_entry.set_text("Test User")
+user.username_entry.set_text("testuser")
+user.password_entry.set_text("Test1234")
+user.password_entry.emit("entry-activated")
+assert not user_next
+user.password_confirmation.set_text("different")
+user.password_confirmation.emit("entry-activated")
+assert not user_next and not user_enabled[-1]
+user.password_confirmation.set_text("Test1234")
+user.password_confirmation.emit("entry-activated")
+assert len(user_next) == 1 and user_enabled[-1]
+user.password_entry.emit("entry-activated")
+assert len(user_next) == 2
+print("PASS: Enter advances a valid user form and preserves password validation")
 desktop = Desktop(router)
 assert not desktop.radio_ii.get_sensitive()
 state.set_page("desktop", desktop.get_finals())
