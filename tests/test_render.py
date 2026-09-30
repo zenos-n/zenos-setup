@@ -13,7 +13,7 @@ import unittest
 from unittest import mock
 
 from src import runner
-from src.builder import GNOME_EXTENSION_IDS, build_config_documents
+from src.builder import APP_PACKAGE_PATHS, GNOME_EXTENSION_IDS, build_config_documents
 from src.runner import build_disko_zcfg, build_graphics_config
 from test_builder import FULL_PAYLOAD, default_payload
 
@@ -22,6 +22,30 @@ from test_builder import FULL_PAYLOAD, default_payload
     os.environ.get("ZENOS_SETUP_COMPILER_SOURCE"), "requires VM compiler snapshot"
 )
 class RenderTests(unittest.TestCase):
+    @unittest.skipUnless(
+        os.environ.get("ZENOS_SETUP_RUNTIME_SOURCE"), "requires VM runtime snapshot"
+    )
+    def test_software_catalog_paths_are_exported_by_current_runtime(self):
+        paths = list(APP_PACKAGE_PATHS.values()) + [
+            ("theming", "apps", "adw-gtk3"),
+            ("theming", "cursors", "google-dot"),
+        ]
+        outputs = ["zenos-" + "-".join(path) for path in paths]
+        expression = (
+            "let zenpkgs = builtins.getFlake "
+            + json.dumps("path:" + os.environ["ZENOS_SETUP_RUNTIME_SOURCE"])
+            + "; names = builtins.fromJSON "
+            + json.dumps(json.dumps(outputs))
+            + "; in builtins.filter (name: !(builtins.hasAttr name "
+            + "zenpkgs.packages.x86_64-linux)) names"
+        )
+        result = subprocess.run(
+            ["nix", "eval", "--impure", "--json", "--expr", expression],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout), [])
+
     def test_privileged_canonical_handoff_is_confined_to_private_target(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -280,7 +304,7 @@ legacy.fileSystems = {
             self.assertFalse(actual["globalUuidDefinition"])
             self.assertTrue(actual["coreExtensionPackagesEmpty"])
             self.assertTrue(actual["coreExtensionUuidsEmpty"])
-            self.assertFalse(actual["zenfs"])
+            self.assertTrue(actual["zenfs"])
             return actual
 
     def test_hardware_zcfg_and_oobe_source_contract(self):
@@ -289,6 +313,7 @@ legacy.fileSystems = {
             config = root / "config"
             host = config / "hosts" / "oobe-test"
             host.mkdir(parents=True)
+            (config / "flake.nix").write_text("{ outputs = _: {}; }\n")
             (host / "host.zcfg").write_text(
                 '_import "./system.zcfg";\n_import "./hardware.zcfg";\n'
             )

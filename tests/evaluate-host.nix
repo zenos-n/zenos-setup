@@ -51,8 +51,7 @@ in
   expectedExtensions = map (name:
     (pkgs.lib.getAttrFromPath (
       if name == "customize-clock-on-lockscreen" then [ "legacy" "gnomeExtensions" "customize-clock-on-lock-screen" ]
-      else if builtins.elem name [ "forge" "dash-stacks" ] then [ "desktops" "gnome" "extensions" name ]
-      else [ "apps" "gnome-extensions" name ]
+      else [ "desktops" "gnome" "extensions" name ]
     ) pkgs.zenos).extensionUuid
   ) extensionIds;
   globalUuidDefinition = builtins.any

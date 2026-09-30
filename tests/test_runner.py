@@ -620,12 +620,42 @@ class InitialInstallTests(unittest.TestCase):
 
 
 class OobeTests(unittest.TestCase):
+    def test_rebuild_prepares_next_boot_without_switching(self):
+        with mock.patch.object(runner, "_run") as run:
+            runner._nixos_rebuild_boot("/tmp/private-snapshot", "zen-final")
+        self.assertEqual(run.call_args.args[0], [
+            "sudo", "-n", "nixos-rebuild", "boot", "--flake",
+            "/tmp/private-snapshot#zen-final",
+        ])
+        run.assert_called_once()
+
+    def test_cleanup_retry_also_uses_boot_and_preserves_pending_session(self):
+        logs = []
+        data, pages = self._payload()
+        with tempfile.TemporaryDirectory() as work:
+            config, temporary, _ = self._seed_pending(work)
+            with (
+                mock.patch.object(runner, "_read_current_host", return_value="oobe-abc123"),
+                mock.patch("src.builder.hash_password", return_value="$6$test$hash"),
+            ):
+                with mock.patch.object(runner, "_finish_oobe", side_effect=RuntimeError("cleanup failed")):
+                    with self.assertRaisesRegex(RuntimeError, "boot generation succeeded"):
+                        runner._run_oobe(data, pages, work, _progress, logs.append)
+                self.assertTrue(Path(temporary).is_dir())
+                self.assertTrue(Path(config, "hosts/zen-final/host.zcfg").is_file())
+                runner._run_oobe(data, pages, work, _progress, logs.append)
+            self.assertFalse(Path(temporary).exists())
+        joined = "\n".join(logs)
+        self.assertEqual(joined.count("nixos-rebuild boot --flake"), 2)
+        self.assertNotIn("nixos-rebuild switch", joined)
+        self.assertNotIn("systemctl reboot", joined)
+
     def test_rebuild_failure_rolls_back_initial_final_host_and_allows_retry(self):
         with tempfile.TemporaryDirectory() as work:
             config, temporary, _ = self._seed_pending(work)
             data, pages = self._payload()
             with mock.patch.object(runner, "_read_current_host", return_value="oobe-abc123"), mock.patch("src.builder.hash_password", return_value="$6$test$hash"):
-                with mock.patch.object(runner, "_nixos_rebuild_switch", side_effect=RuntimeError("rebuild failed")) as rebuild:
+                with mock.patch.object(runner, "_nixos_rebuild_boot", side_effect=RuntimeError("rebuild failed")) as rebuild:
                     with self.assertRaisesRegex(RuntimeError, "rebuild failed"):
                         runner._run_oobe(data, pages, work, _progress, None)
                     rebuild.assert_called_once()
@@ -698,7 +728,7 @@ class OobeTests(unittest.TestCase):
                     mock.patch(
                         "src.builder.hash_password", return_value="$6$test$hash"
                     ),
-                    mock.patch.object(runner, "_nixos_rebuild_switch") as rebuild,
+                    mock.patch.object(runner, "_nixos_rebuild_boot") as rebuild,
                 ):
                     with ExitStack() as stack:
                         stack.enter_context(
@@ -775,7 +805,7 @@ class OobeTests(unittest.TestCase):
                 mock.patch("src.builder.hash_password", return_value="$6$test$hash"),
             ):
                 with (
-                    mock.patch.object(runner, "_nixos_rebuild_switch"),
+                    mock.patch.object(runner, "_nixos_rebuild_boot"),
                     mock.patch.object(
                         runner, "_write_json", side_effect=fail_completion
                     ),
@@ -787,7 +817,7 @@ class OobeTests(unittest.TestCase):
                 with (
                     mock.patch.object(
                         runner,
-                        "_nixos_rebuild_switch",
+                        "_nixos_rebuild_boot",
                         side_effect=RuntimeError("retry failed"),
                     ),
                     mock.patch.object(runner, "_remove_user_sources") as rollback,
@@ -873,7 +903,7 @@ class OobeTests(unittest.TestCase):
         }
         return data, {page["id"]: page for page in data["pages"]}
 
-    def test_oobe_atomically_renames_host_transfers_hardware_and_uses_switch(self):
+    def test_oobe_atomically_renames_host_transfers_hardware_and_uses_boot(self):
         logs = []
         password = "oobe-plaintext-password"
         data, pages = self._payload(password)
@@ -905,7 +935,8 @@ class OobeTests(unittest.TestCase):
                         self.assertNotIn(password.encode(), file.read())
 
         joined = "\n".join(logs)
-        self.assertIn("nixos-rebuild switch --flake", joined)
+        self.assertIn("nixos-rebuild boot --flake", joined)
+        self.assertNotIn("nixos-rebuild switch", joined)
         self.assertNotIn("nix eval", joined)
         self.assertNotIn("chown -R root:root --", joined)
         self.assertNotIn("systemctl reboot", joined)
@@ -923,7 +954,7 @@ class OobeTests(unittest.TestCase):
                     "src.builder.hash_password", return_value="$6$test$hash"
                 ):
                     with mock.patch(
-                        "src.runner._nixos_rebuild_switch",
+                        "src.runner._nixos_rebuild_boot",
                         side_effect=lambda *_args, **_kwargs: events.append("rebuild"),
                     ):
                         runner._run_oobe(data, pages, work_dir, _progress, None)
@@ -942,7 +973,7 @@ class OobeTests(unittest.TestCase):
                     "src.builder.hash_password", return_value="$6$test$hash"
                 ):
                     with mock.patch(
-                        "src.runner._nixos_rebuild_switch",
+                        "src.runner._nixos_rebuild_boot",
                         side_effect=RuntimeError("failed"),
                     ):
                         with self.assertRaisesRegex(RuntimeError, "failed"):
@@ -982,6 +1013,21 @@ class OobeTests(unittest.TestCase):
 
 
 class GraphicsConfigTests(unittest.TestCase):
+    def test_intel_config_prepares_native_resolution_before_plymouth(self):
+        config = runner.build_graphics_config(
+            [{"address": "0000:00:02.0", "vendor": 0x8086, "device": 0x9A49, "bootVga": True}]
+        )
+        self.assertIn('legacy.boot.initrd.kernelModules = [ "i915" "xe" ];', config)
+        self.assertNotIn('"amdgpu"', config)
+
+    def test_mixed_graphics_keeps_both_early_drivers(self):
+        config = runner.build_graphics_config([
+            {"address": "0000:00:02.0", "vendor": 0x8086, "device": 0x9A49, "bootVga": True},
+            {"address": "0000:01:00.0", "vendor": 0x1002, "device": 0x73DF, "bootVga": False},
+        ])
+        self.assertIn('legacy.boot.initrd.kernelModules = [ "amdgpu" "i915" "xe" ];', config)
+
+
     def test_amd_config_enables_amdgpu_early(self):
         config = runner.build_graphics_config(
             [{"address": "0000:03:00.0", "bootVga": True, "vendor": 0x1002}]

@@ -11,6 +11,8 @@ The result has `meta.mainProgram = "zenos-setup"`. The flake keeps the existing
 `zenos-install`, `zenos-oobe`, and `default` outputs. The package includes the
 Python dependencies, GnomeDesktop 4 keyboard typelib, intro video, and wallpapers.
 The image supplies the pinned compiler and installation commands.
+Software selectors follow the current ZenPkgs package tree, including the
+security, storage, virtualization, and system monitoring categories.
 The package checks GI imports and keyboard layouts, then exercises the installed
 GNOME controls and default rendering under Xvfb with an isolated settings backend.
 

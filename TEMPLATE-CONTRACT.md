@@ -38,7 +38,8 @@ the editable tree.
 Manual preflight uses the selected root and EFI devices without mounting them.
 After mounting, Setup regenerates actual hardware/filesystems in `hardware.zcfg`,
 recompiles, relocks, then calls `nixos-install`. OOBE calls only
-`nixos-rebuild switch` for system evaluation and activation.
+`nixos-rebuild boot` to prepare the next boot without activating the final
+system or stopping the current setup session.
 Preflight is not a guarantee that every target closure is available offline.
 
 The target is `/mnt/etc/ZenOS`, visible as `/Config/ZenOS` after boot. It contains

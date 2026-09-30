@@ -1,7 +1,6 @@
 import os
 import subprocess
 import threading
-import time
 import gi
 
 # Fallback for gettext if not injected by the environment
@@ -41,7 +40,7 @@ except (ValueError, ImportError):
     HAS_NM = False
 
     class MockNMClient:
-        def get_connectivity(self): return 4
+        def get_connectivity(self): return 0
         def get_devices(self): return []
     class MockNM:
         class ConnectivityState: UNKNOWN=0; NONE=1; PORTAL=2; LIMITED=3; FULL=4
@@ -222,7 +221,6 @@ class Page(Adw.Bin):
         super().__init__(**kwargs)
         self.router = router
         self.nm = NetworkManagerClient()
-        self._check_active = False
         self._wifi_rows, self._wired_rows = [], []
 
         apply_custom_styles()
@@ -238,10 +236,12 @@ class Page(Adw.Bin):
         self.proxy_settings_row.connect("activated", self.on_open_proxy)
         self.advanced_settings_row.connect("activated", self.on_open_advanced)
         self.btn_recheck.connect("clicked", self.on_recheck_clicked)
+        self._poll_id = 0
+        self._network_snapshot = None
         self.start_connectivity_check()
 
     def on_open_hidden_network(self, *args):
-        HiddenNetworkDialog(parent=self.get_root(), callback=self.connect_to_network).present()
+        HiddenNetworkDialog(parent=self.get_root(), callback=lambda ssid, password: self.connect_to_network(ssid, password, hidden=True)).present()
 
     def on_open_proxy(self, *args):
         ProxySettingsDialog(parent=self.get_root()).present()
@@ -257,19 +257,25 @@ class Page(Adw.Bin):
             else:
                 self.connect_to_network(ssid)
         else:
-            self.connect_to_network(ssid)
+            self.connect_to_network(ssid, wifi=False)
             
-    def connect_to_network(self, ssid, password=None):
+    def connect_to_network(self, ssid, password=None, *, wifi=True, hidden=False):
         self.start_connectivity_check()
         
         def do_connect():
             try:
-                if password:
-                    subprocess.run(['nmcli', 'device', 'wifi', 'connect', ssid, 'password', password], capture_output=True)
+                if wifi:
+                    command = ['nmcli', 'device', 'wifi', 'connect', ssid]
+                    if password:
+                        command += ['password', password]
+                    if hidden:
+                        command += ['hidden', 'yes']
                 else:
-                    res = subprocess.run(['nmcli', 'device', 'connect', ssid], capture_output=True)
-                    if res.returncode != 0:
-                        subprocess.run(['nmcli', 'connection', 'up', ssid], capture_output=True)
+                    command = ['nmcli', 'device', 'connect', ssid]
+                result = subprocess.run(command, capture_output=True, text=True)
+                if result.returncode:
+                    print(f"Network connection failure: {result.stderr.strip()}")
+                GLib.idle_add(self._check_once_idle)
             except Exception as e:
                 print(f"Network connection failure: {e}")
 
@@ -279,41 +285,73 @@ class Page(Adw.Bin):
         self.start_connectivity_check()
         
     def start_connectivity_check(self):
-        if self._check_active: return
-        self._check_active = True
         self.main_stack.set_visible_child_name("checking")
         self.loading_spinner.start()
         self.btn_recheck.set_sensitive(False)
         self.network_spinner_row.set_visible(True)
         self.network_spinner.start()
-        for row in self._wifi_rows: self.wireless_group.remove(row)
-        self._wifi_rows.clear()
-        for row in self._wired_rows: self.wired_group.remove(row)
-        self._wired_rows.clear()
-        threading.Thread(target=self._connectivity_loop, daemon=True).start()
-        threading.Thread(target=self._load_networks_thread, daemon=True).start()
+        # NM.Client belongs to GTK's main context; keep all cache reads there.
+        GLib.idle_add(self._load_networks, True)
+        GLib.idle_add(self._check_once_idle)
+        if not self._poll_id:
+            self._poll_id = GLib.timeout_add_seconds(3, self.check_once)
 
-    def _load_networks_thread(self):
-        time.sleep(1.0)
+    def _load_networks(self, scan=False):
         has_wifi, has_wired = False, False
-        wifi_nets, wired_nets = [], []
-        
-        for d in self.nm.get_devices():
-            if d.get_device_type() == 2:
+        wifi_by_ssid, wired_nets = {}, []
+        for device in self.nm.get_devices():
+            if device.get_device_type() == NM.DeviceType.WIFI:
                 has_wifi = True
-                name = d.get_iface() if hasattr(d, 'get_iface') else getattr(d, 'name', 'WiFi')
-                wifi_nets.append({"ssid": name, "strength": 70, "secure": True})
-            elif d.get_device_type() == 1:
+                if scan:
+                    device.request_scan_async(None, self._on_scan_complete, None)
+                active_ap = device.get_active_access_point()
+                active_ssid = active_ap.get_ssid().get_data() if active_ap and active_ap.get_ssid() else None
+                for ap in device.get_access_points():
+                    ssid = ap.get_ssid()
+                    if not ssid or not ssid.get_data():
+                        continue
+                    raw_ssid = ssid.get_data()
+                    secure = bool(ap.get_flags() & getattr(NM, "80211ApFlags").PRIVACY or ap.get_wpa_flags() or ap.get_rsn_flags())
+                    network = {
+                        "ssid": raw_ssid.decode("utf-8", errors="replace"),
+                        "strength": ap.get_strength(),
+                        "secure": secure,
+                        "connected": raw_ssid == active_ssid,
+                    }
+                    key = (raw_ssid, secure)
+                    previous = wifi_by_ssid.get(key)
+                    if previous is None or network["strength"] > previous["strength"]:
+                        if previous:
+                            network["connected"] |= previous["connected"]
+                        wifi_by_ssid[key] = network
+                    elif network["connected"]:
+                        previous["connected"] = True
+            elif device.get_device_type() == NM.DeviceType.ETHERNET:
                 has_wired = True
-                name = d.get_iface() if hasattr(d, 'get_iface') else getattr(d, 'name', 'Ethernet')
-                state = d.get_state() if hasattr(d, 'get_state') else 100
-                wired_nets.append({"name": name, "connected": state == 100})
+                wired_nets.append({"name": device.get_iface(), "connected": device.get_state() == NM.DeviceState.ACTIVATED})
+        wifi_nets = sorted(wifi_by_ssid.values(), key=lambda net: (not net["connected"], -net["strength"], net["ssid"]))
+        snapshot = (has_wifi, wifi_nets, has_wired, wired_nets)
+        if snapshot != self._network_snapshot or scan:
+            self._update_networks_ui(*snapshot)
+            self._network_snapshot = snapshot
+        return False
 
-        GLib.idle_add(self._update_networks_ui, has_wifi, wifi_nets, has_wired, wired_nets)
+    def _on_scan_complete(self, device, result, *args):
+        try:
+            device.request_scan_finish(result)
+        except GLib.Error as error:
+            print(f"Wi-Fi scan failed: {error}")
+        self._load_networks()
 
     def _update_networks_ui(self, has_wifi, wifi_nets, has_wired, wired_nets):
         self.network_spinner.stop()
         self.network_spinner_row.set_visible(False)
+        for row in self._wifi_rows:
+            self.wireless_group.remove(row)
+        self._wifi_rows.clear()
+        for row in self._wired_rows:
+            self.wired_group.remove(row)
+        self._wired_rows.clear()
         self.wired_group.set_visible(has_wired)
         for net in wired_nets:
             row = Adw.ActionRow(title=net["name"], subtitle=_("Connected") if net["connected"] else _("Disconnected"))
@@ -323,28 +361,18 @@ class Page(Adw.Bin):
             self.wired_group.add(row); self._wired_rows.append(row)
         self.wireless_group.set_visible(has_wifi)
         for net in wifi_nets:
-            row = WirelessRow(ssid=net["ssid"], strength=net["strength"], secure=net["secure"])
+            row = WirelessRow(ssid=net["ssid"], strength=net["strength"], secure=net["secure"], connected=net["connected"])
             row.connect("activated", self.on_network_clicked)
             self.wireless_group.add(row); self._wifi_rows.append(row)
 
-    def _connectivity_loop(self):
-        while self._check_active:
-            state = self.nm.get_connectivity()
-            is_connected = state == 4
-            GLib.idle_add(self._update_ui_state, state, is_connected)
-            if is_connected:
-                GLib.idle_add(self._start_slow_polling)
-                self._check_active = False
-                break
-            time.sleep(2)
-
-    def _start_slow_polling(self):
-        GLib.timeout_add_seconds(5, self.check_once)
+    def _check_once_idle(self):
+        self.check_once()
         return False
 
     def check_once(self):
         state = self.nm.get_connectivity()
-        self._update_ui_state(state, state == 4)
+        self._update_ui_state(state, state == NM.ConnectivityState.FULL)
+        self._load_networks()
         return True
 
     def _update_ui_state(self, state, is_connected):

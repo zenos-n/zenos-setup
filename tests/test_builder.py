@@ -774,7 +774,7 @@ class BuilderTests(unittest.TestCase):
         self.assertEqual(
             tree["system"]["packages"]["apps"],
             {
-                "utilities": {"resources": True},
+                "system": {"monitoring": {"resources": True}},
                 "development": {"vscode": True},
             },
         )

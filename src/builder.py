@@ -150,15 +150,23 @@ CORE_PACKAGE_PATHS = {
 
 # These are filesystem-derived public package identities, not catalog aliases.
 APP_PACKAGE_PATHS = {
-    app: ("apps", category, app)
+    app: ("apps", *category.split("."), app)
     for category, apps in {
         "browsers": "firefox librewolf ungoogled-chromium brave-browser tor-browser",
         "gaming": "steam heroic lutris bottles prism-launcher retroarch",
         "development": "vscode zed gnome-builder neovim helix gitg github-cli docker jetbrains-toolbox",
         "system": "kitty btop fish zsh",
-        "utilities": "pika-backup metadata-cleaner curtail gnome-boxes file-roller impression cipher resources mission-center",
+        "backup": "pika-backup",
+        "security": "metadata-cleaner cipher keepassxc bitwarden",
+        "graphics": "curtail",
+        "virtualization": "gnome-boxes virt-manager",
+        "archives": "file-roller",
+        "storage": "impression gparted",
+        "system.monitoring": "resources mission-center",
+        "system.administration": "cockpit",
+        "containers": "podman-desktop",
+        "networking": "wireshark nmap",
         "office": "libreoffice onlyoffice thunderbird obsidian apostrophe foliate",
-        "advanced": "virt-manager podman-desktop wireshark gparted keepassxc bitwarden cockpit nmap",
     }.items()
     for app in apps.split()
 }
@@ -280,8 +288,8 @@ def _gnome_profile(tree, options, shortcuts, theme, enabled_extensions):
         extensions["notification-timeout"]["timeout"] = 2000
     if options.get("theme", True):
         for path in (
-            ("apps", "cursors", "google-dot"),
-            ("apps", "themes", "adw-gtk3"),
+            ("theming", "cursors", "google-dot"),
+            ("theming", "apps", "adw-gtk3"),
             ("theming", "fonts", "zero", "mono-thin"),
             ("theming", "fonts", "zero", "regular"),
             ("theming", "icons", "adwaita-hacks"),

@@ -84,6 +84,7 @@ stdenv.mkDerivation {
       --prefix PYTHONPATH : "${python}/${python.sitePackages}"
       --prefix PATH : "${
         lib.makeBinPath [
+          networkmanager
           gparted
           gnome-console
           firefox

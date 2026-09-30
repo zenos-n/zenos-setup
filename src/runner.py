@@ -307,8 +307,10 @@ def build_graphics_config(devices: list[dict]) -> str:
     if drivers:
         rendered_drivers = " ".join(json.dumps(driver) for driver in drivers)
         lines.append(f"legacy.services.xserver.videoDrivers = [ {rendered_drivers} ];")
-    if has_amd:
-        lines.append('legacy.boot.initrd.kernelModules = [ "amdgpu" ];')
+    early_drivers = (["amdgpu"] if has_amd else []) + (["i915", "xe"] if has_intel else [])
+    if early_drivers:
+        rendered_early_drivers = " ".join(json.dumps(driver) for driver in early_drivers)
+        lines.append(f"legacy.boot.initrd.kernelModules = [ {rendered_early_drivers} ];")
     if has_nvidia:
         lines.extend(
             [
@@ -903,15 +905,15 @@ def _nixos_install(config_dir: str, host_name: str, log_fn=None) -> None:
     )
 
 
-def _nixos_rebuild_switch(config_dir: str, host_name: str, log_fn=None) -> None:
-    _emit(log_fn, f"switching to the final system ({host_name})...")
+def _nixos_rebuild_boot(config_dir: str, host_name: str, log_fn=None) -> None:
+    _emit(log_fn, f"preparing the final system for next boot ({host_name})...")
     command_env = dict(os.environ, LANG="C", LC_ALL="C", LANGUAGE="C")
     _run(
         [
             "sudo",
             "-n",
             "nixos-rebuild",
-            "switch",
+            "boot",
             "--flake",
             f"{config_dir}#{host_name}",
         ],
@@ -1181,7 +1183,7 @@ def _run_oobe(data: dict, pages: dict, work_dir: str, progress_fn, log_fn) -> No
             raise RuntimeError("final host is still marked for OOBE")
         snapshot = _config_snapshot(config_dir, work_dir, machine_root, log_fn)
         _lock_config(snapshot, log_fn)
-        _nixos_rebuild_switch(snapshot, final_host, log_fn)
+        _nixos_rebuild_boot(snapshot, final_host, log_fn)
         _finish_oobe(
             config_dir,
             {"host": final_host, "sourceHost": temporary_host},
@@ -1251,7 +1253,7 @@ def _run_oobe(data: dict, pages: dict, work_dir: str, progress_fn, log_fn) -> No
                 os.path.join(snapshot, "flake.lock"),
                 os.path.join(config_dir, "flake.lock"),
             )
-        _nixos_rebuild_switch(snapshot, final_host, log_fn)
+        _nixos_rebuild_boot(snapshot, final_host, log_fn)
         boot_committed = True
         _finish_oobe(
             config_dir,
