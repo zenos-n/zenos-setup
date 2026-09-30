@@ -544,7 +544,7 @@ class InitialInstallTests(unittest.TestCase):
         ]
         self.assertEqual(positions, sorted(positions))
         self.assertNotIn("nix eval", joined)
-        self.assertEqual(joined.count("nix flake lock\n"), 0)
+        self.assertEqual(joined.count("nix flake lock\n"), 2)
         self.assertGreaterEqual(joined.count("nix flake lock"), 1)
         self.assertNotIn("nix flake lock --offline", joined)
         self.assertRegex(
