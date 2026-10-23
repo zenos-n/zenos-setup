@@ -123,7 +123,7 @@ class BuilderTests(unittest.TestCase):
         self.assertEqual(tree["users"]["zen"]["legacy"]["uid"], 1000)
         self.assertEqual(tree["users"]["zen"]["legacy"]["home"], "/Users/zen")
         self.assertNotIn("zenfs", tree["legacy"])
-        self.assertTrue(tree["system"]["packages"]["apps"]["browsers"]["firefox"])
+        self.assertTrue(tree["system"]["packages"]["byCategories"]["apps"]["browsers"]["firefox"])
         self.assertTrue(
             tree["desktops"]["gnome"]["tweaks"]["firefox-theming"]["enable"]
         )
@@ -186,7 +186,7 @@ class BuilderTests(unittest.TestCase):
         self.assertEqual(home["programs"]["zsh"]["history"]["size"], 10000)
         self.assertEqual(
             home["xdg"]["configFile"]["zsh/p10k.zsh"]["source"],
-            PackageFile(PkgsRef(("system", "zenos-shell-defaults")), "/share/zenos-shell/p10k.zsh"),
+            PackageFile(PkgsRef(("byCategories", "system", "zenos-shell-defaults")), "/share/zenos-shell/p10k.zsh"),
         )
         self.assertIn("powerlevel10k", home["programs"]["zsh"]["plugins"][0]["name"])
 
@@ -367,7 +367,7 @@ class BuilderTests(unittest.TestCase):
         self.assertFalse(extensions["app-hider"]["enable"])
         self.assertFalse(extensions["burn-my-windows"]["enable"])
         self.assertFalse(extensions["hide-top-bar"]["enable"])
-        self.assertTrue(tree["system"]["packages"]["theming"]["icons"]["adwaita-hacks"])
+        self.assertTrue(tree["system"]["packages"]["byCategories"]["theming"]["icons"]["adwaita-hacks"])
         settings = tree["legacy"]["programs"]["dconf"]["profiles"]["user"]["databases"][
             0
         ]["settings"]
@@ -528,8 +528,8 @@ class BuilderTests(unittest.TestCase):
                             "extensionUuid",
                             "enabled-extensions",
                             "org/gnome/shell/extensions/",
-                            "$pkgs.apps.gnome-extensions",
-                            "$pkgs.desktops.gnome.extensions",
+                            "$pkgs.byCategories.apps.gnome-extensions",
+                            "$pkgs.byCategories.desktops.gnome.extensions",
                             "configure = true;",
                             "/Users/zenos/",
                             "com.negzero.zenos.setup.desktop",
@@ -584,7 +584,7 @@ class BuilderTests(unittest.TestCase):
                                 firefox_theme,
                             )
                             self.assertTrue(
-                                tree["system"]["packages"]["apps"]["browsers"][
+                                tree["system"]["packages"]["byCategories"]["apps"]["browsers"][
                                     "firefox"
                                 ]
                             )
@@ -645,7 +645,7 @@ class BuilderTests(unittest.TestCase):
                                     wallpaper,
                                     PackageFile(
                                         PkgsRef(
-                                            ("theming", "wallpapers", "destination-2")
+                                            ("byCategories", "theming", "wallpapers", "destination-2")
                                         ),
                                         f"/share/backgrounds/destination-2/slate{' dark' if dark else ''}.png",
                                         True,
@@ -658,7 +658,7 @@ class BuilderTests(unittest.TestCase):
                                 self.assertEqual(
                                     gdm["org/gnome/login-screen"]["logo"],
                                     PackageFile(
-                                        PkgsRef(("theming", "icons", "zenos-icons")),
+                                        PkgsRef(("byCategories", "theming", "icons", "zenos-icons")),
                                         "/share/icons/hicolor/scalable/apps/zenos.svg",
                                     ),
                                 )
@@ -676,7 +676,7 @@ class BuilderTests(unittest.TestCase):
                                     "prefer-dark" if dark else "prefer-light",
                                 )
                             else:
-                                self.assertNotIn("theming", tree["system"]["packages"])
+                                self.assertNotIn("theming", tree["system"]["packages"].get("byCategories", {}))
 
     def test_other_desktops_do_not_emit_gnome_extension_modules(self):
         for desktop in ("none", "kde", "xfce", "cinnamon", "budgie", "mate"):
@@ -772,7 +772,7 @@ class BuilderTests(unittest.TestCase):
             }
         )
         self.assertEqual(
-            tree["system"]["packages"]["apps"],
+            tree["system"]["packages"]["byCategories"]["apps"],
             {
                 "system": {"monitoring": {"resources": True}},
                 "development": {"vscode": True},

@@ -148,7 +148,7 @@ CORE_PACKAGE_PATHS = {
 }
 
 
-# These are filesystem-derived public package identities, not catalog aliases.
+# Category paths select aliases of the canonical reverse-DNS package identities.
 APP_PACKAGE_PATHS = {
     app: ("apps", *category.split("."), app)
     for category, apps in {
@@ -295,15 +295,15 @@ def _gnome_profile(tree, options, shortcuts, theme, enabled_extensions):
             ("theming", "icons", "adwaita-hacks"),
             ("theming", "wallpapers", "destination-2"),
         ):
-            _set_path(tree, ("system", "packages", *path), True)
+            _set_path(tree, ("system", "packages", "byCategories", *path), True)
         _set_path(
             tree,
             ("legacy", "fonts", "packages"),
             [
                 PkgsRef(("legacy", "atkinson-hyperlegible")),
                 PkgsRef(("legacy", "nerd-fonts", "atkynson-mono")),
-                PkgsRef(("theming", "fonts", "zero", "mono-thin")),
-                PkgsRef(("theming", "fonts", "zero", "regular")),
+                PkgsRef(("byCategories", "theming", "fonts", "zero", "mono-thin")),
+                PkgsRef(("byCategories", "theming", "fonts", "zero", "regular")),
             ],
         )
         dark = theme.get("dark_mode", True)
@@ -319,7 +319,7 @@ def _gnome_profile(tree, options, shortcuts, theme, enabled_extensions):
         color = theme.get("accent", "purple")
         color = "slate" if color == "grey" else color
         wallpaper = PackageFile(
-            PkgsRef(("theming", "wallpapers", "destination-2")),
+            PkgsRef(("byCategories", "theming", "wallpapers", "destination-2")),
             f"/share/backgrounds/destination-2/{color}{' dark' if dark else ''}.png",
             True,
         )
@@ -373,7 +373,7 @@ def _gnome_profile(tree, options, shortcuts, theme, enabled_extensions):
                         "org/gnome/login-screen": {
                             "disable-user-list": False,
                             "logo": PackageFile(
-                                PkgsRef(("theming", "icons", "zenos-icons")),
+                                PkgsRef(("byCategories", "theming", "icons", "zenos-icons")),
                                 "/share/icons/hicolor/scalable/apps/zenos.svg",
                             ),
                         },
@@ -532,7 +532,7 @@ def build_config_tree(
             {
                 "zsh/p10k.zsh": {
                     "source": PackageFile(
-                        PkgsRef(("system", "zenos-shell-defaults")),
+                        PkgsRef(("byCategories", "system", "zenos-shell-defaults")),
                         "/share/zenos-shell/p10k.zsh",
                     ),
                 },
@@ -737,7 +737,7 @@ def build_config_tree(
         )
     if packages:
         for path in sorted(set(packages)):
-            _set_path(tree, ("system", "packages", *path), True)
+            _set_path(tree, ("system", "packages", "byCategories", *path), True)
 
     return tree
 

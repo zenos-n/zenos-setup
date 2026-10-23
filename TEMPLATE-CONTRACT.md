@@ -103,7 +103,7 @@ Reboot remains owned by the existing reboot page.
 The default GNOME choices are supported. Branding and both shortcut families
 are lowered from the previous `zenos-next` a813a8e profile into existing GNOME
 and legacy dconf options. Dash Stacks and the patched Forge use the current
-`pkgs.desktops.gnome.extensions` compatibility package paths. Explicit extension
+`pkgs.byCategories.desktops.gnome.extensions` compatibility package paths. Explicit extension
 lists, tiling, branding off, dark/accent preferences, and Firefox GNOME theming
 are preserved. Typed dconf values use data-only upstream GVariant records;
 generated ZCFG contains no function calls or new public option roots.
@@ -134,3 +134,13 @@ All fetching, source validation, password hashing, compilation and host evaluati
 must succeed before disk operations. Online installations reuse the local flow's
 partitioning, target hardware scan, canonical user publication, snapshot and
 rollback behavior. They install the selected final host, with OOBE disabled.
+
+## Package identities and category selectors
+
+ZenPkgs requires a reverse-DNS `_meta.id` for each package. Its canonical
+registry identity is `pkgs.<id>`, with `target = id.split(".")`. The existing
+category filesystem supplies `categoryTarget`; `pkgs.byCategories.<category path>`
+is an alias of the same derivation, not a second registry entry. Setup emits
+category references and boolean selectors under `byCategories`, including
+`system.packages.byCategories.apps.browsers.firefox = true;`. There are no
+old root category aliases. `pkgs.legacy` remains unchanged.
