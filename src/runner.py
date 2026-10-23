@@ -16,7 +16,7 @@ import tempfile
 import threading
 from contextvars import ContextVar
 
-from .builder import build_config_documents, serialize_zcfg
+from .builder import build_config_documents, serialize_zcfg, hash_password
 from . import user_sources
 
 
@@ -953,6 +953,7 @@ def _install_local(
     log_fn,
     *,
     short: bool,
+    online: dict | None = None,
 ) -> None:
     mode = "short" if short else "long"
     _emit(log_fn, f"=== {mode} install mode ===")
@@ -987,7 +988,14 @@ def _install_local(
         payload = {**data, "oobe": False}
         _emit(log_fn, f"permanent host: {host_name}")
 
-    documents = build_config_documents(payload)
+    documents = dict(online["documents"]) if online else build_config_documents(payload)
+
+    def write_documents(directory, extra_imports):
+        if online is None:
+            return _write_host_documents(directory, documents, extra_imports=tuple(extra_imports))
+        for name, contents in documents.items():
+            _write_text(os.path.join(directory, name), contents)
+        return os.path.join(directory, "host.zcfg")
     disko_text = None
     drives_text = None
     disko_staging_path = None
@@ -1004,6 +1012,11 @@ def _install_local(
     # Evaluate the same host/template before even cleaning mounts. No target
     # filesystem exists yet, so manual preflight supplies provisional devices.
     staged_config = _initialize_target_config(work_dir, log_fn, stage=True)
+    if online:
+        for name in ("flake.nix", "flake.lock"):
+            source = os.path.join(online["source"], name)
+            if os.path.isfile(source):
+                shutil.copyfile(source, os.path.join(staged_config, name))
     staged_host = _host_dir(staged_config, host_name)
     _generate_graphics_config(staged_config, host_name, log_fn)
     extra_imports = ["graphics.zcfg", "hardware.zcfg"]
@@ -1024,14 +1037,14 @@ def _install_local(
             os.path.join(staged_host, "drives.zcfg"), serialize_zcfg(provisional)
         )
         extra_imports.append("drives.zcfg")
-    staged_zcfg = _write_host_documents(
-        staged_host, documents, extra_imports=tuple(extra_imports)
-    )
+    staged_zcfg = write_documents(staged_host, extra_imports)
     _lock_config(staged_config, log_fn)
     _generate_hardware_config(
         staged_config, host_name, log_fn, include_filesystems=False, preflight=True
     )
     _compile_host(staged_zcfg, log_fn)
+    if online:
+        _online_preflight(staged_config, host_name, online["username"], log_fn)
     _emit(
         log_fn,
         "preflight: checking ISO template and generated host before disk operations",
@@ -1060,12 +1073,11 @@ def _install_local(
             _write_text(os.path.join(host_dir, "drives.zcfg"), drives_text)
             extra_imports.append("drives.zcfg")
         else:
-            os.unlink(os.path.join(host_dir, "drives.zcfg"))
-        zcfg_path = _write_host_documents(
-            host_dir,
-            documents,
-            extra_imports=tuple(extra_imports),
-        )
+            if online:
+                _write_text(os.path.join(host_dir, "drives.zcfg"), "# Filesystems are detected in hardware.zcfg.\n")
+            else:
+                os.unlink(os.path.join(host_dir, "drives.zcfg"))
+        zcfg_path = write_documents(host_dir, extra_imports)
         _generate_hardware_config(
             config_dir,
             host_name,
@@ -1277,9 +1289,90 @@ def _run_oobe(data: dict, pages: dict, work_dir: str, progress_fn, log_fn) -> No
             shutil.rmtree(stage_dir, ignore_errors=True)
 
 
+def _fetch_online_source(reference: str, host: str, destination: str) -> str:
+    if not reference or reference.startswith("-"):
+        raise RuntimeError("an online flake reference is required")
+    result = subprocess.run(
+        ["nix", "flake", "metadata", "--json", "--no-write-lock-file", reference],
+        capture_output=True, text=True, check=True, env=_command_environment(),
+    )
+    metadata = json.loads(result.stdout)
+    nodes = metadata["locks"]["nodes"]
+    if set(nodes[metadata["locks"]["root"]].get("inputs", {})) != {"zenpkgs"}:
+        raise RuntimeError("online config must have only the zenpkgs root input")
+    source = metadata["path"]
+    os.makedirs(destination, exist_ok=False)
+    for name in ("flake.nix", "flake.lock"):
+        original = os.path.join(source, name)
+        if os.path.islink(original):
+            raise RuntimeError("online config cannot contain symlinks")
+        if os.path.isfile(original):
+            shutil.copyfile(original, os.path.join(destination, name))
+    original_host = _host_dir(source, host)
+    if os.path.islink(original_host) or not os.path.isdir(original_host):
+        raise RuntimeError("online config does not contain the selected host")
+    # Validate every entry before copytree can follow anything outside the source.
+    for directory, directories, files in os.walk(original_host, followlinks=False):
+        for name in directories + files:
+            path = os.path.join(directory, name)
+            mode = os.lstat(path).st_mode
+            if not (stat.S_ISREG(mode) or stat.S_ISDIR(mode)):
+                raise RuntimeError("online host cannot contain symlinks or special files")
+            if stat.S_ISREG(mode) and not name.endswith(".zcfg"):
+                raise RuntimeError("online host files must be ZCFG")
+    shutil.copytree(original_host, _host_dir(destination, host))
+    _validate_config_layout(destination)
+    return destination
+
+
+def _online_preflight(config_dir: str, host: str, username: str, log_fn=None) -> None:
+    selector = f"{config_dir}#nixosConfigurations.{host}.config"
+    if not DRY_RUN:
+        for option, expected in (
+            (f"users.users.{username}.isNormalUser", True),
+            ("zenos.system.oobeMode", False),
+        ):
+            result = subprocess.run(
+                ["nix", "eval", "--json", "--no-write-lock-file", f"{selector}.{option}"],
+                capture_output=True, text=True, check=True, env=_command_environment(),
+            )
+            if json.loads(result.stdout) is not expected:
+                raise RuntimeError("online host must declare the selected normal user and disable OOBE")
+    _run(["nix", "eval", "--raw", "--no-write-lock-file", f"{selector}.system.build.toplevel.drvPath"], log_fn)
+
+
 def _run_online(pages: dict, work_dir: str, progress_fn, log_fn) -> None:
-    raise RuntimeError(
-        "online configs are unsupported until they implement the current template and hardware contract"
+    selection = pages.get("online", {})
+    host = _validate_host_name(selection.get("host", ""))
+    source = _fetch_online_source(
+        selection.get("flake", ""), host, os.path.join(work_dir, "online-source")
+    )
+    directory = _host_dir(source, host)
+    username = _validate_host_name(pages.get("user", {}).get("username", ""))
+    user_file = os.path.join(directory, "users", username, "main.zcfg")
+    if not os.path.isfile(user_file):
+        raise RuntimeError("choose an account already declared by the online configuration")
+    documents = {}
+    for current, _directories, files in os.walk(directory):
+        for name in files:
+            relative = os.path.relpath(os.path.join(current, name), directory)
+            if relative in {"hardware.zcfg", "graphics.zcfg", "drives.zcfg"}:
+                continue
+            with open(os.path.join(current, name), encoding="utf-8") as file:
+                documents[relative] = file.read()
+    for name in ("hardware.zcfg", "graphics.zcfg", "drives.zcfg"):
+        if f'_import "./{name}";' not in documents.get("host.zcfg", "").splitlines():
+            raise RuntimeError(f"online host must directly import ./{name}")
+    hashed = hash_password(pages["user"].get("password", ""))
+    relative_user = f"users/{username}/main.zcfg"
+    documents[relative_user] += "\n" + serialize_zcfg(
+        {"users": {username: {"legacy": {"hashedPassword": hashed}}}}
+    )
+    online_pages = {**pages, "computer_name": {"hostname": host}}
+    _install_local(
+        {"pages": list(online_pages.values())}, online_pages, work_dir,
+        progress_fn, log_fn, short=False,
+        online={"source": source, "documents": documents, "username": username},
     )
 
 

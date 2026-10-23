@@ -1080,3 +1080,97 @@ class KernelSelectionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OnlineInstallTests(unittest.TestCase):
+    def seed_online(self, work):
+        source = os.path.join(work, "downloaded")
+        host = os.path.join(source, "hosts", "zen-box")
+        os.makedirs(os.path.join(host, "users", "alice"))
+        runner._write_text(os.path.join(source, "flake.nix"), "{}")
+        runner._write_text(os.path.join(host, "host.zcfg"), ''.join(
+            f'_import "./{name}.zcfg";\n' for name in ("hardware", "graphics", "drives")
+        ) + '_import "./users/alice/main.zcfg";\n')
+        runner._write_text(os.path.join(host, "users", "alice", "main.zcfg"),
+                           'users.alice.profile.normalUser = true;\n')
+        for name in ("hardware", "graphics", "drives"):
+            runner._write_text(os.path.join(host, name + ".zcfg"), "# remote disk must not survive\n")
+        return source
+
+    def test_online_uses_selected_host_and_only_adds_hashed_credentials(self):
+        with tempfile.TemporaryDirectory() as work:
+            source = self.seed_online(work)
+            pages = {"online": {"host": "zen-box", "flake": "github:test/config"},
+                     "user": {"username": "alice", "password": "private-password"}}
+            with mock.patch.object(runner, "_fetch_online_source", return_value=source), \
+                 mock.patch.object(runner, "hash_password", return_value="$6$test$hash"), \
+                 mock.patch.object(runner, "_install_local") as install:
+                runner._run_online(pages, work, _progress, None)
+            online = install.call_args.kwargs["online"]
+            self.assertEqual(online["username"], "alice")
+            self.assertNotIn("hardware.zcfg", online["documents"])
+            self.assertNotIn("drives.zcfg", online["documents"])
+            self.assertIn("$6$test$hash", online["documents"]["users/alice/main.zcfg"])
+            self.assertNotIn("private-password", str(online))
+            self.assertEqual(install.call_args.args[1]["computer_name"]["hostname"], "zen-box")
+
+    def test_undeclared_user_and_missing_hardware_import_stop_before_install(self):
+        for invalid in ("user", "import"):
+            with self.subTest(invalid=invalid), tempfile.TemporaryDirectory() as work:
+                source = self.seed_online(work)
+                pages = {"online": {"host": "zen-box", "flake": "github:test/config"},
+                         "user": {"username": "bob" if invalid == "user" else "alice", "password": "secret"}}
+                if invalid == "import":
+                    runner._write_text(os.path.join(source, "hosts", "zen-box", "host.zcfg"), "")
+                with mock.patch.object(runner, "_fetch_online_source", return_value=source), \
+                     mock.patch.object(runner, "_install_local") as install:
+                    with self.assertRaises(RuntimeError):
+                        runner._run_online(pages, work, _progress, None)
+                    install.assert_not_called()
+
+    def test_online_dry_run_reuses_partition_flow_and_replaces_remote_storage(self):
+        for mode in ("auto", "manual"):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as work:
+                source = self.seed_online(work)
+                disk = {"id": "disks", "mode": mode, "disks": ["vda"], "partitions": [
+                    {"device": "/dev/vda1", "fs_type": "vfat"},
+                    {"device": "/dev/vda2", "fs_type": "ext4"}]}
+                pages = {"online": {"host": "zen-box", "flake": "github:test/config"},
+                         "user": {"username": "alice", "password": "secret"}, "disks": disk}
+                with mock.patch.object(runner, "_fetch_online_source", return_value=source), \
+                     mock.patch.object(runner, "hash_password", return_value="$6$test$hash"), \
+                     mock.patch.object(runner, "_online_preflight") as preflight:
+                    runner._run_online(pages, work, _progress, None)
+                preflight.assert_called_once()
+                host = os.path.join(runner._dry_config_root(work), "hosts", "zen-box")
+                for name in ("hardware", "graphics", "drives"):
+                    with open(os.path.join(host, name + ".zcfg")) as file:
+                        self.assertNotIn("remote disk must not survive", file.read())
+
+    def test_fetch_rejects_links_before_copying_selected_host(self):
+        with tempfile.TemporaryDirectory() as work:
+            source = self.seed_online(work)
+            host = os.path.join(source, "hosts", "zen-box")
+            os.symlink("/etc/passwd", os.path.join(host, "users", "alice", "escape.zcfg"))
+            metadata = {"path": source, "locks": {"root": "root", "nodes": {
+                "root": {"inputs": {"zenpkgs": "zenpkgs"}}}}}
+            result = subprocess.CompletedProcess([], 0, json.dumps(metadata), "")
+            with mock.patch.object(runner.subprocess, "run", return_value=result):
+                with self.assertRaisesRegex(RuntimeError, "symlinks or special files"):
+                    runner._fetch_online_source("github:test/config", "zen-box", os.path.join(work, "fetched"))
+
+    def test_online_evaluation_failure_never_cleans_or_partitions_disks(self):
+        with tempfile.TemporaryDirectory() as work:
+            source = self.seed_online(work)
+            pages = {"online": {"host": "zen-box", "flake": "github:test/config"},
+                     "user": {"username": "alice", "password": "secret"},
+                     "disks": {"id": "disks", "mode": "auto", "disks": ["vda"]}}
+            with mock.patch.object(runner, "_fetch_online_source", return_value=source), \
+                 mock.patch.object(runner, "hash_password", return_value="$6$test$hash"), \
+                 mock.patch.object(runner, "_online_preflight", side_effect=RuntimeError("invalid config")), \
+                 mock.patch.object(runner, "_cleanup_mount_root") as cleanup, \
+                 mock.patch.object(runner, "_nixos_install") as install:
+                with self.assertRaisesRegex(RuntimeError, "invalid config"):
+                    runner._run_online(pages, work, _progress, None)
+                cleanup.assert_not_called()
+                install.assert_not_called()

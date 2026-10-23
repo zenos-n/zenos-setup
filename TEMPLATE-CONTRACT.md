@@ -114,3 +114,23 @@ packages, and unimplemented app extras.
 Other desktop choices use upstream legacy options and are checked against the
 image's pinned runtime before disk work. Custom online configs are rejected
 until they implement this template and hardware contract.
+
+## Online installation contract
+
+Online configuration repositories use the same single-ZenPkgs flake and
+`hosts/<name>/host.zcfg` layout. Setup fetches an immutable flake source,
+selects one declared host, and copies only flake.nix, flake.lock and that host.
+Documentation and Git metadata are not installed. No source symlinks or special
+files are accepted. The fetched host is checked with the canonical compiler.
+
+Setup owns hardware.zcfg, graphics.zcfg and drives.zcfg during installation:
+remote copies are discarded and replaced with detected hardware and the disk
+selection made in Setup. The host must import each generated file directly.
+The online user page sets a password for an account already declared by the
+configuration; it cannot add a second account. Only its hashedPassword is
+appended to that user's main.zcfg. No private credentials are published.
+
+All fetching, source validation, password hashing, compilation and host evaluation
+must succeed before disk operations. Online installations reuse the local flow's
+partitioning, target hardware scan, canonical user publication, snapshot and
+rollback behavior. They install the selected final host, with OOBE disabled.
