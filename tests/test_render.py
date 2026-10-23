@@ -30,14 +30,15 @@ class RenderTests(unittest.TestCase):
             ("theming", "apps", "adw-gtk3"),
             ("theming", "cursors", "google-dot"),
         ]
-        outputs = ["zenos-" + "-".join(path) for path in paths]
         expression = (
             "let zenpkgs = builtins.getFlake "
             + json.dumps("path:" + os.environ["ZENOS_SETUP_RUNTIME_SOURCE"])
-            + "; names = builtins.fromJSON "
-            + json.dumps(json.dumps(outputs))
-            + "; in builtins.filter (name: !(builtins.hasAttr name "
-            + "zenpkgs.packages.x86_64-linux)) names"
+            + "; pkgs = import zenpkgs.inputs.nixpkgs { "
+            + 'system = "x86_64-linux"; overlays = [ zenpkgs.overlays.default ]; '
+            + "config.allowUnfree = true; }; paths = builtins.fromJSON "
+            + json.dumps(json.dumps(paths))
+            + "; in builtins.filter (path: !(zenpkgs.inputs.nixpkgs.lib.hasAttrByPath "
+            + '([ "byCategories" ] ++ path) pkgs.zenos)) paths'
         )
         result = subprocess.run(
             ["nix", "eval", "--impure", "--json", "--expr", expression],
