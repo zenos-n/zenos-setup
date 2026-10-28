@@ -103,6 +103,15 @@ def default_payload():
 
 
 class BuilderTests(unittest.TestCase):
+    def test_gnosis_and_select_are_optional_software(self):
+        payload = {"pages": [{"id": "software", "apps": [
+            {"app": "gnosis", "enabled": True},
+            {"app": "select-for-figma", "enabled": True},
+        ]}]}
+        packages = build_config_tree(payload)["system"]["packages"]["byCategories"]["apps"]
+        self.assertTrue(packages["browsers"]["gnosis"])
+        self.assertTrue(packages["graphics"]["select-for-figma"])
+
     def test_full_payload_maps_to_declarative_config(self):
         tree = build_config_tree(FULL_PAYLOAD, password_hash="$6$test$hash")
 

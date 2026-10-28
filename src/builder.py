@@ -152,13 +152,13 @@ CORE_PACKAGE_PATHS = {
 APP_PACKAGE_PATHS = {
     app: ("apps", *category.split("."), app)
     for category, apps in {
-        "browsers": "firefox librewolf ungoogled-chromium brave-browser tor-browser",
+        "browsers": "firefox librewolf ungoogled-chromium brave-browser tor-browser gnosis",
+        "graphics": "select-for-figma curtail",
         "gaming": "steam heroic lutris bottles prism-launcher retroarch",
         "development": "vscode zed gnome-builder neovim helix gitg github-cli docker jetbrains-toolbox",
         "system": "kitty btop fish zsh",
         "backup": "pika-backup",
         "security": "metadata-cleaner cipher keepassxc bitwarden",
-        "graphics": "curtail",
         "virtualization": "gnome-boxes virt-manager",
         "archives": "file-roller",
         "storage": "impression gparted",

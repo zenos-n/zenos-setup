@@ -103,6 +103,15 @@
             ]
         },
         {
+            "id": "gnosis",
+            "name": "Gnosis",
+            "icon": "io.github.doromiert.Jupiter",
+            "version": "0.1.0",
+            "license": "GPL-3.0-or-later",
+            "description": "Native GNOME browser with an embedded Brave engine.",
+            "extraOptions": []
+        },
+        {
             "id": "tor-browser",
             "name": "Tor Browser",
             "icon": "tor-browser",
@@ -699,6 +708,21 @@
                         "subtitle": "Installs Starship for a fast, minimal, and informative shell prompt"
                     }
                 ]
+            }
+        ]
+    },
+    "graphics": {
+        "title": "Graphics & Design",
+        "subtitle": "Creative applications and design tools.",
+        "apps": [
+            {
+                "id": "select-for-figma",
+                "name": "Select for Figma",
+                "icon": "io.github.doromiert.SelectForFigma",
+                "version": "1.0.2",
+                "license": "GPL-3.0-only",
+                "description": "Native GNOME Figma client with local fonts and document tabs.",
+                "extraOptions": []
             }
         ]
     },
