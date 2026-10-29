@@ -5,7 +5,7 @@
         "apps": [
         {
             "id": "firefox",
-            "default": true,
+            "default": false,
             "name": "Mozilla Firefox",
             "icon": "firefox",
             "version": "125.0.1",
@@ -104,8 +104,9 @@
         },
         {
             "id": "gnosis",
+            "default": true,
             "name": "Gnosis",
-            "icon": "io.github.doromiert.Jupiter",
+            "icon": "com.neg-zero.Gnosis",
             "version": "0.1.0",
             "license": "GPL-3.0-or-later",
             "description": "Native GNOME browser with an embedded Brave engine.",

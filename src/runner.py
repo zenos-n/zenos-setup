@@ -1325,19 +1325,23 @@ def _fetch_online_source(reference: str, host: str, destination: str) -> str:
     return destination
 
 
-def _online_preflight(config_dir: str, host: str, username: str, log_fn=None) -> None:
+def _online_preflight(config_dir: str, host: str, username: str | None = None, log_fn=None) -> None:
     selector = f"{config_dir}#nixosConfigurations.{host}.config"
     if not DRY_RUN:
-        for option, expected in (
-            (f"users.users.{username}.isNormalUser", True),
-            ("zenos.system.oobeMode", False),
-        ):
-            result = subprocess.run(
-                ["nix", "eval", "--json", "--no-write-lock-file", f"{selector}.{option}"],
-                capture_output=True, text=True, check=True, env=_command_environment(),
-            )
-            if json.loads(result.stdout) is not expected:
-                raise RuntimeError("online host must declare the selected normal user and disable OOBE")
+        result = subprocess.run(
+            ["nix", "eval", "--json", "--no-write-lock-file", f"{selector}.users.users",
+             "--apply", 'users: builtins.filter (name: users.${name}.isNormalUser && (users.${name}.enable or true)) (builtins.attrNames users)'],
+            capture_output=True, text=True, check=True, env=_command_environment(),
+        )
+        accounts = json.loads(result.stdout)
+        if not isinstance(accounts, list) or not accounts:
+            raise RuntimeError("online configuration must declare at least one enabled normal user")
+        result = subprocess.run(
+            ["nix", "eval", "--json", "--no-write-lock-file", f"{selector}.zenos.system.oobeMode"],
+            capture_output=True, text=True, check=True, env=_command_environment(),
+        )
+        if json.loads(result.stdout) is not False:
+            raise RuntimeError("online configuration must disable OOBE")
     _run(["nix", "eval", "--raw", "--no-write-lock-file", f"{selector}.system.build.toplevel.drvPath"], log_fn)
 
 
@@ -1348,10 +1352,6 @@ def _run_online(pages: dict, work_dir: str, progress_fn, log_fn) -> None:
         selection.get("flake", ""), host, os.path.join(work_dir, "online-source")
     )
     directory = _host_dir(source, host)
-    username = _validate_host_name(pages.get("user", {}).get("username", ""))
-    user_file = os.path.join(directory, "users", username, "main.zcfg")
-    if not os.path.isfile(user_file):
-        raise RuntimeError("choose an account already declared by the online configuration")
     documents = {}
     for current, _directories, files in os.walk(directory):
         for name in files:
@@ -1363,16 +1363,11 @@ def _run_online(pages: dict, work_dir: str, progress_fn, log_fn) -> None:
     for name in ("hardware.zcfg", "graphics.zcfg", "drives.zcfg"):
         if f'_import "./{name}";' not in documents.get("host.zcfg", "").splitlines():
             raise RuntimeError(f"online host must directly import ./{name}")
-    hashed = hash_password(pages["user"].get("password", ""))
-    relative_user = f"users/{username}/main.zcfg"
-    documents[relative_user] += "\n" + serialize_zcfg(
-        {"users": {username: {"legacy": {"hashedPassword": hashed}}}}
-    )
     online_pages = {**pages, "computer_name": {"hostname": host}}
     _install_local(
         {"pages": list(online_pages.values())}, online_pages, work_dir,
         progress_fn, log_fn, short=False,
-        online={"source": source, "documents": documents, "username": username},
+        online={"source": source, "documents": documents, "username": None},
     )
 
 

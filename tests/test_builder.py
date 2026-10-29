@@ -103,6 +103,18 @@ def default_payload():
 
 
 class BuilderTests(unittest.TestCase):
+    def test_selected_gnome_defaults_and_gnosis_default_handler(self):
+        payload = default_payload()
+        for page in payload["pages"]:
+            if page["id"] == "desktop":
+                page["gnome_options"]["extension_ids"].append("hide-top-bar")
+        tree = build_config_tree(payload, password_hash="$6$test$hash")
+        extensions = tree["desktops"]["gnome"]["extensions"]
+        self.assertTrue(extensions["hide-top-bar"]["mouse-sensitive"])
+        self.assertEqual(extensions["alphabetical-app-grid"]["folder-order-position"], "end")
+        self.assertEqual(tree["system"]["programs"]["gnosis"], {"enable": True, "defaultBrowser": True})
+
+
     def test_gnosis_and_select_are_optional_software(self):
         payload = {"pages": [{"id": "software", "apps": [
             {"app": "gnosis", "enabled": True},
@@ -372,6 +384,7 @@ class BuilderTests(unittest.TestCase):
         self.assertTrue(extensions["dash-stacks"]["enable"])
         self.assertTrue(extensions["forge"]["enable"])
         self.assertTrue(extensions["alphabetical-app-grid"]["enable"])
+        self.assertEqual(extensions["alphabetical-app-grid"]["folder-order-position"], "end")
         self.assertTrue(extensions["clipboard-indicator"]["enable"])
         self.assertFalse(extensions["app-hider"]["enable"])
         self.assertFalse(extensions["burn-my-windows"]["enable"])

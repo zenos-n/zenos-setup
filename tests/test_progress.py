@@ -79,7 +79,8 @@ class ProgressTourTests(unittest.TestCase):
         )
         self.assertGreaterEqual(len(extensions), 15)
         self.assertTrue(any(item["id"] == "forge" for item in extensions))
-        self.assertTrue(apps["browsers"]["apps"][0]["default"])
+        self.assertFalse(apps["browsers"]["apps"][0]["default"])
+        self.assertTrue(next(app for app in apps["browsers"]["apps"] if app["id"] == "gnosis")["default"])
         resources = next(app for app in apps["utilities"]["apps"] if app["id"] == "resources")
         self.assertTrue(resources["default"])
         catalog_apps = [

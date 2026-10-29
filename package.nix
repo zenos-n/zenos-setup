@@ -23,6 +23,8 @@
   gnome-console,
   openssl,
   xvfb-run,
+  papirus-icon-theme,
+  applicationIcons ? { },
 }:
 let
   python = python3.withPackages (
@@ -74,6 +76,29 @@ stdenv.mkDerivation {
   ];
 
   postInstall = ''
+    # The selection page must not depend on the selected apps already being
+    # installed. Ship their actual icon artwork in the inherited hicolor theme.
+    export SETUP_ICON_PACK=${papirus-icon-theme}/share/icons/Papirus
+    ${python}/bin/python3 - "$src/src/views/extra_software/apps.json" "$out/share/icons/hicolor/scalable/apps" <<'PYICONS'
+import json, os, pathlib, shutil, sys
+catalog = json.loads(pathlib.Path(sys.argv[1]).read_text())
+destination = pathlib.Path(sys.argv[2]); destination.mkdir(parents=True, exist_ok=True)
+pack = pathlib.Path(os.environ["SETUP_ICON_PACK"])
+for category in catalog.values():
+    for app in category if isinstance(category, list) else category.get("apps", []):
+        icon = app.get("icon", "")
+        if not icon or not app.get("available", True):
+            continue
+        for size in ("64x64", "48x48", "32x32", "24x24"):
+            source = pack / size / "apps" / (icon + ".svg")
+            if source.is_file():
+                shutil.copyfile(source, destination / (icon + ".svg"))
+                break
+PYICONS
+    ${lib.concatStringsSep "\n" (lib.mapAttrsToList (name: source:
+      "install -Dm644 ${lib.escapeShellArg (toString source)} \"$out/share/icons/hicolor/scalable/apps/${name}.svg\""
+    ) applicationIcons)}
+
     PYTHONDONTWRITEBYTECODE=1 \
       PYTHONPATH="$out/share/zenos-setup" \
       ${python}/bin/python3 -c \

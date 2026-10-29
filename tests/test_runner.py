@@ -1097,7 +1097,7 @@ class OnlineInstallTests(unittest.TestCase):
             runner._write_text(os.path.join(host, name + ".zcfg"), "# remote disk must not survive\n")
         return source
 
-    def test_online_uses_selected_host_and_only_adds_hashed_credentials(self):
+    def test_online_preserves_declared_accounts_without_collecting_credentials(self):
         with tempfile.TemporaryDirectory() as work:
             source = self.seed_online(work)
             pages = {"online": {"host": "zen-box", "flake": "github:test/config"},
@@ -1107,15 +1107,15 @@ class OnlineInstallTests(unittest.TestCase):
                  mock.patch.object(runner, "_install_local") as install:
                 runner._run_online(pages, work, _progress, None)
             online = install.call_args.kwargs["online"]
-            self.assertEqual(online["username"], "alice")
+            self.assertIsNone(online["username"])
             self.assertNotIn("hardware.zcfg", online["documents"])
             self.assertNotIn("drives.zcfg", online["documents"])
-            self.assertIn("$6$test$hash", online["documents"]["users/alice/main.zcfg"])
+            self.assertEqual(online["documents"]["users/alice/main.zcfg"], "users.alice.profile.normalUser = true;\n")
             self.assertNotIn("private-password", str(online))
             self.assertEqual(install.call_args.args[1]["computer_name"]["hostname"], "zen-box")
 
     def test_undeclared_user_and_missing_hardware_import_stop_before_install(self):
-        for invalid in ("user", "import"):
+        for invalid in ("import",):
             with self.subTest(invalid=invalid), tempfile.TemporaryDirectory() as work:
                 source = self.seed_online(work)
                 pages = {"online": {"host": "zen-box", "flake": "github:test/config"},
@@ -1174,3 +1174,28 @@ class OnlineInstallTests(unittest.TestCase):
                     runner._run_online(pages, work, _progress, None)
                 cleanup.assert_not_called()
                 install.assert_not_called()
+
+
+class OnlineAccountValidationTests(unittest.TestCase):
+    def test_userless_config_is_rejected_by_evaluation(self):
+        with mock.patch.object(runner, "DRY_RUN", False), \
+             mock.patch.object(runner.subprocess, "run", return_value=mock.Mock(stdout="[]")), \
+             mock.patch.object(runner, "_run") as build:
+            with self.assertRaisesRegex(RuntimeError, "at least one enabled normal user"):
+                runner._online_preflight("/tmp/config", "host")
+            build.assert_not_called()
+
+    def test_multiple_declared_users_are_preserved(self):
+        with mock.patch.object(runner, "DRY_RUN", False), \
+             mock.patch.object(runner.subprocess, "run", side_effect=[mock.Mock(stdout='["alice","bob"]'), mock.Mock(stdout="false")]), \
+             mock.patch.object(runner, "_run") as build:
+            runner._online_preflight("/tmp/config", "host")
+            build.assert_called_once()
+
+    def test_online_oobe_is_rejected(self):
+        with mock.patch.object(runner, "DRY_RUN", False), \
+             mock.patch.object(runner.subprocess, "run", side_effect=[mock.Mock(stdout='["alice"]'), mock.Mock(stdout="true")]), \
+             mock.patch.object(runner, "_run") as build:
+            with self.assertRaisesRegex(RuntimeError, "disable OOBE"):
+                runner._online_preflight("/tmp/config", "host")
+            build.assert_not_called()

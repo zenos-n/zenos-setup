@@ -180,6 +180,10 @@ def _gnome_profile(tree, options, shortcuts, theme, enabled_extensions):
     }
     extensions["customize-clock-on-lockscreen"] = {"enable": False}
     _set_path(tree, ("desktops", "gnome", "extensions"), extensions)
+    if "hide-top-bar" in enabled_extensions:
+        extensions["hide-top-bar"]["mouse-sensitive"] = True
+    if "alphabetical-app-grid" in enabled_extensions:
+        extensions["alphabetical-app-grid"]["folder-order-position"] = "end"
     directions = shortcuts.get("directions", "vim")
     actions = shortcuts.get("actions", "zenos")
     if directions not in {"standard", "vim"}:
@@ -229,7 +233,7 @@ def _gnome_profile(tree, options, shortcuts, theme, enabled_extensions):
         }
         for name, title, command, binding in (
             ("files", "Files", "nautilus --new-window", "<Super>e"),
-            ("terminal", "Console", "kgx", "<Super>t"),
+            ("terminal", "Black Box Next", "blackbox-next", "<Super>t"),
             ("resources", "Resources", "resources", "<Control><Shift>Escape"),
         ):
             path = f"{media}/custom-keybindings/{name}"
@@ -701,6 +705,9 @@ def build_config_tree(
             raise ValueError(
                 f"application is unavailable in the current ZenPkgs registry: {app_id}"
             )
+        if app_id == "gnosis":
+            _set_path(tree, ("system", "programs", "gnosis", "enable"), True)
+            _set_path(tree, ("system", "programs", "gnosis", "defaultBrowser"), True)
         if app_id == "firefox":
             firefox_enabled = True
             firefox_gnome_theme = "gnome_theme" in extra_options

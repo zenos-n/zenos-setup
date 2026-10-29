@@ -63,6 +63,10 @@ class Page(Adw.Bin):
         # nix flake urls are a bit of a wild west, but this covers the basics
         is_valid = bool(re.match(r'^(github:|git\+|https?://|gitlab:|flake:|/|\./)', text))
 
+        self.host_dropdown.set_model(Gtk.StringList.new([]))
+        self.state["selected_host"] = ""
+        if self.router:
+            self.router.set_next_enabled(False, caller=self)
         if not is_valid and text:
             entry.add_css_class('error')
         else:
@@ -72,6 +76,9 @@ class Page(Adw.Bin):
         url = entry.get_text().strip()
         if not url:
             return
+
+        if self.router:
+            self.router.set_next_enabled(False, caller=self)
 
         # show and start spinner
         self.url_spinner.set_visible(True)
@@ -107,7 +114,17 @@ class Page(Adw.Bin):
             data = json.loads(result.stdout)
 
             if 'nixosConfigurations' in data:
-                hosts = list(data['nixosConfigurations'].keys())
+                for host in data['nixosConfigurations']:
+                    result = subprocess.run(
+                        ['nix', 'eval', '--json', '--no-write-lock-file',
+                         f'{url}#nixosConfigurations.{host}.config.users.users', '--apply',
+                         'users: builtins.filter (name: users.${name}.isNormalUser && (users.${name}.enable or true)) (builtins.attrNames users)'],
+                        capture_output=True, text=True, check=True,
+                    )
+                    if json.loads(result.stdout):
+                        hosts.append(host)
+                if not hosts:
+                    error_msg = "This config has no hosts with an enabled normal user. Add a user to the config before installing."
             else:
                 error_msg = "no nixosConfigurations found in this flake."
 

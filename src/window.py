@@ -25,8 +25,7 @@ FLOWS = {
                     "online": "online_install"
                 }
             },
-            "online_install": {"view": "online_config", "routes": {"next": "online_user_setup"}},
-            "online_user_setup": {"view": "user_setup", "routes": {"next": "run_install_script"}},
+            "online_install": {"view": "online_config", "routes": {"next": "run_install_script"}},
             "oobe_config_start": {"view": "computer_name", "routes": {"next": "user_setup"}},
             "user_setup": {"view": "user_setup", "routes": {"next": "desktop"}},
             "desktop": {
