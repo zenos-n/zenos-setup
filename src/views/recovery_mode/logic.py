@@ -33,7 +33,7 @@ class Page(Adw.Bin):
         subprocess.Popen(['firefox'])
 
     def on_terminal_clicked(self, *args):
-        subprocess.Popen(['blackbox-next'])
+        subprocess.Popen(['blankbox'])
 
     def on_disk_clicked(self, *args):
         subprocess.Popen(['gparted'])

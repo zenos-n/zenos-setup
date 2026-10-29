@@ -233,7 +233,7 @@ def _gnome_profile(tree, options, shortcuts, theme, enabled_extensions):
         }
         for name, title, command, binding in (
             ("files", "Files", "nautilus --new-window", "<Super>e"),
-            ("terminal", "Black Box Next", "blackbox-next", "<Super>t"),
+            ("terminal", "Blankbox", "blankbox", "<Super>t"),
             ("resources", "Resources", "resources", "<Control><Shift>Escape"),
         ):
             path = f"{media}/custom-keybindings/{name}"
