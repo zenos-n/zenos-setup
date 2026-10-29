@@ -239,6 +239,10 @@ def _gnome_profile(tree, options, shortcuts, theme, enabled_extensions):
             path = f"{media}/custom-keybindings/{name}"
             settings[media]["custom-keybindings"].append(f"/{path}/")
             settings[path] = {"name": title, "command": command, "binding": binding}
+    if actions == "zenos" and "clipboard-indicator" in enabled_extensions:
+        extensions["clipboard-indicator"]["keybindings"] = {
+            "toggle-menu": ["<Control><Super>v"],
+        }
     if "forge" in enabled_extensions:
         bindings = {}
         for direction, key in keys.items():
@@ -249,6 +253,8 @@ def _gnome_profile(tree, options, shortcuts, theme, enabled_extensions):
             bindings[f"window-swap-{direction}"] = []
         if actions == "zenos":
             bindings["prefs-tiling-toggle"] = []
+            bindings["window-toggle-float"] = ["super", "f"]
+            bindings["window-toggle-always-float"] = ["shift", "super", "f"]
         extensions["forge"].update(
             {
                 "keybindings": bindings,
