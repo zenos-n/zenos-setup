@@ -470,6 +470,10 @@ class BuilderTests(unittest.TestCase):
                     actions == "zenos",
                 )
                 self.assertEqual(
+                    settings["org/gnome/desktop/wm/keybindings"].get("toggle-fullscreen"),
+                    ["<Super>F11"] if actions == "zenos" else None,
+                )
+                self.assertEqual(
                     tree["desktops"]["gnome"]["extensions"]["user-themes"],
                     {"enable": True},
                 )

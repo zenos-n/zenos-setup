@@ -217,6 +217,7 @@ def _gnome_profile(tree, options, shortcuts, theme, enabled_extensions):
             {
                 "close": ["<Super>q"],
                 "toggle-maximized": ["<Super>w"],
+                "toggle-fullscreen": ["<Super>F11"],
                 "minimize": ["<Super>Page_Down"],
                 "activate-window-menu": ["<Alt>space"],
                 "begin-resize": ["<Control><Super>c"],
