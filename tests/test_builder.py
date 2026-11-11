@@ -684,8 +684,8 @@ class BuilderTests(unittest.TestCase):
                                 self.assertEqual(
                                     gdm["org/gnome/login-screen"]["logo"],
                                     PackageFile(
-                                        PkgsRef(("byCategories", "theming", "icons", "zenos-icons")),
-                                        "/share/icons/hicolor/scalable/apps/zenos.svg",
+                                        PkgsRef(("byCategories", "theming", "system", "zenos-branding")),
+                                        "/share/pixmaps/zenos-gdm-symbolic.svg",
                                     ),
                                 )
                                 self.assertTrue(

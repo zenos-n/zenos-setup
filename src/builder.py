@@ -384,8 +384,8 @@ def _gnome_profile(tree, options, shortcuts, theme, enabled_extensions):
                         "org/gnome/login-screen": {
                             "disable-user-list": False,
                             "logo": PackageFile(
-                                PkgsRef(("byCategories", "theming", "icons", "zenos-icons")),
-                                "/share/icons/hicolor/scalable/apps/zenos.svg",
+                                PkgsRef(("byCategories", "theming", "system", "zenos-branding")),
+                                "/share/pixmaps/zenos-gdm-symbolic.svg",
                             ),
                         },
                         "org/gnome/desktop/lockdown": {"disable-lock-screen": True},
