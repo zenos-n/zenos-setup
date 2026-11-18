@@ -96,12 +96,20 @@
     "recommended": true
   },
   {
+    "id": "app-library",
+    "name": "App Library",
+    "description": "Groups apps into categories with animated folders and customizable ordering.",
+    "packagePath": ["zenos", "apps", "gnome-extensions", "app-library"],
+    "liveEnabled": true,
+    "recommended": true
+  },
+  {
     "id": "alphabetical-app-grid",
     "name": "Alphabetical App Grid",
     "description": "Keeps the application grid alphabetically ordered.",
     "packagePath": ["zenos", "apps", "gnome-extensions", "alphabetical-app-grid"],
     "liveEnabled": false,
-    "recommended": true
+    "recommended": false
   },
   {
     "id": "app-hider",

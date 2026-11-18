@@ -103,6 +103,17 @@ def default_payload():
 
 
 class BuilderTests(unittest.TestCase):
+    def test_app_library_is_recommended_and_optional(self):
+        catalog = json.loads((Path(__file__).resolve().parents[1] / "data/gnome-extensions.json").read_text())
+        recommended = {entry["id"] for entry in catalog if entry.get("recommended")}
+        self.assertIn("app-library", recommended)
+        self.assertNotIn("alphabetical-app-grid", recommended)
+        payload = default_payload()
+        desktop = next(page for page in payload["pages"] if page["id"] == "desktop")
+        desktop["gnome_options"]["extension_ids"].remove("app-library")
+        extensions = build_config_tree(payload, password_hash="$6$test$hash")["desktops"]["gnome"]["extensions"]
+        self.assertFalse(extensions["app-library"]["enable"])
+
     def test_selected_gnome_defaults_and_gnosis_default_handler(self):
         payload = default_payload()
         for page in payload["pages"]:
@@ -111,7 +122,8 @@ class BuilderTests(unittest.TestCase):
         tree = build_config_tree(payload, password_hash="$6$test$hash")
         extensions = tree["desktops"]["gnome"]["extensions"]
         self.assertTrue(extensions["hide-top-bar"]["mouse-sensitive"])
-        self.assertEqual(extensions["alphabetical-app-grid"]["folder-order-position"], "end")
+        self.assertTrue(extensions["app-library"]["enable"])
+        self.assertFalse(extensions["alphabetical-app-grid"]["enable"])
         self.assertEqual(tree["system"]["programs"]["gnosis"], {"enable": True, "defaultBrowser": True})
 
 
@@ -383,8 +395,8 @@ class BuilderTests(unittest.TestCase):
         extensions = gnome["extensions"]
         self.assertTrue(extensions["dash-stacks"]["enable"])
         self.assertTrue(extensions["forge"]["enable"])
-        self.assertTrue(extensions["alphabetical-app-grid"]["enable"])
-        self.assertEqual(extensions["alphabetical-app-grid"]["folder-order-position"], "end")
+        self.assertTrue(extensions["app-library"]["enable"])
+        self.assertFalse(extensions["alphabetical-app-grid"]["enable"])
         self.assertTrue(extensions["clipboard-indicator"]["enable"])
         self.assertFalse(extensions["app-hider"]["enable"])
         self.assertFalse(extensions["burn-my-windows"]["enable"])
@@ -530,6 +542,8 @@ class BuilderTests(unittest.TestCase):
                         self.assertTrue(tree["desktops"]["gnome"]["enable"])
                         modules = tree["desktops"]["gnome"]["extensions"]
                         expected = set(selected) if enabled else set()
+                        if "app-library" in expected:
+                            expected.discard("alphabetical-app-grid")
                         if tiling:
                             expected.add("forge")
                         self.assertEqual(

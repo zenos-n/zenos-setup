@@ -174,6 +174,9 @@ APP_PACKAGE_PATHS = {
 
 def _gnome_profile(tree, options, shortcuts, theme, enabled_extensions):
     """Map Setup choices to desktop settings and typed extension modules."""
+    enabled_extensions = set(enabled_extensions)
+    if "app-library" in enabled_extensions:
+        enabled_extensions.discard("alphabetical-app-grid")
     extensions = {
         name: {"enable": name in enabled_extensions}
         for name in sorted(GNOME_EXTENSION_IDS)
